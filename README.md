@@ -1,2 +1,2 @@
 # syncer
-Service for syncing with Arweave nodex
+Service for syncing with Arweave nodes
