@@ -43,7 +43,7 @@ build:  | $(BASE); $(info $(M) building executable…) @
 
 .PHONY: run
 run: all | ; $(info $(M) starting app with default params…)
-	bin/$(PACKAGE) server
+	bin/$(PACKAGE) poller
 
 .PHONY: lint
 lint: $(GOLANGCILINT) | $(BASE) ; $(info $(M) running golangci-lint) @
