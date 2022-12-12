@@ -31,5 +31,5 @@ func Init(config *config.Config) (err error) {
 }
 
 func NewSublogger(tag string) *logrus.Entry {
-	return logger.WithFields(logrus.Fields{"type": "app." + tag})
+	return logger.WithFields(logrus.Fields{"type": "syncer." + tag})
 }
