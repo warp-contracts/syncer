@@ -12,7 +12,7 @@ M = $(shell printf "\033[34;1m▶\033[0m")
 
 # Default target
 .PHONY: all
-all:  build | $(BASE); $(info $(M) built everything!) @
+all:  build lint | $(BASE); $(info $(M) built and lint everything!) @
 
 # Setup
 $(BASE): ; $(info $(M) setting GOPATH…)

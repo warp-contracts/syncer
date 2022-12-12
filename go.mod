@@ -3,6 +3,7 @@ module syncer
 go 1.19
 
 require (
+	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
 )
