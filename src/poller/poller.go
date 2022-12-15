@@ -31,25 +31,47 @@ func NewPoller(ctx context.Context, config *config.Config) (self *Poller, err er
 }
 
 func (self *Poller) Start() {
-	go self.run()
+	go func() {
+		defer func() {
+			var err error
+			if p := recover(); p != nil {
+				switch p := p.(type) {
+				case error:
+					err = p
+				default:
+					err = fmt.Errorf("%s", p)
+				}
+				self.log.WithError(err).Error("Panic in poller. Stopping.")
+				self.Stop()
+				panic(p)
+			}
+		}()
+		self.run()
+	}()
 }
 
-// Started every time a connection is established
 func (self *Poller) run() {
-	defer func() {
-		var err error
-		if p := recover(); p != nil {
-			switch p := p.(type) {
-			case error:
-				err = p
-			default:
-				err = fmt.Errorf("%s", p)
+	listener, err := NewListener(self.Ctx, self.config, 1063213)
+	if err != nil {
+		return
+	}
+	listener.Start()
+	defer listener.Stop()
+
+	for {
+		select {
+		case <-self.Ctx.Done():
+			// Listener is closing
+			return
+		case interaction, ok := <-listener.Interactions:
+			if !ok {
+				// Channel closed, close the listener
+				self.cancel()
+				return
 			}
-			self.log.WithError(err).Error("Panic in poller. Stopping.")
-			self.Stop()
-			panic(p)
+			self.log.WithField("height", interaction.BlockHeight).Debug("New interaction")
 		}
-	}()
+	}
 }
 
 func (self *Poller) Stop() {

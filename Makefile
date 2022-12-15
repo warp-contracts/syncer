@@ -32,6 +32,8 @@ GOLANGCILINT = $(BIN)/golangci-lint
 $(BIN)/golangci-lint:
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.50.1
 
+GENTOOL = $(BIN)/gentool
+$(BIN)/gentool: REPOSITORY=gorm.io/gen/tools/gentool@latest
 
 # Build targets
 .PHONY: build
@@ -48,6 +50,10 @@ run: all | ; $(info $(M) starting app with default params…)
 .PHONY: lint
 lint: $(GOLANGCILINT) | $(BASE) ; $(info $(M) running golangci-lint) @
 	$Q $(GOLANGCILINT) run 
+
+.PHONY: generate
+generate: $(GENTOOL) | $(BASE) ; $(info $(M) generating model from the database) @
+	$Q $(GENTOOL) -db postgres -dsn "host=127.0.0.1 user=postgres password=postgres dbname=warp port=7654 sslmode=disable" -tables "interactions"
 
 .PHONY: test
 test:

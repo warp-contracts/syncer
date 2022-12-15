@@ -21,6 +21,12 @@ type Config struct {
 	// Logging
 	LogLevel string
 	LogPath  string
+
+	// Arsync
+	ArNodeUrl               string
+	ArConcurrentConnections int
+	ArStableDistance        int64
+	ListenerQueueSize       int
 }
 
 func setDefaults() {
@@ -32,6 +38,10 @@ func setDefaults() {
 	viper.SetDefault("DBSSLMode", "disable")
 	viper.SetDefault("LogLevel", "DEBUG")
 	viper.SetDefault("LogPath", "")
+	viper.SetDefault("ArNodeUrl", "https://arweave.net")
+	viper.SetDefault("ArConcurrentConnections", "50")
+	viper.SetDefault("ArStableDistance", "15")
+	viper.SetDefault("ListenerQueueSize", "50")
 }
 
 // Load configuration from file and env
