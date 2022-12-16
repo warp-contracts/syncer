@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -11,22 +12,38 @@ import (
 // Config stores global configuration
 type Config struct {
 	// SQL Database
-	DBPort     string
-	DBHost     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBSSLMode  string
+	DBPort        string
+	DBHost        string
+	DBUser        string
+	DBPassword    string
+	DBName        string
+	DBSSLMode     string
+	DBPingTimeout time.Duration
 
 	// Logging
 	LogLevel string
 	LogPath  string
 
-	// Arsync
 	ArNodeUrl               string
 	ArConcurrentConnections int
 	ArStableDistance        int64
-	ListenerQueueSize       int
+
+	// Received Arweave transactions converted to interactions and temporarily stored in the channel
+	// Normally interactions are passed to the Repository right away, but if Repository is in the middle of transaction it's not receiving data.
+	// So this capacity should account for interactions that may appear during a few second window when the previous batch is inserted to the database.
+	ListenerQueueSize int
+
+	// Num of Interactions that are stored in the Repository
+	// before being inserted into the database in one db transaction.
+	RepositoryBatchSize int
+
+	// Interactions are further divided and inserted in sub-batches
+	// to avoid big insert statements to minimize memory usage in the db.
+	RepositorySubBatchSize int
+
+	// After this time all Interactions in Repository will be inserted to the database.
+	// This is to avoid keeping them in the service for too long when waiting to fill the batch.
+	RepositoryMaxTimeInQueue time.Duration
 }
 
 func setDefaults() {
@@ -34,14 +51,18 @@ func setDefaults() {
 	viper.SetDefault("DBHost", "127.0.0.1")
 	viper.SetDefault("DBUser", "postgres")
 	viper.SetDefault("DBPassword", "postgres")
-	viper.SetDefault("DBName", "redstone")
+	viper.SetDefault("DBName", "warp")
 	viper.SetDefault("DBSSLMode", "disable")
+	viper.SetDefault("DBPingTimeout", "15s")
 	viper.SetDefault("LogLevel", "DEBUG")
 	viper.SetDefault("LogPath", "")
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")
 	viper.SetDefault("ArConcurrentConnections", "50")
 	viper.SetDefault("ArStableDistance", "15")
 	viper.SetDefault("ListenerQueueSize", "50")
+	viper.SetDefault("RepositoryBatchSize", "50")
+	viper.SetDefault("RepositorySubBatchSize", "50")
+	viper.SetDefault("RepositoryMaxTimeInQueue", "1s")
 }
 
 // Load configuration from file and env

@@ -3,8 +3,8 @@ package poller
 import (
 	"encoding/json"
 	"syncer/src/utils/config"
-	"syncer/src/utils/db"
 	"syncer/src/utils/logger"
+	"syncer/src/utils/model"
 	"syncer/src/utils/smartweave"
 
 	"context"
@@ -25,7 +25,7 @@ type Listener struct {
 	log    *logrus.Entry
 	syncer *arsyncer.Syncer
 
-	Interactions chan *db.Interaction
+	Interactions chan *model.Interaction
 }
 
 // Listens for changes
@@ -33,7 +33,7 @@ func NewListener(ctx context.Context, config *config.Config, startHeight int64) 
 	self = new(Listener)
 	self.log = logger.NewSublogger("listener")
 	self.config = config
-	self.Interactions = make(chan *db.Interaction, config.ListenerQueueSize)
+	self.Interactions = make(chan *model.Interaction, config.ListenerQueueSize)
 	// Global context for closing everything
 	self.Ctx, self.cancel = context.WithCancel(ctx)
 
@@ -99,13 +99,13 @@ func (self *Listener) receive() {
 	}
 }
 
-func (self *Listener) parse(tx *arsyncer.SubscribeTx) (out *db.Interaction, err error) {
+func (self *Listener) parse(tx *arsyncer.SubscribeTx) (out *model.Interaction, err error) {
 	decodedTags, err := utils.TagsDecode(tx.Tags)
 	if err != nil {
 		return
 	}
 
-	out = &db.Interaction{
+	out = &model.Interaction{
 		InteractionId:      tx.ID,
 		BlockHeight:        tx.BlockHeight,
 		BlockId:            tx.BlockId,

@@ -3,6 +3,7 @@ package poller
 import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
+	"syncer/src/utils/model"
 
 	"context"
 	"fmt"
@@ -46,22 +47,50 @@ func (self *Poller) Start() {
 				panic(p)
 			}
 		}()
-		self.run()
+
+		err := self.run()
+		if err != nil {
+			self.log.WithError(err).Error("Error in run()")
+		}
 	}()
 }
 
-func (self *Poller) run() {
-	listener, err := NewListener(self.Ctx, self.config, 1063213)
+func (self *Poller) run() (err error) {
+	// Stores interactions
+	repository, err := NewRepository(self.Ctx, self.config)
 	if err != nil {
 		return
 	}
+	repository.Start()
+	defer repository.Stop()
+
+	// Get the last stored block height
+	startHeight, err := model.LastBlockHeight(self.Ctx, repository.DB)
+	if err != nil {
+		return
+	}
+
+	// Listening for arweave transactions
+	listener, err := NewListener(self.Ctx, self.config, startHeight+1)
+	if err != nil {
+		return
+	}
+
 	listener.Start()
 	defer listener.Stop()
 
 	for {
 		select {
+		case <-repository.Ctx.Done():
+			self.log.Warn("Repository stopped")
+			self.cancel()
+			return
+		case <-listener.Ctx.Done():
+			self.log.Warn("Listener stopped")
+			self.cancel()
+			return
 		case <-self.Ctx.Done():
-			// Listener is closing
+			self.log.Warn("Syncer is stopping")
 			return
 		case interaction, ok := <-listener.Interactions:
 			if !ok {
@@ -69,7 +98,11 @@ func (self *Poller) run() {
 				self.cancel()
 				return
 			}
-			self.log.WithField("height", interaction.BlockHeight).Debug("New interaction")
+			err = repository.Save(self.Ctx, interaction)
+			if err != nil {
+				self.log.WithError(err).Error("Failed to store interaction")
+				// Log the error, but neglect it
+			}
 		}
 	}
 }
