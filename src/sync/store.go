@@ -1,4 +1,4 @@
-package poller
+package sync
 
 import (
 	"syncer/src/utils/config"
@@ -13,10 +13,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository handles saving data to the database in na robust way.
+// Store handles saving data to the database in na robust way.
 // - groups incoming Interactions into batches,
 // - ensures data isn't stuck even if a batch isn't big enough
-type Repository struct {
+type Store struct {
 	Ctx    context.Context
 	cancel context.CancelFunc
 
@@ -26,9 +26,9 @@ type Repository struct {
 	DB     *gorm.DB
 }
 
-func NewRepository(ctx context.Context, config *config.Config) (self *Repository, err error) {
-	self = new(Repository)
-	self.log = logger.NewSublogger("repository")
+func NewStore(ctx context.Context, config *config.Config) (self *Store, err error) {
+	self = new(Store)
+	self.log = logger.NewSublogger("store")
 	self.config = config
 
 	// Connection to the database
@@ -46,7 +46,7 @@ func NewRepository(ctx context.Context, config *config.Config) (self *Repository
 	return
 }
 
-func (self *Repository) Start() {
+func (self *Store) Start() {
 	go func() {
 		defer func() {
 			var err error
@@ -57,7 +57,7 @@ func (self *Repository) Start() {
 				default:
 					err = fmt.Errorf("%s", p)
 				}
-				self.log.WithError(err).Error("Panic in Repository. Stopping.")
+				self.log.WithError(err).Error("Panic in Store. Stopping.")
 				self.Stop()
 				panic(p)
 			}
@@ -69,7 +69,7 @@ func (self *Repository) Start() {
 	}()
 }
 
-func (self *Repository) Save(ctx context.Context, interaction *model.Interaction) (err error) {
+func (self *Store) Save(ctx context.Context, interaction *model.Interaction) (err error) {
 	// self.log.Debug("Save interaction")
 	// defer self.log.Debug("Interaction queued")
 
@@ -82,12 +82,12 @@ func (self *Repository) Save(ctx context.Context, interaction *model.Interaction
 }
 
 // Receives data from the input channel and saves in the database
-func (self *Repository) run() (err error) {
+func (self *Store) run() (err error) {
 	// Used to ensure data isn't stuck in Syncer for too long
-	ticker := time.NewTicker(self.config.RepositoryMaxTimeInQueue)
+	ticker := time.NewTicker(self.config.StoreMaxTimeInQueue)
 
 	// Fixed size buffer
-	interactions := make([]*model.Interaction, self.config.RepositoryBatchSize)
+	interactions := make([]*model.Interaction, self.config.StoreBatchSize)
 	idx := 0
 
 	insert := func() {
@@ -101,7 +101,7 @@ func (self *Repository) run() (err error) {
 			// 	// DoUpdates: clause.AssignmentColumns(colsNames),
 			// 	DoNothing: true,
 			// }).
-			CreateInBatches(interactions[:idx], self.config.RepositorySubBatchSize).
+			CreateInBatches(interactions[:idx], self.config.StoreSubBatchSize).
 			Error
 		if err != nil {
 			self.log.WithError(err).Error("Failed to insert Interactions")
@@ -114,7 +114,7 @@ func (self *Repository) run() (err error) {
 		idx = 0
 
 		// Prolong forced insert
-		ticker.Reset(self.config.RepositoryMaxTimeInQueue)
+		ticker.Reset(self.config.StoreMaxTimeInQueue)
 	}
 	for {
 		select {
@@ -132,7 +132,7 @@ func (self *Repository) run() (err error) {
 			interactions[idx] = interaction
 			idx += 1
 
-			if idx < self.config.RepositoryBatchSize {
+			if idx < self.config.StoreBatchSize {
 				// Buffer isn't full yet, don't
 				continue
 			}
@@ -147,7 +147,7 @@ func (self *Repository) run() (err error) {
 	}
 }
 
-func (self *Repository) Stop() {
+func (self *Store) Stop() {
 	self.log.Info("Stopping Repository...")
 	defer self.log.Info("Repository stopped")
 

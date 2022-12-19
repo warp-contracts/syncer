@@ -1,4 +1,4 @@
-package poller
+package sync
 
 import (
 	"encoding/json"

@@ -1,4 +1,4 @@
-package poller
+package sync
 
 import (
 	"syncer/src/utils/config"
@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Poller struct {
+type Controller struct {
 	Ctx    context.Context
 	cancel context.CancelFunc
 
@@ -20,9 +20,11 @@ type Poller struct {
 	log    *logrus.Entry
 }
 
-func NewPoller(ctx context.Context, config *config.Config) (self *Poller, err error) {
-	self = new(Poller)
-	self.log = logger.NewSublogger("poller")
+// Main class that orchestrates main syncer functionalities
+// Setups listening and storing interactions
+func NewController(ctx context.Context, config *config.Config) (self *Controller, err error) {
+	self = new(Controller)
+	self.log = logger.NewSublogger("controller")
 	self.config = config
 
 	// Global context for closing everything
@@ -31,7 +33,7 @@ func NewPoller(ctx context.Context, config *config.Config) (self *Poller, err er
 	return
 }
 
-func (self *Poller) Start() {
+func (self *Controller) Start() {
 	go func() {
 		defer func() {
 			var err error
@@ -42,7 +44,7 @@ func (self *Poller) Start() {
 				default:
 					err = fmt.Errorf("%s", p)
 				}
-				self.log.WithError(err).Error("Panic in poller. Stopping.")
+				self.log.WithError(err).Error("Panic in sync. Stopping.")
 				self.Stop()
 				panic(p)
 			}
@@ -55,17 +57,17 @@ func (self *Poller) Start() {
 	}()
 }
 
-func (self *Poller) run() (err error) {
+func (self *Controller) run() (err error) {
 	// Stores interactions
-	repository, err := NewRepository(self.Ctx, self.config)
+	store, err := NewStore(self.Ctx, self.config)
 	if err != nil {
 		return
 	}
-	repository.Start()
-	defer repository.Stop()
+	store.Start()
+	defer store.Stop()
 
 	// Get the last stored block height
-	startHeight, err := model.LastBlockHeight(self.Ctx, repository.DB)
+	startHeight, err := model.LastBlockHeight(self.Ctx, store.DB)
 	if err != nil {
 		return
 	}
@@ -81,8 +83,8 @@ func (self *Poller) run() (err error) {
 
 	for {
 		select {
-		case <-repository.Ctx.Done():
-			self.log.Warn("Repository stopped")
+		case <-store.Ctx.Done():
+			self.log.Warn("Store stopped")
 			self.cancel()
 			return
 		case <-listener.Ctx.Done():
@@ -98,7 +100,7 @@ func (self *Poller) run() (err error) {
 				self.cancel()
 				return
 			}
-			err = repository.Save(self.Ctx, interaction)
+			err = store.Save(self.Ctx, interaction)
 			if err != nil {
 				self.log.WithError(err).Error("Failed to store interaction")
 				// Log the error, but neglect it
@@ -107,9 +109,9 @@ func (self *Poller) run() (err error) {
 	}
 }
 
-func (self *Poller) Stop() {
-	self.log.Info("Stopping poller...")
-	defer self.log.Info("Poller stopped")
+func (self *Controller) Stop() {
+	self.log.Info("Stopping sync...")
+	defer self.log.Info("Sync stopped")
 
 	// Wait for at most 30s before force-closing
 	ctx, cancel := context.WithTimeout(self.Ctx, 30*time.Second)
@@ -120,7 +122,7 @@ func (self *Poller) Stop() {
 	case <-ctx.Done():
 		self.log.Error("Timeout reached, some data may have been not sent")
 	case <-self.Ctx.Done():
-		self.log.Error("Force quit poller")
+		self.log.Error("Force quit sync")
 	}
 	self.cancel()
 }

@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"syncer/src/poller"
+	"syncer/src/sync"
 	"syncer/src/utils/logger"
 
 	"github.com/spf13/cobra"
@@ -12,15 +12,15 @@ func init() {
 }
 
 var serverCmd = &cobra.Command{
-	Use:   "poller",
+	Use:   "sync",
 	Short: "Listen for changes from Arweave nodes and save to the database",
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
-		poller, err := poller.NewPoller(ctx, conf)
+		sync, err := sync.NewController(ctx, conf)
 		if err != nil {
 			return
 		}
 
-		poller.Start()
+		sync.Start()
 
 		<-ctx.Done()
 
