@@ -2,6 +2,7 @@ package sync
 
 import (
 	"encoding/json"
+	"sync/atomic"
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
@@ -26,7 +27,9 @@ type Listener struct {
 	log    *logrus.Entry
 
 	Interactions chan *model.Interaction
-	stopChannel  chan bool
+
+	stopChannel chan bool
+	isStopping  *atomic.Bool
 }
 
 // Listens for changes
@@ -43,6 +46,8 @@ func NewListener(config *config.Config) (self *Listener) {
 	// Internal channel for closing the underlying goroutine
 	self.stopChannel = make(chan bool, 1)
 
+	// Variable used for avoiding stopping Listener two times upon panics/errors
+	self.isStopping = &atomic.Bool{}
 	return
 }
 
@@ -62,7 +67,10 @@ func (self *Listener) Start(startHeight int64) {
 					err = fmt.Errorf("%s", p)
 				}
 				self.log.WithError(err).Error("Panic in Listener. Stopping.")
-				panic(p)
+
+				// NOTE: Panics in listener are suppressed
+				// because syncer is using panics for reporting errors...
+				// panic(p)
 			}
 		}()
 		self.run(startHeight)
@@ -185,7 +193,10 @@ func (self *Listener) parse(tx *arsyncer.SubscribeTx) (out *model.Interaction, e
 
 func (self *Listener) Stop() {
 	self.log.Info("Stopping Listener...")
-	self.stopChannel <- true
+	if self.isStopping.CompareAndSwap(false, true) {
+		// Listener wasn't stopping before, trigger
+		self.stopChannel <- true
+	}
 }
 
 // Stops listener and waits for everything to finish
@@ -198,9 +209,9 @@ func (self *Listener) StopSync() {
 
 	// Wait for the pending messages to be sent
 	select {
+	case <-self.Ctx.Done():
+		self.log.Info("Listener finished")
 	case <-ctx.Done():
 		self.log.Error("Timeout reached, failed to finish listening")
-	case <-self.Ctx.Done():
-		self.log.Error("Force quit Listener")
 	}
 }

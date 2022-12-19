@@ -14,35 +14,32 @@ import (
 	"testing"
 )
 
-func TestStoreTestSuite(t *testing.T) {
-	suite.Run(t, new(StoreTestSuite))
+func TestListenerTestSuite(t *testing.T) {
+	suite.Run(t, new(ListenerTestSuite))
 }
 
-type StoreTestSuite struct {
+type ListenerTestSuite struct {
 	suite.Suite
 	ctx    context.Context
 	cancel context.CancelFunc
 	config *config.Config
 }
 
-func (s *StoreTestSuite) SetupSuite() {
+func (s *ListenerTestSuite) SetupSuite() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.config = config.Default()
 	s.ctx = common.SetConfig(s.ctx, s.config)
 }
 
-func (s *StoreTestSuite) TearDownSuite() {
+func (s *ListenerTestSuite) TearDownSuite() {
 	s.cancel()
 }
 
-func (s *StoreTestSuite) TestLifecycle() {
-	store := NewStore(s.config)
-	assert.NotNil(s.T(), store)
-
-	err := store.Start()
-	assert.Nil(s.T(), err)
-
-	store.StopSync()
-
-	<-store.Ctx.Done()
+func (s *ListenerTestSuite) TestLifecycle() {
+	listener := NewListener(s.config)
+	assert.NotNil(s.T(), listener)
+	// listener.Start(10000)
+	// time.Sleep(time.Second * 15)
+	// listener.StopSync()
+	// <-listener.Ctx.Done()
 }

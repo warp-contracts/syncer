@@ -167,9 +167,6 @@ func (self *Store) run() (err error) {
 }
 
 func (self *Store) Save(ctx context.Context, interaction *model.Interaction) (err error) {
-	// self.log.Debug("Save interaction")
-	// defer self.log.Debug("Interaction queued")
-
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -195,7 +192,7 @@ func (self *Store) StopSync() {
 	case <-ctx.Done():
 		self.log.Error("Timeout reached, some data may have been not stored")
 	case <-self.Ctx.Done():
-		self.log.Error("Store stopped")
+		self.log.Info("Store stopped")
 	}
 
 }

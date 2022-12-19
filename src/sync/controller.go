@@ -65,13 +65,8 @@ func (self *Controller) Start() {
 }
 
 func (self *Controller) run() (err error) {
-	var (
-		store    *Store
-		listener *Listener
-	)
-
 	// Stores interactions
-	store = NewStore(self.config)
+	store := NewStore(self.config)
 	err = store.Start()
 	if err != nil {
 		return
@@ -85,7 +80,7 @@ func (self *Controller) run() (err error) {
 	}
 
 	// Listening for arweave transactions
-	listener = NewListener(self.config)
+	listener := NewListener(self.config)
 	listener.Start(startHeight + 1)
 	defer listener.StopSync()
 
@@ -93,13 +88,13 @@ func (self *Controller) run() (err error) {
 		select {
 		case <-self.stopChannel:
 			self.log.Info("Controller is stopping")
-			// All cleanup is done in defer
-			return
+			listener.Stop()
 		case interaction, ok := <-listener.Interactions:
 			if !ok {
-				// Channel closed, close the listener
+				// Listener stopped
 				return
 			}
+
 			err = store.Save(self.Ctx, interaction)
 			if err != nil {
 				self.log.WithError(err).Error("Failed to store interaction")
@@ -109,9 +104,8 @@ func (self *Controller) run() (err error) {
 	}
 }
 
-func (self *Controller) Stop() {
-	self.log.Info("Stopping sync...")
-	defer self.log.Info("Sync stopped")
+func (self *Controller) StopSync() {
+	self.log.Info("Stopping Controller...")
 
 	// Wait for at most 30s before force-closing
 	ctx, cancel := context.WithTimeout(self.Ctx, 30*time.Second)
@@ -125,6 +119,6 @@ func (self *Controller) Stop() {
 	case <-ctx.Done():
 		self.log.Error("Timeout reached, some data may have been not sent")
 	case <-self.Ctx.Done():
-		self.log.Error("Force quit sync")
+		self.log.Info("Controller stopped")
 	}
 }

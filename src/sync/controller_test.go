@@ -14,35 +14,32 @@ import (
 	"testing"
 )
 
-func TestStoreTestSuite(t *testing.T) {
-	suite.Run(t, new(StoreTestSuite))
+func TestControllerTestSuite(t *testing.T) {
+	suite.Run(t, new(ControllerTestSuite))
 }
 
-type StoreTestSuite struct {
+type ControllerTestSuite struct {
 	suite.Suite
 	ctx    context.Context
 	cancel context.CancelFunc
 	config *config.Config
 }
 
-func (s *StoreTestSuite) SetupSuite() {
+func (s *ControllerTestSuite) SetupSuite() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.config = config.Default()
 	s.ctx = common.SetConfig(s.ctx, s.config)
 }
 
-func (s *StoreTestSuite) TearDownSuite() {
+func (s *ControllerTestSuite) TearDownSuite() {
 	s.cancel()
 }
 
-func (s *StoreTestSuite) TestLifecycle() {
-	store := NewStore(s.config)
-	assert.NotNil(s.T(), store)
-
-	err := store.Start()
+func (s *ControllerTestSuite) TestLifecycle() {
+	controller, err := NewController(s.config)
 	assert.Nil(s.T(), err)
-
-	store.StopSync()
-
-	<-store.Ctx.Done()
+	assert.NotNil(s.T(), controller)
+	// controller.Start()
+	// time.Sleep(time.Second)
+	// controller.StopSync()
 }

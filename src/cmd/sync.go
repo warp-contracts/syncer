@@ -24,7 +24,7 @@ var serverCmd = &cobra.Command{
 
 		<-ctx.Done()
 
-		sync.Stop()
+		sync.StopSync()
 
 		<-sync.Ctx.Done()
 
