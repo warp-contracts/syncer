@@ -202,7 +202,7 @@ func (self *Listener) Stop() {
 // Stops listener and waits for everything to finish
 func (self *Listener) StopSync() {
 	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(self.Ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	self.Stop()
