@@ -3,13 +3,15 @@ package model
 import (
 	"context"
 	"fmt"
-	"syncer/src/utils/config"
+	"syncer/src/utils/common"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, err error) {
+func NewConnection(ctx context.Context) (self *gorm.DB, err error) {
+	config := common.GetConfig(ctx)
+
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		config.DBHost,
 		config.DBPort,
@@ -23,21 +25,26 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 		return
 	}
 
-	sqlDB, err := self.DB()
+	if config.DBPingTimeout > 0 {
+		return self, Ping(ctx, self)
+	}
+	return
+}
+
+func Ping(ctx context.Context, db *gorm.DB) (err error) {
+	config := common.GetConfig(ctx)
+
+	sqlDB, err := db.DB()
 	if err != nil {
 		return
 	}
 
-	if config.DBPingTimeout > 0 {
-		// Ping enabled
-		dbCtx, cancel := context.WithTimeout(ctx, config.DBPingTimeout)
-		defer cancel()
+	dbCtx, cancel := context.WithTimeout(ctx, config.DBPingTimeout)
+	defer cancel()
 
-		err = sqlDB.PingContext(dbCtx)
-		if err != nil {
-			return
-		}
+	err = sqlDB.PingContext(dbCtx)
+	if err != nil {
+		return
 	}
-
 	return
 }

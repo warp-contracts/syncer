@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
 	"syncer/src/utils/model"
@@ -20,35 +21,59 @@ type Store struct {
 	Ctx    context.Context
 	cancel context.CancelFunc
 
-	config *config.Config
-	log    *logrus.Entry
-	input  chan *model.Interaction
-	DB     *gorm.DB
+	config      *config.Config
+	log         *logrus.Entry
+	input       chan *model.Interaction
+	DB          *gorm.DB
+	stopChannel chan bool
 }
 
-func NewStore(ctx context.Context, config *config.Config) (self *Store, err error) {
+func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
 	self.log = logger.NewSublogger("store")
 	self.config = config
 
-	// Connection to the database
-	self.DB, err = model.NewConnection(ctx, self.config)
-	if err != nil {
-		return
-	}
+	// Store's context, active as long as there's anything running in Store
+	self.Ctx, self.cancel = context.WithCancel(context.Background())
+	self.Ctx = common.SetConfig(self.Ctx, config)
+
+	// Internal channel for closing the underlying goroutine
+	self.stopChannel = make(chan bool, 1)
 
 	// Incoming interactions channel
 	self.input = make(chan *model.Interaction)
 
-	// Global context for closing everything
-	self.Ctx, self.cancel = context.WithCancel(ctx)
-
 	return
 }
 
-func (self *Store) Start() {
+func (self *Store) connect() (db *gorm.DB, err error) {
+	if self.DB != nil {
+		// Just check the connection
+		err = model.Ping(self.Ctx, self.DB)
+		if err == nil {
+			return self.DB, nil
+		}
+
+		self.log.WithError(err).Warn("Ping failed, restarting connection")
+	}
+	return model.NewConnection(self.Ctx)
+}
+
+func (self *Store) Start() (err error) {
+	self.log.Info("Starting Store...")
+
+	// Connection to the database
+	self.DB, err = self.connect()
+	if err != nil {
+		return
+	}
+
 	go func() {
 		defer func() {
+			// run() finished, so it's time to cancel Store's context
+			// NOTE: This should be the only place self.Ctx is cancelled
+			self.cancel()
+
 			var err error
 			if p := recover(); p != nil {
 				switch p := p.(type) {
@@ -58,7 +83,6 @@ func (self *Store) Start() {
 					err = fmt.Errorf("%s", p)
 				}
 				self.log.WithError(err).Error("Panic in Store. Stopping.")
-				self.Stop()
 				panic(p)
 			}
 		}()
@@ -67,17 +91,7 @@ func (self *Store) Start() {
 			self.log.WithError(err).Error("Error in run()")
 		}
 	}()
-}
 
-func (self *Store) Save(ctx context.Context, interaction *model.Interaction) (err error) {
-	// self.log.Debug("Save interaction")
-	// defer self.log.Debug("Interaction queued")
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case self.input <- interaction:
-	}
 	return
 }
 
@@ -118,14 +132,19 @@ func (self *Store) run() (err error) {
 	}
 	for {
 		select {
-		case <-self.Ctx.Done():
-			// Listener is closing
+		case <-self.stopChannel:
+			// Stop was requested, close the input channel
+			// Won't accept new data, but will process pending
 			ticker.Stop()
-			return
+			close(self.input)
+
 		case interaction, ok := <-self.input:
 			if !ok {
-				// Channel closed, close the repository
-				self.cancel()
+				// The only way input channel is closed is that the Store is stopping
+				// There will be no more data, insert everything there is and quit.
+				insert()
+
+				// NOTE: This (and panic()) is the only way to quit run()
 				return
 			}
 
@@ -147,11 +166,36 @@ func (self *Store) run() (err error) {
 	}
 }
 
-func (self *Store) Stop() {
-	self.log.Info("Stopping Repository...")
-	defer self.log.Info("Repository stopped")
+func (self *Store) Save(ctx context.Context, interaction *model.Interaction) (err error) {
+	// self.log.Debug("Save interaction")
+	// defer self.log.Debug("Interaction queued")
 
-	close(self.input)
-	self.cancel()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case self.input <- interaction:
+	}
+	return
+}
+
+func (self *Store) Stop() {
+	self.log.Info("Stopping Store...")
+	self.stopChannel <- true
+}
+
+func (self *Store) StopSync() {
+	// Wait for at most 30s before force-closing
+	ctx, cancel := context.WithTimeout(self.Ctx, 30*time.Second)
+	defer cancel()
+
+	self.Stop()
+
+	// Store's context will be cancelled only after processing all pending messages
+	select {
+	case <-ctx.Done():
+		self.log.Error("Timeout reached, some data may have been not stored")
+	case <-self.Ctx.Done():
+		self.log.Error("Store stopped")
+	}
 
 }

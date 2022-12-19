@@ -15,7 +15,7 @@ var serverCmd = &cobra.Command{
 	Use:   "sync",
 	Short: "Listen for changes from Arweave nodes and save to the database",
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
-		sync, err := sync.NewController(ctx, conf)
+		sync, err := sync.NewController(conf)
 		if err != nil {
 			return
 		}
@@ -23,6 +23,10 @@ var serverCmd = &cobra.Command{
 		sync.Start()
 
 		<-ctx.Done()
+
+		sync.Stop()
+
+		<-sync.Ctx.Done()
 
 		return
 	},

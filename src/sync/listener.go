@@ -2,6 +2,7 @@ package sync
 
 import (
 	"encoding/json"
+	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
 	"syncer/src/utils/model"
@@ -23,40 +24,35 @@ type Listener struct {
 
 	config *config.Config
 	log    *logrus.Entry
-	syncer *arsyncer.Syncer
 
 	Interactions chan *model.Interaction
+	stopChannel  chan bool
 }
 
 // Listens for changes
-func NewListener(ctx context.Context, config *config.Config, startHeight int64) (self *Listener, err error) {
+func NewListener(config *config.Config) (self *Listener) {
 	self = new(Listener)
 	self.log = logger.NewSublogger("listener")
 	self.config = config
 	self.Interactions = make(chan *model.Interaction, config.ListenerQueueSize)
-	// Global context for closing everything
-	self.Ctx, self.cancel = context.WithCancel(ctx)
 
-	// Setup arsyncer notifications
-	// Arsyncer setups many connections and each of them may put one
-	self.syncer = arsyncer.New(
-		startHeight,
-		arsyncer.FilterParams{
-			Tags: []types.Tag{
-				{Name: "App-Name", Value: "SmartWeaveAction"},
-			},
-		},
-		config.ArNodeUrl,
-		config.ArConcurrentConnections,
-		config.ArStableDistance,
-		arsyncer.SubscribeTypeTx)
+	// Listener context, active as long as there's anything running in Listener
+	self.Ctx, self.cancel = context.WithCancel(context.Background())
+	self.Ctx = common.SetConfig(self.Ctx, config)
+
+	// Internal channel for closing the underlying goroutine
+	self.stopChannel = make(chan bool, 1)
 
 	return
 }
 
-func (self *Listener) Start() {
+func (self *Listener) Start(startHeight int64) {
 	go func() {
 		defer func() {
+			// run() finished, so it's time to cancel Listener's context
+			// NOTE: This should be the only place self.Ctx is cancelled
+			self.cancel()
+
 			var err error
 			if p := recover(); p != nil {
 				switch p := p.(type) {
@@ -66,28 +62,43 @@ func (self *Listener) Start() {
 					err = fmt.Errorf("%s", p)
 				}
 				self.log.WithError(err).Error("Panic in Listener. Stopping.")
-				self.Stop()
 				panic(p)
 			}
 		}()
-		self.syncer.Run()
-		self.receive()
+		self.run(startHeight)
 	}()
 }
 
-func (self *Listener) receive() {
+func (self *Listener) run(startHeight int64) {
+	// Setup arsyncer notifications
+	syncer := arsyncer.New(
+		startHeight,
+		arsyncer.FilterParams{
+			Tags: []types.Tag{
+				{Name: "App-Name", Value: "SmartWeaveAction"},
+			},
+		},
+		self.config.ArNodeUrl,
+		self.config.ArConcurrentConnections,
+		self.config.ArStableDistance,
+		arsyncer.SubscribeTypeTx)
+	syncer.Run()
+
 	for {
 		select {
-		case <-self.Ctx.Done():
-			// Listener is closing
-			return
-		case transactions, ok := <-self.syncer.SubscribeTxCh():
+		case <-self.stopChannel:
+			// Stop was requested, trigger closing connections
+			syncer.Close()
+		case block, ok := <-syncer.SubscribeTxCh():
 			if !ok {
-				// Channel closed, close the listener
-				self.cancel()
+				// Listener is closing and closing channels was requested.
+				// All pending messages got processed. Close the outgoing channel, there won't be any more data.
+				close(self.Interactions)
+
+				// NOTE: This (and panic()) is the only way to quit run()
 				return
 			}
-			for _, tx := range transactions {
+			for _, tx := range block {
 				interaction, err := self.parse(&tx)
 				if err != nil {
 					self.log.WithField("tx_id", tx.ID).Warn("Failed to parse transaction")
@@ -174,13 +185,16 @@ func (self *Listener) parse(tx *arsyncer.SubscribeTx) (out *model.Interaction, e
 
 func (self *Listener) Stop() {
 	self.log.Info("Stopping Listener...")
-	defer self.log.Info("Listener stopped")
+	self.stopChannel <- true
+}
 
+// Stops listener and waits for everything to finish
+func (self *Listener) StopSync() {
 	// Wait for at most 30s before force-closing
 	ctx, cancel := context.WithTimeout(self.Ctx, 30*time.Second)
 	defer cancel()
 
-	self.syncer.Close()
+	self.Stop()
 
 	// Wait for the pending messages to be sent
 	select {
@@ -189,5 +203,4 @@ func (self *Listener) Stop() {
 	case <-self.Ctx.Done():
 		self.log.Error("Force quit Listener")
 	}
-	self.cancel()
 }

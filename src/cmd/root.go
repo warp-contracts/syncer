@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
 	"syscall"
@@ -36,6 +37,7 @@ var (
 			if err != nil {
 				return
 			}
+			ctx = common.SetConfig(ctx, conf)
 
 			// Setup logging
 			err = logger.Init(conf)

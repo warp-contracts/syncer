@@ -18,24 +18,32 @@ type Controller struct {
 
 	config *config.Config
 	log    *logrus.Entry
+
+	stopChannel chan bool
 }
 
 // Main class that orchestrates main syncer functionalities
 // Setups listening and storing interactions
-func NewController(ctx context.Context, config *config.Config) (self *Controller, err error) {
+func NewController(config *config.Config) (self *Controller, err error) {
 	self = new(Controller)
 	self.log = logger.NewSublogger("controller")
 	self.config = config
 
-	// Global context for closing everything
-	self.Ctx, self.cancel = context.WithCancel(ctx)
+	// Controller's context, it's valid as long the controller is running.
+	self.Ctx, self.cancel = context.WithCancel(context.Background())
 
+	// Internal channel for closing the underlying goroutine
+	self.stopChannel = make(chan bool, 1)
 	return
 }
 
 func (self *Controller) Start() {
 	go func() {
 		defer func() {
+			// run() finished, so it's time to cancel Controller's context
+			// NOTE: This should be the only place self.Ctx is cancelled
+			self.cancel()
+
 			var err error
 			if p := recover(); p != nil {
 				switch p := p.(type) {
@@ -45,7 +53,6 @@ func (self *Controller) Start() {
 					err = fmt.Errorf("%s", p)
 				}
 				self.log.WithError(err).Error("Panic in sync. Stopping.")
-				self.Stop()
 				panic(p)
 			}
 		}()
@@ -58,13 +65,18 @@ func (self *Controller) Start() {
 }
 
 func (self *Controller) run() (err error) {
+	var (
+		store    *Store
+		listener *Listener
+	)
+
 	// Stores interactions
-	store, err := NewStore(self.Ctx, self.config)
+	store = NewStore(self.config)
+	err = store.Start()
 	if err != nil {
 		return
 	}
-	store.Start()
-	defer store.Stop()
+	defer store.StopSync()
 
 	// Get the last stored block height
 	startHeight, err := model.LastBlockHeight(self.Ctx, store.DB)
@@ -73,31 +85,19 @@ func (self *Controller) run() (err error) {
 	}
 
 	// Listening for arweave transactions
-	listener, err := NewListener(self.Ctx, self.config, startHeight+1)
-	if err != nil {
-		return
-	}
-
-	listener.Start()
-	defer listener.Stop()
+	listener = NewListener(self.config)
+	listener.Start(startHeight + 1)
+	defer listener.StopSync()
 
 	for {
 		select {
-		case <-store.Ctx.Done():
-			self.log.Warn("Store stopped")
-			self.cancel()
-			return
-		case <-listener.Ctx.Done():
-			self.log.Warn("Listener stopped")
-			self.cancel()
-			return
-		case <-self.Ctx.Done():
-			self.log.Warn("Syncer is stopping")
+		case <-self.stopChannel:
+			self.log.Info("Controller is stopping")
+			// All cleanup is done in defer
 			return
 		case interaction, ok := <-listener.Interactions:
 			if !ok {
 				// Channel closed, close the listener
-				self.cancel()
 				return
 			}
 			err = store.Save(self.Ctx, interaction)
@@ -117,6 +117,9 @@ func (self *Controller) Stop() {
 	ctx, cancel := context.WithTimeout(self.Ctx, 30*time.Second)
 	defer cancel()
 
+	// Trigger stopping
+	self.stopChannel <- true
+
 	// Wait for the pending messages to be sent
 	select {
 	case <-ctx.Done():
@@ -124,5 +127,4 @@ func (self *Controller) Stop() {
 	case <-self.Ctx.Done():
 		self.log.Error("Force quit sync")
 	}
-	self.cancel()
 }

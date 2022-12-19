@@ -63,6 +63,12 @@ func setDefaults() {
 	viper.SetDefault("StoreBatchSize", "50")
 	viper.SetDefault("StoreSubBatchSize", "50")
 	viper.SetDefault("StoreMaxTimeInQueue", "1s")
+	viper.SetDefault("StoreMaxTimeBetweenReconnects", "1s")
+}
+
+func Default() (config *Config) {
+	config, _ = Load("")
+	return
 }
 
 // Load configuration from file and env
