@@ -20,15 +20,15 @@ var (
 		// All child commands will use this
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
 			// Setup a context that gets cancelled upon SIGINT
-			ctx, cancel = context.WithCancel(context.Background())
+			applicationCtx, applicationCtxCancel = context.WithCancel(context.Background())
 
 			signalChannel = make(chan os.Signal, 1)
 			signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 			go func() {
 				select {
 				case <-signalChannel:
-					cancel()
-				case <-ctx.Done():
+					applicationCtxCancel()
+				case <-applicationCtx.Done():
 				}
 			}()
 
@@ -37,7 +37,7 @@ var (
 			if err != nil {
 				return
 			}
-			ctx = common.SetConfig(ctx, conf)
+			applicationCtx = common.SetConfig(applicationCtx, conf)
 
 			// Setup logging
 			err = logger.Init(conf)
@@ -51,10 +51,10 @@ var (
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) (err error) {
 			defer func() {
 				signal.Stop(signalChannel)
-				cancel()
+				applicationCtxCancel()
 			}()
 			log := logger.NewSublogger("root-cmd")
-			<-ctx.Done()
+			<-applicationCtx.Done()
 			log.Debug("Finished")
 			return
 		},
@@ -65,9 +65,13 @@ var (
 	conf    *config.Config
 	cfgFile string
 
-	// Context setup
-	ctx           context.Context
-	cancel        context.CancelFunc
+	// Application context.
+	// As soon as application ctx gets canceled the app stars to shutdown
+	// It shuts down gracefully, finishes processing within a predefined timeout
+	applicationCtx       context.Context
+	applicationCtxCancel context.CancelFunc
+
+	// Signals from the OS
 	signalChannel chan os.Signal
 )
 

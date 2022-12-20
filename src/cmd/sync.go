@@ -22,11 +22,9 @@ var serverCmd = &cobra.Command{
 
 		sync.Start()
 
-		<-ctx.Done()
+		<-applicationCtx.Done()
 
 		sync.StopSync()
-
-		<-sync.Ctx.Done()
 
 		return
 	},
