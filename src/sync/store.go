@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"sync/atomic"
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
@@ -21,11 +22,13 @@ type Store struct {
 	Ctx    context.Context
 	cancel context.CancelFunc
 
-	config      *config.Config
-	log         *logrus.Entry
-	input       chan *model.Interaction
-	DB          *gorm.DB
+	config *config.Config
+	log    *logrus.Entry
+	input  chan *model.Interaction
+	DB     *gorm.DB
+
 	stopChannel chan bool
+	isStopping  *atomic.Bool
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -43,6 +46,8 @@ func NewStore(config *config.Config) (self *Store) {
 	// Incoming interactions channel
 	self.input = make(chan *model.Interaction)
 
+	// Variable used for avoiding stopping Store two times upon panics/errors and saving to stopped Store
+	self.isStopping = &atomic.Bool{}
 	return
 }
 
@@ -167,6 +172,10 @@ func (self *Store) run() (err error) {
 }
 
 func (self *Store) Save(ctx context.Context, interaction *model.Interaction) (err error) {
+	if self.isStopping.Load() {
+		self.log.Error("Tried to store interaction after Store got stopped. Something's wrong in stopping order.")
+		return
+	}
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -175,17 +184,14 @@ func (self *Store) Save(ctx context.Context, interaction *model.Interaction) (er
 	return
 }
 
-func (self *Store) Stop() {
-	self.log.Info("Stopping Store...")
-	self.stopChannel <- true
-}
-
 func (self *Store) StopSync() {
 	// Wait for at most 30s before force-closing
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	self.Stop()
+	if self.isStopping.CompareAndSwap(false, true) {
+		self.stopChannel <- true
+	}
 
 	// Store's context will be cancelled only after processing all pending messages
 	select {
