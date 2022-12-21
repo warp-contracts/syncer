@@ -18,6 +18,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/getsentry/sentry-go v0.11.0 // indirect
 	github.com/go-co-op/gocron v1.11.0 // indirect
+	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/hamba/avro v1.5.6 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
