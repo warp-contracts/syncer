@@ -44,6 +44,9 @@ var (
 			if err != nil {
 				return
 			}
+
+			// FIXME: Log configuration
+
 			return
 		},
 
@@ -58,7 +61,9 @@ var (
 			log.Debug("Finished")
 			return
 		},
-		SilenceErrors: true,
+
+		// FIXME: Check if true
+		// SilenceErrors: true,
 	}
 
 	// Configuration

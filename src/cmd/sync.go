@@ -22,6 +22,7 @@ var serverCmd = &cobra.Command{
 
 		sync.Start()
 
+		// TODO: Wait for controller failures
 		<-applicationCtx.Done()
 
 		sync.StopSync()

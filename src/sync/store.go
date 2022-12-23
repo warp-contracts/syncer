@@ -127,6 +127,9 @@ func (self *Store) run() (err error) {
 			// Close to avoid holes in inserted data
 			// self.Stop()
 			// TODO: Maybe it's possible to retry on some errors
+
+			// TODO: Send an email
+			// FIXME: Retry
 		}
 
 		// Reset buffer index
