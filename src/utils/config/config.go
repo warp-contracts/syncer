@@ -27,6 +27,13 @@ type Config struct {
 	ArNodeUrl               string
 	ArConcurrentConnections int
 	ArStableDistance        int64
+	ArRequestTimeout        time.Duration
+
+	// How often should Arweave network info be downloaded
+	PollerNetworkInfoTimeout time.Duration
+
+	// How many parallel messages are exchanged with Arweave node. HTTP/2 is used so it's still one TCP connection per node.
+	PollerWorkerPoolSize int
 
 	// Received Arweave transactions converted to interactions and temporarily stored in the channel
 	// Normally interactions are passed to the Store right away, but if Store is in the middle of transaction it's not receiving data.
@@ -59,7 +66,10 @@ func setDefaults() {
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")
 	viper.SetDefault("ArConcurrentConnections", "50")
 	viper.SetDefault("ArStableDistance", "15")
+	viper.SetDefault("ArRequestTimeout", "30s")
 	viper.SetDefault("ListenerQueueSize", "50")
+	viper.SetDefault("PollerNetworkInfoTimeout", "2s")
+	viper.SetDefault("PollerWorkerPoolSize", "10")
 	viper.SetDefault("StoreBatchSize", "50")
 	viper.SetDefault("StoreSubBatchSize", "50")
 	viper.SetDefault("StoreMaxTimeInQueue", "1s")
