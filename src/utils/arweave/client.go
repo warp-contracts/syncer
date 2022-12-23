@@ -5,20 +5,24 @@ import (
 	"fmt"
 	"strconv"
 	"syncer/src/utils/build_info"
+	"syncer/src/utils/config"
 
 	"github.com/go-resty/resty/v2"
 )
 
 type Client struct {
 	client *resty.Client
+	config *config.Config
 }
 
-func NewClient(url string) (self *Client, err error) {
+func NewClient(config *config.Config) (self *Client) {
 	self = new(Client)
+	self.config = config
 	self.client =
 		resty.New().
-			SetBaseURL(url).
+			SetBaseURL(config.ArNodeUrl).
 			SetDebug(true).
+			SetTimeout(self.config.ArRequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
 			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
 				// Non-success status code turns into an error
@@ -51,11 +55,11 @@ func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err e
 }
 
 // Undocumented
-func (self *Client) GetBlockByHeight(ctx context.Context, height int) (out *Block, err error) {
+func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Block, err error) {
 	resp, err := self.client.R().
 		SetContext(ctx).
 		SetResult(&Block{}).
-		SetPathParam("height", strconv.Itoa(height)).
+		SetPathParam("height", strconv.FormatInt(height, 10)).
 		Get("block/height/{height}")
 	if err != nil {
 		return

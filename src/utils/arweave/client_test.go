@@ -32,11 +32,8 @@ func (s *ClientTestSuite) SetupSuite() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.config = config.Default()
 	s.log = logger.NewSublogger("arweave-test")
-
-	var err error
-	s.client, err = NewClient("https://arweave.net")
+	s.client = NewClient(s.config)
 	require.NotNil(s.T(), s.client)
-	require.Nil(s.T(), err)
 }
 
 func (s *ClientTestSuite) TearDownSuite() {
