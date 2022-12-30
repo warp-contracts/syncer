@@ -24,7 +24,7 @@ type Store struct {
 
 	config *config.Config
 	log    *logrus.Entry
-	input  chan *model.Interaction
+	input  chan []*model.Interaction
 	DB     *gorm.DB
 
 	stopChannel chan bool
@@ -44,7 +44,7 @@ func NewStore(config *config.Config) (self *Store) {
 	self.stopChannel = make(chan bool, 1)
 
 	// Incoming interactions channel
-	self.input = make(chan *model.Interaction)
+	self.input = make(chan []*model.Interaction)
 
 	// Variable used for avoiding stopping Store two times upon panics/errors and saving to stopped Store
 	self.isStopping = &atomic.Bool{}
@@ -106,21 +106,20 @@ func (self *Store) run() (err error) {
 	ticker := time.NewTicker(self.config.StoreMaxTimeInQueue)
 
 	// Fixed size buffer
-	interactions := make([]*model.Interaction, self.config.StoreBatchSize)
-	idx := 0
+	var pendingInteractions []*model.Interaction
 
 	insert := func() {
-		if idx == 0 {
+		if len(pendingInteractions) == 0 {
 			return
 		}
-		self.log.WithField("length", idx).Debug("Insert batch of interactions")
+		self.log.WithField("length", len(pendingInteractions)).Debug("Insert batch of interactions")
 		err = self.DB.WithContext(self.Ctx).
 			// Clauses(clause.OnConflict{
 			// 	// Columns:   cols,
 			// 	// DoUpdates: clause.AssignmentColumns(colsNames),
 			// 	DoNothing: true,
 			// }).
-			CreateInBatches(interactions[:idx], self.config.StoreSubBatchSize).
+			CreateInBatches(pendingInteractions, self.config.StoreSubBatchSize).
 			Error
 		if err != nil {
 			self.log.WithError(err).Error("Failed to insert Interactions")
@@ -133,9 +132,9 @@ func (self *Store) run() (err error) {
 		}
 
 		// Reset buffer index
-		idx = 0
+		pendingInteractions = nil
 
-		// Prolong forced insert
+		// Prolong time to forced insert
 		ticker.Reset(self.config.StoreMaxTimeInQueue)
 	}
 	for {
@@ -146,7 +145,7 @@ func (self *Store) run() (err error) {
 			ticker.Stop()
 			close(self.input)
 
-		case interaction, ok := <-self.input:
+		case interactions, ok := <-self.input:
 			if !ok {
 				// The only way input channel is closed is that the Store is stopping
 				// There will be no more data, insert everything there is and quit.
@@ -156,25 +155,22 @@ func (self *Store) run() (err error) {
 				return
 			}
 
-			interactions[idx] = interaction
-			idx += 1
+			pendingInteractions = append(pendingInteractions, interactions...)
 
-			if idx < self.config.StoreBatchSize {
-				// Buffer isn't full yet, don't
-				continue
+			if len(pendingInteractions) >= self.config.StoreBatchSize {
+				insert()
 			}
 
-			insert()
 		case <-ticker.C:
-			if idx != 0 {
+			if len(pendingInteractions) > 0 {
 				self.log.Debug("Batch timed out, trigger insert")
+				insert()
 			}
-			insert()
 		}
 	}
 }
 
-func (self *Store) Save(ctx context.Context, interaction *model.Interaction) (err error) {
+func (self *Store) Save(ctx context.Context, interactions []*model.Interaction) (err error) {
 	if self.isStopping.Load() {
 		self.log.Error("Tried to store interaction after Store got stopped. Something's wrong in stopping order.")
 		return
@@ -182,7 +178,7 @@ func (self *Store) Save(ctx context.Context, interaction *model.Interaction) (er
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case self.input <- interaction:
+	case self.input <- interactions:
 	}
 	return
 }
