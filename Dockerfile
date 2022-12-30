@@ -7,8 +7,8 @@ COPY main.go .
 COPY go.mod .
 COPY go.sum .
 COPY Makefile .
-RUN go mod tidy
 COPY src src
+COPY vendor vendor
 RUN make build
 
 CMD ["/app/syncer", "sync"]

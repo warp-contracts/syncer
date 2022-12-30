@@ -66,4 +66,6 @@ clean:
 
 .PHONY: docker
 docker: all | ; $(info $(M) building docker container) @ 
+	$(GO) mod vendor
 	DOCKER_BUILDKIT=0 docker build .
+	rm -rf vendor
