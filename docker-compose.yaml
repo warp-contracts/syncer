@@ -1,6 +1,30 @@
-version: '3.2'
+version: '3.9'
 
 services:
+  syncer:
+    image: warp.cc/syncer:latest
+    profiles:
+      - syncer
+    command: [ "/app/bin/syncer", "sync" ]
+    depends_on:
+      - db
+    environment:
+      SYNCER_DBPORT: 5432
+      SYNCER_DBHOST: db
+      SYNCER_DBUSER: postgres
+      SYNCER_DBPASSWORD: postgres
+      SYNCER_DBNAME: warp
+      SYNCER_DBSSLMODE: disable
+      SYNCER_DBPINGTIMEOUT: 10s
+      SYNCER_LOGLEVEL: debug
+      SYNCER_ARNODEURL: https://arweave.net
+      SYNCER_ARCONCURRENTCONNECTIONS: 50
+      SYNCER_ARSTABLEDISTANCE: 10
+      SYNCER_LISTENERQUEUESIZE: 10
+      SYNCER_STOREBATCHSIZE: 1000
+      SYNCER_STOREMAXTIMEINQUEUE: 2m
+      SYNCER_STOREMAXTIMEBETWEENRECONNECTS: 5s
+
   db:
     image: postgres:13
     restart: unless-stopped

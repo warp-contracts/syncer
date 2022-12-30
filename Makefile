@@ -64,8 +64,12 @@ test:
 clean:
 	rm -rf bin/$(PACKAGE) .gopath~
 
-.PHONY: docker
-docker: all | ; $(info $(M) building docker container) @ 
+.PHONY: docker-build
+docker-build: all | ; $(info $(M) building docker container) @ 
 	$(GO) mod vendor
-	DOCKER_BUILDKIT=0 docker build .
+	DOCKER_BUILDKIT=0 docker build -t "warp.cc/syncer:latest" .
 	rm -rf vendor
+
+.PHONY: docker-run
+docker-run: docker-build | ; $(info $(M) running docker container) @ 
+	docker compose --profile syncer up syncer

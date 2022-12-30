@@ -21,6 +21,19 @@ psql -U postgres -h 127.0.0.1 -p 7654 -d warp < gateway_dump
 make run
 ```
 
+### Docker
+To speed up the build we're using a `vendor` dir during the build. To make it easier we added commands to the Makefile
+
+```sh
+# Build container and tag it warp.cc/syncer:latest
+make docker-build
+
+# Run container (builds it before)
+make docker-run
+
+```
+
+
 ## Configuration
 
 Syncer has a default configuration that works in local development (*src/utils/config)*. To overwrite it you can a json configuration file or ENV variables:
