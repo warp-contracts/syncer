@@ -1,4 +1,5 @@
 PACKAGE  = syncer
+GOROOT   = $(CURDIR)/.gopath~
 GOPATH   = $(CURDIR)/.gopath~
 BIN      = $(GOPATH)/bin
 BASE     = $(GOPATH)/src/$(PACKAGE)
@@ -19,7 +20,7 @@ $(BASE): ; $(info $(M) setting GOPATH…)
 	@mkdir -p $(dir $@)
 	@ln -sf $(CURDIR) $@
 
-# External tools
+# External tools 
 $(BIN):
 	@mkdir -p $@
 $(BIN)/%: | $(BIN) ; $(info $(M) installing $(REPOSITORY)…)
@@ -59,3 +60,10 @@ generate: $(GENTOOL) | $(BASE) ; $(info $(M) generating model from the database)
 test:
 	$(GO) test ./...
 
+.PHONY: clean
+clean:
+	rm -rf bin/$(PACKAGE) .gopath~
+
+.PHONY: docker
+docker: all | ; $(info $(M) building docker container) @ 
+	DOCKER_BUILDKIT=0 docker build .
