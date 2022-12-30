@@ -183,7 +183,7 @@ func (self *Store) Save(ctx context.Context, interactions []*model.Interaction) 
 	return
 }
 
-func (self *Store) StopSync() {
+func (self *Store) StopWait() {
 	// Wait for at most 30s before force-closing
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

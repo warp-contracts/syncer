@@ -41,5 +41,5 @@ func (s *ControllerTestSuite) TestLifecycle() {
 	assert.NotNil(s.T(), controller)
 	// controller.Start()
 	// time.Sleep(time.Second)
-	// controller.StopSync()
+	// controller.StopWait()
 }

@@ -42,7 +42,7 @@ func (s *StoreTestSuite) TestLifecycle() {
 	err := store.Start()
 	assert.Nil(s.T(), err)
 
-	store.StopSync()
+	store.StopWait()
 
 	<-store.Ctx.Done()
 }

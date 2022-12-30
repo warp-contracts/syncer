@@ -71,7 +71,7 @@ func (self *Controller) run() (err error) {
 	if err != nil {
 		return
 	}
-	defer store.StopSync()
+	defer store.StopWait()
 
 	// Get the last stored block height
 	startHeight, err := model.LastBlockHeight(self.Ctx, store.DB)
@@ -82,7 +82,7 @@ func (self *Controller) run() (err error) {
 	// Listening for arweave transactions
 	listener := NewListener(self.config)
 	listener.Start(startHeight + 1)
-	defer listener.StopSync()
+	defer listener.StopWait()
 
 	for {
 		select {
@@ -104,7 +104,7 @@ func (self *Controller) run() (err error) {
 	}
 }
 
-func (self *Controller) StopSync() {
+func (self *Controller) StopWait() {
 	self.log.Info("Stopping Controller...")
 
 	// Wait for at most 30s before force-closing

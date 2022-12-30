@@ -40,6 +40,6 @@ func (s *ListenerTestSuite) TestLifecycle() {
 	assert.NotNil(s.T(), listener)
 	// listener.Start(10000)
 	// time.Sleep(time.Second * 15)
-	// listener.StopSync()
+	// listener.StopWait()
 	// <-listener.Ctx.Done()
 }
