@@ -119,7 +119,7 @@ func (self *Store) run() (err error) {
 			// 	// DoUpdates: clause.AssignmentColumns(colsNames),
 			// 	DoNothing: true,
 			// }).
-			CreateInBatches(pendingInteractions, self.config.StoreSubBatchSize).
+			CreateInBatches(pendingInteractions, len(pendingInteractions)).
 			Error
 		if err != nil {
 			self.log.WithError(err).Error("Failed to insert Interactions")

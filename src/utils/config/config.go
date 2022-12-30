@@ -34,12 +34,8 @@ type Config struct {
 	ListenerQueueSize int
 
 	// Num of Interactions that are stored in the Store
-	// before being inserted into the database in one db transaction.
+	// before being inserted into the database in one db transaction and batch.
 	StoreBatchSize int
-
-	// Interactions are further divided and inserted in sub-batches
-	// to avoid big insert statements to minimize memory usage in the db.
-	StoreSubBatchSize int
 
 	// After this time all Interactions in Store will be inserted to the database.
 	// This is to avoid keeping them in the service for too long when waiting to fill the batch.
@@ -61,7 +57,6 @@ func setDefaults() {
 	viper.SetDefault("ArStableDistance", "15")
 	viper.SetDefault("ListenerQueueSize", "50")
 	viper.SetDefault("StoreBatchSize", "50")
-	viper.SetDefault("StoreSubBatchSize", "50")
 	viper.SetDefault("StoreMaxTimeInQueue", "1s")
 	viper.SetDefault("StoreMaxTimeBetweenReconnects", "1s")
 }
