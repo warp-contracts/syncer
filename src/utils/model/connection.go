@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func NewConnection(ctx context.Context) (self *gorm.DB, err error) {
@@ -37,9 +38,14 @@ func NewConnection(ctx context.Context) (self *gorm.DB, err error) {
 	}
 
 	// Ensure there's syncer_state has one row inserted
-	self.Create(&State{
-		Id: 1,
-	})
+	self.Clauses(clause.OnConflict{
+		// Columns:   cols,
+		// DoUpdates: clause.AssignmentColumns(colsNames),
+		DoNothing: true,
+	}).
+		Create(&State{
+			Id: 1,
+		})
 
 	return
 }

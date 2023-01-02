@@ -26,7 +26,7 @@ type Listener struct {
 	config *config.Config
 	log    *logrus.Entry
 
-	Interactions chan []*model.Interaction
+	Payloads chan *Payload
 
 	stopChannel chan bool
 	isStopping  *atomic.Bool
@@ -37,7 +37,7 @@ func NewListener(config *config.Config) (self *Listener) {
 	self = new(Listener)
 	self.log = logger.NewSublogger("listener")
 	self.config = config
-	self.Interactions = make(chan []*model.Interaction, config.ListenerQueueSize)
+	self.Payloads = make(chan *Payload, config.ListenerQueueSize)
 
 	// Listener context, active as long as there's anything running in Listener
 	self.Ctx, self.cancel = context.WithCancel(context.Background())
@@ -101,23 +101,27 @@ func (self *Listener) run(startHeight int64) {
 			if !ok {
 				// Listener is closing and closing channels was requested.
 				// All pending messages got processed. Close the outgoing channel, there won't be any more data.
-				close(self.Interactions)
+				close(self.Payloads)
 
 				// NOTE: This (and panic()) is the only way to quit run()
 				return
 			}
 
 			// TODO: Divide array if it's too big
-			interactions := make([]*model.Interaction, len(block))
+			payload := &Payload{
+				BlockHeight:  block[0].BlockHeight,
+				Interactions: make([]*model.Interaction, len(block)),
+			}
 			var err error
 			for idx, tx := range block {
-				interactions[idx], err = self.parse(&tx)
+				payload.Interactions[idx], err = self.parse(&tx)
 				if err != nil {
 					self.log.WithField("tx_id", tx.ID).Warn("Failed to parse transaction")
 					continue
 				}
 			}
-			self.Interactions <- interactions
+
+			self.Payloads <- payload
 		}
 	}
 }

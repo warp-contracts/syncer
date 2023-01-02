@@ -24,7 +24,7 @@ type Store struct {
 
 	config *config.Config
 	log    *logrus.Entry
-	input  chan []*model.Interaction
+	input  chan *Payload
 	DB     *gorm.DB
 
 	stopChannel chan bool
@@ -44,7 +44,7 @@ func NewStore(config *config.Config) (self *Store) {
 	self.stopChannel = make(chan bool, 1)
 
 	// Incoming interactions channel
-	self.input = make(chan []*model.Interaction)
+	self.input = make(chan *Payload)
 
 	// Variable used for avoiding stopping Store two times upon panics/errors and saving to stopped Store
 	self.isStopping = &atomic.Bool{}
@@ -105,8 +105,8 @@ func (self *Store) run() (err error) {
 	// Used to ensure data isn't stuck in Syncer for too long
 	ticker := time.NewTicker(self.config.StoreMaxTimeInQueue)
 
-	// Fixed size buffer
 	var pendingInteractions []*model.Interaction
+	var lastTransactionBlockHeight int64
 
 	insert := func() {
 		if len(pendingInteractions) == 0 {
@@ -132,7 +132,7 @@ func (self *Store) run() (err error) {
 		}
 
 		// FIXME: This isn't the right value. This should be the last downloaded transaction
-		err = self.setLastTransactionBlockHeight(self.Ctx, pendingInteractions[len(pendingInteractions)-1].BlockHeight)
+		err = self.setLastTransactionBlockHeight(self.Ctx, lastTransactionBlockHeight)
 		if err != nil {
 			// FIXME: Retry
 			self.log.WithError(err).Error("Failed to update last transaction block height")
@@ -152,7 +152,7 @@ func (self *Store) run() (err error) {
 			ticker.Stop()
 			close(self.input)
 
-		case interactions, ok := <-self.input:
+		case payload, ok := <-self.input:
 			if !ok {
 				// The only way input channel is closed is that the Store is stopping
 				// There will be no more data, insert everything there is and quit.
@@ -162,7 +162,10 @@ func (self *Store) run() (err error) {
 				return
 			}
 
-			pendingInteractions = append(pendingInteractions, interactions...)
+			self.log.WithField("height", payload.BlockHeight).WithField("num_interactions", len(pendingInteractions)).Info("Got block")
+			lastTransactionBlockHeight = payload.BlockHeight
+
+			pendingInteractions = append(pendingInteractions, payload.Interactions...)
 
 			if len(pendingInteractions) >= self.config.StoreBatchSize {
 				insert()
@@ -177,7 +180,7 @@ func (self *Store) run() (err error) {
 	}
 }
 
-func (self *Store) Save(ctx context.Context, interactions []*model.Interaction) (err error) {
+func (self *Store) Save(ctx context.Context, payload *Payload) (err error) {
 	if self.isStopping.Load() {
 		self.log.Error("Tried to store interaction after Store got stopped. Something's wrong in stopping order.")
 		return
@@ -185,7 +188,7 @@ func (self *Store) Save(ctx context.Context, interactions []*model.Interaction) 
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case self.input <- interactions:
+	case self.input <- payload:
 	}
 	return
 }

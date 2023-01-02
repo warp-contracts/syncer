@@ -88,15 +88,15 @@ func (self *Controller) run() (err error) {
 		case <-self.stopChannel:
 			self.log.Info("Controller is stopping")
 			listener.Stop()
-		case interaction, ok := <-listener.Interactions:
+		case payload, ok := <-listener.Payloads:
 			if !ok {
 				// Listener stopped
 				return
 			}
 
-			err = store.Save(self.Ctx, interaction)
+			err = store.Save(self.Ctx, payload)
 			if err != nil {
-				self.log.WithError(err).Error("Failed to store interaction")
+				self.log.WithError(err).Error("Failed to store payload")
 				// Log the error, but neglect it
 			}
 		}
