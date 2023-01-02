@@ -3,7 +3,6 @@ package sync
 import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
-	"syncer/src/utils/model"
 
 	"context"
 	"fmt"
@@ -74,7 +73,7 @@ func (self *Controller) run() (err error) {
 	defer store.StopWait()
 
 	// Get the last stored block height
-	startHeight, err := model.LastBlockHeight(self.Ctx, store.DB)
+	startHeight, err := store.GetLastTransactionBlockHeight(self.Ctx)
 	if err != nil {
 		return
 	}

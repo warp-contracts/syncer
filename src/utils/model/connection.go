@@ -25,14 +25,32 @@ func NewConnection(ctx context.Context) (self *gorm.DB, err error) {
 		return
 	}
 
-	if config.DBPingTimeout > 0 {
-		return self, Ping(ctx, self)
+	err = Ping(ctx, self)
+	if err != nil {
+		return
 	}
+
+	// Migrate state changes
+	err = self.AutoMigrate(State{})
+	if err != nil {
+		return
+	}
+
+	// Ensure there's syncer_state has one row inserted
+	self.Create(&State{
+		Id: 1,
+	})
+
 	return
 }
 
 func Ping(ctx context.Context, db *gorm.DB) (err error) {
 	config := common.GetConfig(ctx)
+
+	if config.DBPingTimeout < 0 {
+		// Ping disabled
+		return nil
+	}
 
 	sqlDB, err := db.DB()
 	if err != nil {

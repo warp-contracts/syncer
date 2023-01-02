@@ -131,6 +131,13 @@ func (self *Store) run() (err error) {
 			// FIXME: Retry
 		}
 
+		// FIXME: This isn't the right value. This should be the last downloaded transaction
+		err = self.setLastTransactionBlockHeight(self.Ctx, pendingInteractions[len(pendingInteractions)-1].BlockHeight)
+		if err != nil {
+			// FIXME: Retry
+			self.log.WithError(err).Error("Failed to update last transaction block height")
+		}
+
 		// Reset buffer index
 		pendingInteractions = nil
 
@@ -200,4 +207,15 @@ func (self *Store) StopWait() {
 		self.log.Info("Store stopped")
 	}
 
+}
+
+func (self *Store) GetLastTransactionBlockHeight(ctx context.Context) (out int64, err error) {
+	var state model.State
+	err = self.DB.WithContext(ctx).First(&state).Error
+	return state.LastTransactionBlockHeight, err
+}
+
+func (self *Store) setLastTransactionBlockHeight(ctx context.Context, value int64) (err error) {
+	state := model.State{Id: 1}
+	return self.DB.WithContext(ctx).Model(&state).Update("last_transaction_block_height", value).Error
 }
