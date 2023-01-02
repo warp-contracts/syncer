@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -100,6 +101,48 @@ func (self *Store) Start() (err error) {
 	return
 }
 
+func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransactionBlockHeight int64) (err error) {
+	operation := func() error {
+		self.log.WithField("length", len(pendingInteractions)).Debug("Insert batch of interactions")
+		return self.DB.WithContext(self.Ctx).
+			Transaction(func(tx *gorm.DB) error {
+				err = self.setLastTransactionBlockHeight(self.Ctx, tx, lastTransactionBlockHeight)
+				if err != nil {
+					self.log.WithError(err).Error("Failed to update last transaction block height")
+					return err
+				}
+
+				if len(pendingInteractions) == 0 {
+					return nil
+				}
+
+				err = tx.WithContext(self.Ctx).
+					CreateInBatches(pendingInteractions, len(pendingInteractions)).
+					Error
+				if err != nil {
+					self.log.WithError(err).Error("Failed to insert Interactions")
+					return err
+					// Close to avoid holes in inserted data
+					// self.Stop()
+					// TODO: Maybe it's possible to retry on some errors
+
+					// TODO: Send an email
+				}
+				return nil
+			})
+	}
+
+	// Expotentially increase the interval between retries
+	// Never stop retrying
+	// Wait at most 30s between retries
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
+	b.MaxInterval = 30 * time.Second
+
+	return backoff.Retry(operation, b)
+
+}
+
 // Receives data from the input channel and saves in the database
 func (self *Store) run() (err error) {
 	// Used to ensure data isn't stuck in Syncer for too long
@@ -109,41 +152,23 @@ func (self *Store) run() (err error) {
 	var lastTransactionBlockHeight int64
 
 	insert := func() {
-		if len(pendingInteractions) == 0 {
+		err = self.insert(pendingInteractions, lastTransactionBlockHeight)
+		if err != nil {
+			// This is a terminal error, it already tried to retry
+			self.log.WithError(err).Error("Failed to insert data")
+
+			// Trigger stopping
+			self.Stop()
 			return
 		}
-		self.log.WithField("length", len(pendingInteractions)).Debug("Insert batch of interactions")
-		err = self.DB.WithContext(self.Ctx).
-			// Clauses(clause.OnConflict{
-			// 	// Columns:   cols,
-			// 	// DoUpdates: clause.AssignmentColumns(colsNames),
-			// 	DoNothing: true,
-			// }).
-			CreateInBatches(pendingInteractions, len(pendingInteractions)).
-			Error
-		if err != nil {
-			self.log.WithError(err).Error("Failed to insert Interactions")
-			// Close to avoid holes in inserted data
-			// self.Stop()
-			// TODO: Maybe it's possible to retry on some errors
 
-			// TODO: Send an email
-			// FIXME: Retry
-		}
-
-		// FIXME: This isn't the right value. This should be the last downloaded transaction
-		err = self.setLastTransactionBlockHeight(self.Ctx, lastTransactionBlockHeight)
-		if err != nil {
-			// FIXME: Retry
-			self.log.WithError(err).Error("Failed to update last transaction block height")
-		}
-
-		// Reset buffer index
+		// Cleanup buffer
 		pendingInteractions = nil
 
 		// Prolong time to forced insert
 		ticker.Reset(self.config.StoreMaxTimeInQueue)
 	}
+
 	for {
 		select {
 		case <-self.stopChannel:
@@ -193,14 +218,18 @@ func (self *Store) Save(ctx context.Context, payload *Payload) (err error) {
 	return
 }
 
+func (self *Store) Stop() {
+	if self.isStopping.CompareAndSwap(false, true) {
+		self.stopChannel <- true
+	}
+}
+
 func (self *Store) StopWait() {
 	// Wait for at most 30s before force-closing
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if self.isStopping.CompareAndSwap(false, true) {
-		self.stopChannel <- true
-	}
+	self.Stop()
 
 	// Store's context will be cancelled only after processing all pending messages
 	select {
@@ -218,7 +247,7 @@ func (self *Store) GetLastTransactionBlockHeight(ctx context.Context) (out int64
 	return state.LastTransactionBlockHeight, err
 }
 
-func (self *Store) setLastTransactionBlockHeight(ctx context.Context, value int64) (err error) {
+func (self *Store) setLastTransactionBlockHeight(ctx context.Context, tx *gorm.DB, value int64) (err error) {
 	state := model.State{Id: 1}
 	return self.DB.WithContext(ctx).Model(&state).Update("last_transaction_block_height", value).Error
 }
