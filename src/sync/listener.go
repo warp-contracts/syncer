@@ -1,7 +1,11 @@
 package sync
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
+	"regexp"
+	"strings"
 	"sync/atomic"
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
@@ -31,6 +35,11 @@ type Listener struct {
 	stopChannel chan bool
 	isStopping  *atomic.Bool
 }
+
+var (
+	contractIdRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{43}$")
+	txIdRegex       = regexp.MustCompile("^[a-z0-9_-]{43}$")
+)
 
 // Listens for changes
 func NewListener(config *config.Config) (self *Listener) {
@@ -136,36 +145,62 @@ func (self *Listener) parse(tx *arsyncer.SubscribeTx) (out *model.Interaction, e
 		InteractionId:      tx.ID,
 		BlockHeight:        tx.BlockHeight,
 		BlockId:            tx.BlockId,
-		ConfirmationStatus: "not_processed",
+		ConfirmationStatus: "confirmed",
+		Source:             "arweave",
+		// Owner:              tx.Owner,
 	}
 
 	// Fill data from tags
 	for _, t := range decodedTags {
 		switch t.Name {
 		case "Contract":
+			if !contractIdRegex.MatchString(t.Value) {
+				err = errors.New("tag doesn't validate as a contractId")
+				self.log.Error("Failed to validate contract id")
+				return
+			}
 			out.ContractId = t.Value
+		case "Interact-Write":
+			out.InteractWrite = append(out.InteractWrite, t.Value)
+		case "Warp-Testnet":
+			out.Testnet = sql.NullString{
+				String: t.Value,
+				Valid:  true,
+			}
 		case "Input":
 			out.Input = t.Value
 
-			var parsedInput map[string]interface{}
-			err = json.Unmarshal([]byte(out.Input), &parsedInput)
+			// Marshal tag into tmp struct
+			var input struct {
+				Function *string `json:"function"`
+				Value    *string `json:"value"`
+			}
+
+			err = json.Unmarshal([]byte(out.Input), &input)
 			if err != nil {
 				self.log.Error("Failed to parse function in input")
 				return
 			}
 
-			val, ok := parsedInput["function"]
-			if !ok {
-				out.Function, ok = val.(string)
-				if !ok {
-					self.log.Error("Function field isn't a string")
-					return
+			// Check function name
+			if input.Function == nil {
+				break
+			}
+
+			// Cleanup function name
+			out.Function = strings.TrimSpace(*input.Function)
+
+			// Handle evolution
+			// Is this a call to evolve
+			if strings.EqualFold(out.Function, "evolve") &&
+				input.Value != nil &&
+				txIdRegex.MatchString(*input.Value) {
+				out.Evolve = sql.NullString{
+					String: *input.Value,
+					Valid:  true,
 				}
 			}
-		}
 
-		if out.ContractId != "" && out.Input != "" {
-			break
 		}
 	}
 
@@ -210,7 +245,7 @@ func (self *Listener) Stop() {
 // Stops listener and waits for everything to finish
 func (self *Listener) StopWait() {
 	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	self.Stop()

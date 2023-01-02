@@ -117,6 +117,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 				}
 
 				err = tx.WithContext(self.Ctx).
+					Table("interactions").
 					CreateInBatches(pendingInteractions, len(pendingInteractions)).
 					Error
 				if err != nil {

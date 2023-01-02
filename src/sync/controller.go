@@ -107,7 +107,7 @@ func (self *Controller) StopWait() {
 	self.log.Info("Stopping Controller...")
 
 	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(self.Ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(self.Ctx, 5*time.Second)
 	defer cancel()
 
 	// Trigger stopping
