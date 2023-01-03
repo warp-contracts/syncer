@@ -36,7 +36,8 @@ func (s *ListenerTestSuite) TearDownSuite() {
 }
 
 func (s *ListenerTestSuite) TestLifecycle() {
-	listener := NewListener(s.config)
+	listener, err := NewListener(s.config)
+	assert.NotNil(s.T(), err)
 	assert.NotNil(s.T(), listener)
 	// listener.Start(10000)
 	// time.Sleep(time.Second * 15)

@@ -1,17 +1,12 @@
 package sync
 
 import (
-	"database/sql"
-	"encoding/json"
-	"errors"
-	"regexp"
-	"strings"
 	"sync/atomic"
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
 	"syncer/src/utils/model"
-	"syncer/src/utils/smartweave"
+	"syncer/src/utils/warp"
 
 	"context"
 	"fmt"
@@ -19,7 +14,6 @@ import (
 
 	"github.com/everFinance/arsyncer"
 	"github.com/everFinance/goar/types"
-	"github.com/everFinance/goar/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -34,15 +28,12 @@ type Listener struct {
 
 	stopChannel chan bool
 	isStopping  *atomic.Bool
+
+	interactionParser *warp.InteractionParser
 }
 
-var (
-	contractIdRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{43}$")
-	txIdRegex       = regexp.MustCompile("^[a-z0-9_-]{43}$")
-)
-
 // Listens for changes
-func NewListener(config *config.Config) (self *Listener) {
+func NewListener(config *config.Config) (self *Listener, err error) {
 	self = new(Listener)
 	self.log = logger.NewSublogger("listener")
 	self.config = config
@@ -57,6 +48,12 @@ func NewListener(config *config.Config) (self *Listener) {
 
 	// Variable used for avoiding stopping Listener two times upon panics/errors
 	self.isStopping = &atomic.Bool{}
+
+	// Converting Arweave transactions to interactions
+	self.interactionParser, err = warp.NewInteractionParser(config)
+	if err != nil {
+		return
+	}
 	return
 }
 
@@ -123,7 +120,7 @@ func (self *Listener) run(startHeight int64) {
 			}
 			var err error
 			for idx, tx := range block {
-				payload.Interactions[idx], err = self.parse(&tx)
+				payload.Interactions[idx], err = self.interactionParser.Parse(&tx)
 				if err != nil {
 					self.log.WithField("tx_id", tx.ID).Warn("Failed to parse transaction")
 					continue
@@ -133,105 +130,6 @@ func (self *Listener) run(startHeight int64) {
 			self.Payloads <- payload
 		}
 	}
-}
-
-func (self *Listener) parse(tx *arsyncer.SubscribeTx) (out *model.Interaction, err error) {
-	decodedTags, err := utils.TagsDecode(tx.Tags)
-	if err != nil {
-		return
-	}
-
-	out = &model.Interaction{
-		InteractionId:      tx.ID,
-		BlockHeight:        tx.BlockHeight,
-		BlockId:            tx.BlockId,
-		ConfirmationStatus: "confirmed",
-		Source:             "arweave",
-		// Owner:              tx.Owner,
-	}
-
-	// Fill data from tags
-	for _, t := range decodedTags {
-		switch t.Name {
-		case "Contract":
-			if !contractIdRegex.MatchString(t.Value) {
-				err = errors.New("tag doesn't validate as a contractId")
-				self.log.Error("Failed to validate contract id")
-				return
-			}
-			out.ContractId = t.Value
-		case "Interact-Write":
-			out.InteractWrite = append(out.InteractWrite, t.Value)
-		case "Warp-Testnet":
-			out.Testnet = sql.NullString{
-				String: t.Value,
-				Valid:  true,
-			}
-		case "Input":
-			out.Input = t.Value
-
-			// Marshal tag into tmp struct
-			var input struct {
-				Function *string `json:"function"`
-				Value    *string `json:"value"`
-			}
-
-			err = json.Unmarshal([]byte(out.Input), &input)
-			if err != nil {
-				self.log.Error("Failed to parse function in input")
-				return
-			}
-
-			// Check function name
-			if input.Function == nil {
-				break
-			}
-
-			// Cleanup function name
-			out.Function = strings.TrimSpace(*input.Function)
-
-			// Handle evolution
-			// Is this a call to evolve
-			if strings.EqualFold(out.Function, "evolve") &&
-				input.Value != nil &&
-				txIdRegex.MatchString(*input.Value) {
-				out.Evolve = sql.NullString{
-					String: *input.Value,
-					Valid:  true,
-				}
-			}
-
-		}
-	}
-
-	swInteraction := smartweave.Interaction{
-		Id: tx.ID,
-		Owner: smartweave.Owner{
-			Address: tx.Owner,
-		},
-		Recipient: tx.Target,
-		Tags:      decodedTags,
-		Block: smartweave.Block{
-			Height:    tx.BlockHeight,
-			Id:        tx.BlockId,
-			Timestamp: tx.BlockTimestamp,
-		},
-		Fee: smartweave.Amount{
-			Winston: tx.Reward,
-		},
-		Quantity: smartweave.Amount{
-			Winston: tx.Quantity,
-		},
-	}
-
-	swInteractionJson, err := json.Marshal(swInteraction)
-	if err != nil {
-		self.log.Error("Failed to marshal interaction")
-		return
-	}
-	out.Interaction = string(swInteractionJson)
-
-	return
 }
 
 func (self *Listener) Stop() {

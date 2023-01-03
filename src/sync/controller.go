@@ -79,7 +79,11 @@ func (self *Controller) run() (err error) {
 	}
 
 	// Listening for arweave transactions
-	listener := NewListener(self.config)
+	listener, err := NewListener(self.config)
+	if err != nil {
+		return
+	}
+
 	listener.Start(startHeight + 1)
 	defer listener.StopWait()
 
