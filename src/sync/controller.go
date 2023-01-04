@@ -49,6 +49,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 }
 
 func (self *Controller) Start() {
+	// REST API server
+	self.server.Start()
+
 	go func() {
 		defer func() {
 			// run() finished, so it's time to cancel Controller's context
@@ -136,4 +139,7 @@ func (self *Controller) StopWait() {
 	case <-self.Ctx.Done():
 		self.log.Info("Controller stopped")
 	}
+
+	// Stop REST API server
+	self.server.StopWait()
 }

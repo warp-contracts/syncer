@@ -38,6 +38,8 @@ func (self *Monitor) OnGet(c *gin.Context) {
 	self.mtx.Lock()
 	defer self.mtx.Unlock()
 
+	self.log.WithField("report", self.report).Info("Getting monitor stats")
+
 	status := http.StatusOK
 	if self.report.DbErrors != 0 {
 		status = http.StatusInternalServerError

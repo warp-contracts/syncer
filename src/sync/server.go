@@ -3,8 +3,10 @@ package sync
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -16,7 +18,9 @@ type Server struct {
 	cancel context.CancelFunc
 	config *config.Config
 	log    *logrus.Entry
-	Router *gin.Engine
+
+	httpServer *http.Server
+	Router     *gin.Engine
 
 	Monitor *Monitor
 }
@@ -30,9 +34,16 @@ func NewServer(config *config.Config, monitor *Monitor) (self *Server, err error
 
 	// Setup router
 	self.Router = gin.New()
+
+	gin.SetMode(gin.DebugMode)
 	v1 := self.Router.Group("v1")
 	{
 		v1.GET("health", monitor.OnGet)
+	}
+
+	self.httpServer = &http.Server{
+		Addr:    self.config.RESTListenAddress,
+		Handler: self.Router,
 	}
 	return
 }
@@ -59,15 +70,23 @@ func (self *Server) Start() {
 				panic(p)
 			}
 		}()
-		err := self.Router.Run(self.config.RESTListenAddress)
-		if err != nil {
-			self.log.WithError(err).Error("Failed to start REST server")
-
+		self.log.Info("Started REST server")
+		if err := self.httpServer.ListenAndServe(); err != nil {
+			self.log.WithError(err).Info("REST server finished")
 		}
 	}()
 }
 
-func (self *Server) Stop() {
+func (self *Server) StopWait() {
 	self.log.Info("Stopping server")
-	defer self.cancel()
+
+	// Wait for at most 30s before force-closing
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	err := self.httpServer.Shutdown(ctx)
+	if err != nil {
+		self.log.WithError(err).Error("Failed to gracefully shutdown REST server")
+		return
+	}
 }

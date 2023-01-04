@@ -9,10 +9,10 @@ services:
     depends_on:
       - db
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://127.0.0.1:3333" ]
-      interval: 1m30s
+      test: curl --fail http://localhost:3333/v1/health || exit 1
+      interval: 5s
       timeout: 10s
-      retries: 3
+      retries: 1
       start_period: 40s
     environment:
       SYNCER_DBPORT: 5432
