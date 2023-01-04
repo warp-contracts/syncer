@@ -19,6 +19,7 @@ type Controller struct {
 	log    *logrus.Entry
 
 	stopChannel chan bool
+	// stopOnce    sync.Once
 
 	server  *Server
 	monitor *Monitor
@@ -73,7 +74,7 @@ func (self *Controller) Start() {
 
 		err := self.run()
 		if err != nil {
-			self.log.WithError(err).Error("Error in run()")
+			self.log.WithError(err).Error("Controller finished with an error")
 		}
 	}()
 }

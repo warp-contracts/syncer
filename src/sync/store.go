@@ -69,7 +69,7 @@ func (self *Store) connect() (err error) {
 	if err != nil {
 		return
 	}
-
+	self.log.Info("Connection established")
 	return
 }
 

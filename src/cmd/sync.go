@@ -22,8 +22,10 @@ var serverCmd = &cobra.Command{
 
 		sync.Start()
 
-		// TODO: Wait for controller failures
-		<-applicationCtx.Done()
+		select {
+		case <-sync.Ctx.Done():
+		case <-applicationCtx.Done():
+		}
 
 		sync.StopWait()
 
@@ -31,7 +33,8 @@ var serverCmd = &cobra.Command{
 	},
 	PostRunE: func(cmd *cobra.Command, args []string) (err error) {
 		log := logger.NewSublogger("root-cmd")
-		log.Debug("Finished poll command")
+		log.Debug("Finished sync command")
+		applicationCtxCancel()
 		return
 	},
 }
