@@ -19,6 +19,9 @@ type Controller struct {
 	log    *logrus.Entry
 
 	stopChannel chan bool
+
+	server  *Server
+	monitor *Monitor
 }
 
 // Main class that orchestrates main syncer functionalities
@@ -33,6 +36,15 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	// Internal channel for closing the underlying goroutine
 	self.stopChannel = make(chan bool, 1)
+
+	self.monitor = NewMonitor()
+
+	// REST server API, healthchecks
+	self.server, err = NewServer(config, self.monitor)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
@@ -65,7 +77,7 @@ func (self *Controller) Start() {
 
 func (self *Controller) run() (err error) {
 	// Stores interactions
-	store := NewStore(self.config)
+	store := NewStore(self.config, self.monitor)
 	err = store.Start()
 	if err != nil {
 		return

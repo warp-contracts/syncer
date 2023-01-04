@@ -20,6 +20,9 @@ type Config struct {
 	DBSSLMode     string
 	DBPingTimeout time.Duration
 
+	// REST API
+	RESTListenAddress string
+
 	// Logging
 	LogLevel string
 	LogPath  string
@@ -51,6 +54,7 @@ func setDefaults() {
 	viper.SetDefault("DBName", "warp")
 	viper.SetDefault("DBSSLMode", "disable")
 	viper.SetDefault("DBPingTimeout", "15s")
+	viper.SetDefault("RESTListenAddress", ":3333")
 	viper.SetDefault("LogLevel", "DEBUG")
 	viper.SetDefault("LogPath", "")
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")

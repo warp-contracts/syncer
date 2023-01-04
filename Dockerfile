@@ -1,5 +1,5 @@
 FROM golang:1.19.4-alpine3.17
-RUN apk add --update make 
+RUN apk add --update make build-base
 
 WORKDIR /app
 COPY .gopath~ .gopath~

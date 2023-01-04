@@ -20,15 +20,17 @@ func TestStoreTestSuite(t *testing.T) {
 
 type StoreTestSuite struct {
 	suite.Suite
-	ctx    context.Context
-	cancel context.CancelFunc
-	config *config.Config
+	ctx     context.Context
+	cancel  context.CancelFunc
+	config  *config.Config
+	monitor *Monitor
 }
 
 func (s *StoreTestSuite) SetupSuite() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.config = config.Default()
 	s.ctx = common.SetConfig(s.ctx, s.config)
+	s.monitor = NewMonitor()
 }
 
 func (s *StoreTestSuite) TearDownSuite() {
@@ -36,7 +38,7 @@ func (s *StoreTestSuite) TearDownSuite() {
 }
 
 func (s *StoreTestSuite) TestLifecycle() {
-	store := NewStore(s.config)
+	store := NewStore(s.config, s.monitor)
 	assert.NotNil(s.T(), store)
 
 	err := store.Start()

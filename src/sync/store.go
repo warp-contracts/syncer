@@ -28,14 +28,17 @@ type Store struct {
 	input  chan *Payload
 	DB     *gorm.DB
 
+	monitor *Monitor
+
 	stopChannel chan bool
 	isStopping  *atomic.Bool
 }
 
-func NewStore(config *config.Config) (self *Store) {
+func NewStore(config *config.Config, monitor *Monitor) (self *Store) {
 	self = new(Store)
 	self.log = logger.NewSublogger("store")
 	self.config = config
+	self.monitor = monitor
 
 	// Store's context, active as long as there's anything running in Store
 	self.Ctx, self.cancel = context.WithCancel(context.Background())
@@ -52,24 +55,29 @@ func NewStore(config *config.Config) (self *Store) {
 	return
 }
 
-func (self *Store) connect() (db *gorm.DB, err error) {
+func (self *Store) connect() (err error) {
 	if self.DB != nil {
 		// Just check the connection
 		err = model.Ping(self.Ctx, self.DB)
 		if err == nil {
-			return self.DB, nil
+			return nil
 		}
 
 		self.log.WithError(err).Warn("Ping failed, restarting connection")
 	}
-	return model.NewConnection(self.Ctx)
+	self.DB, err = model.NewConnection(self.Ctx)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 func (self *Store) Start() (err error) {
 	self.log.Info("Starting Store...")
 
 	// Connection to the database
-	self.DB, err = self.connect()
+	err = self.connect()
 	if err != nil {
 		return
 	}
@@ -109,6 +117,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 				err = self.setLastTransactionBlockHeight(self.Ctx, tx, lastTransactionBlockHeight)
 				if err != nil {
 					self.log.WithError(err).Error("Failed to update last transaction block height")
+					self.monitor.ReportDBError()
 					return err
 				}
 
@@ -122,12 +131,8 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 					Error
 				if err != nil {
 					self.log.WithError(err).Error("Failed to insert Interactions")
+					self.monitor.ReportDBError()
 					return err
-					// Close to avoid holes in inserted data
-					// self.Stop()
-					// TODO: Maybe it's possible to retry on some errors
-
-					// TODO: Send an email
 				}
 				return nil
 			})

@@ -21,14 +21,13 @@ type Interaction struct {
 	ConfirmationStatus string
 	InteractWrite      pq.StringArray `gorm:"type:text[]"`
 
-	// TODO: Take from tags
 	// https://github.com/warp-contracts/gateway/blob/main/src/gateway/tasks/syncTransactions.ts#L175
 	Evolve sql.NullString
 
-	// TODO: Tags
 	// https://github.com/warp-contracts/gateway/blob/ef7aad549045943f0127542cce36cd94a966bdc7/src/gateway/tasks/syncTransactions.ts#L187
 	Testnet sql.NullString
 
+	// Hardcoded arsyncer
 	Source string
 
 	// TODO: Generate this, gateway and sequencer should use the same function
