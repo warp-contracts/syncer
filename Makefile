@@ -6,6 +6,8 @@ BASE     = $(GOPATH)/src/$(PACKAGE)
 PATH    := bin:$(PATH)
 GO       = go
 
+export GOPATH
+
 # Display utils
 V = 0
 Q = $(if $(filter 1,$V),,@)

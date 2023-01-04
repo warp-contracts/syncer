@@ -14,6 +14,7 @@ import (
 	"syncer/src/utils/model"
 	"syncer/src/utils/smartweave"
 
+	"github.com/dvsekhvalnov/jose2go/base64url"
 	"github.com/everFinance/arsyncer"
 	"github.com/everFinance/goar/types"
 	"github.com/everFinance/goar/utils"
@@ -61,6 +62,12 @@ func (self *InteractionParser) Parse(tx *arsyncer.SubscribeTx) (out *model.Inter
 
 	out.SortKey = self.createSortKey(tx)
 
+	out.Owner, err = self.getOwner(tx)
+	if err != nil {
+		return
+	}
+
+	// Get owner's wallet address
 	swInteraction := smartweave.Interaction{
 		Id: tx.ID,
 		Owner: smartweave.Owner{
@@ -87,6 +94,23 @@ func (self *InteractionParser) Parse(tx *arsyncer.SubscribeTx) (out *model.Inter
 		return
 	}
 	out.Interaction = string(swInteractionJson)
+
+	return
+}
+
+func (self *InteractionParser) getOwner(tx *arsyncer.SubscribeTx) (owner string, err error) {
+	// The n value is the public modulus and is used as the transaction owner field,
+	// and the address of a wallet is a Base64URL encoded SHA-256 hash of the n value from the JWK.
+	// https://docs.arweave.org/developers/server/http-api#addressing
+	n, err := base64url.Decode(tx.Owner)
+	if err != nil {
+		self.log.WithError(err).Error("Failed to decode owner")
+		return
+	}
+
+	h := sha256.New()
+	h.Write(n)
+	owner = base64url.Encode(h.Sum(nil))
 
 	return
 }
