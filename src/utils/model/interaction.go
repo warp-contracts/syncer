@@ -20,6 +20,7 @@ type Interaction struct {
 	Input              string
 	ConfirmationStatus string
 	InteractWrite      pq.StringArray `gorm:"type:text[]"`
+	SortKey            string
 
 	// https://github.com/warp-contracts/gateway/blob/main/src/gateway/tasks/syncTransactions.ts#L175
 	Evolve sql.NullString
@@ -29,13 +30,6 @@ type Interaction struct {
 
 	// Hardcoded arsyncer
 	Source string
-
-	// TODO: Generate this, gateway and sequencer should use the same function
-	// https://github.com/warp-contracts/sequencer/blob/test2/sortkey/createSortKey.go
-	// L1 sdk has a slighly different code. Do it exatctly like SDK
-	// Środkowa część same zera ( w SDK jest https://github.com/warp-contracts/warp/blob/main/src/core/modules/impl/LexicographicalInteractionsSorter.ts#L35)
-	// TODO: Exact height of the block isn't yet known
-	SortKey string
 
 	// TODO: This should be wallet address (there's a function in goar to do this), 44char
 	Owner string
@@ -48,5 +42,4 @@ type Interaction struct {
 	// Not needed:
 	// BundlerTxId       string
 	// LastSortKey       string
-
 }
