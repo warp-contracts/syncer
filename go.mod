@@ -3,8 +3,14 @@ module syncer
 go 1.19
 
 require (
+	github.com/cenkalti/backoff/v4 v4.2.0
+	github.com/dvsekhvalnov/jose2go v1.5.0
 	github.com/everFinance/arsyncer v1.1.4
 	github.com/everFinance/goar v1.4.7
+	github.com/gin-gonic/gin v1.8.2
+	github.com/go-resty/resty/v2 v2.7.0
+	github.com/lestrrat-go/jwx v1.2.25
+	github.com/lib/pq v1.10.7
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
@@ -16,10 +22,8 @@ require (
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.3 // indirect
-	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
-	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
 	github.com/ethereum/go-ethereum v1.10.26 // indirect
 	github.com/everFinance/arseeding v1.0.25 // indirect
 	github.com/everFinance/ethrpc v1.0.4 // indirect
@@ -29,7 +33,6 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/getsentry/sentry-go v0.11.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/gin-gonic/gin v1.8.2 // indirect
 	github.com/go-co-op/gocron v1.11.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
@@ -56,12 +59,8 @@ require (
 	github.com/lestrrat-go/backoff/v2 v2.0.8 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.1 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
-	github.com/lestrrat-go/httprc v1.0.4 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
-	github.com/lestrrat-go/jwx v1.2.25 // indirect
-	github.com/lestrrat-go/jwx/v2 v2.0.8 // indirect
 	github.com/lestrrat-go/option v1.0.0 // indirect
-	github.com/lib/pq v1.10.7 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
