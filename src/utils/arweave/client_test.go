@@ -2,6 +2,7 @@ package arweave
 
 import (
 	"context"
+	"strings"
 
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
@@ -9,8 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	// "os"
 
 	"testing"
 )
@@ -60,5 +59,20 @@ func (s *ClientTestSuite) TestGetTransactionById() {
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), out)
 	require.NotZero(s.T(), out.ID)
+}
 
+func (s *ClientTestSuite) TestSetPeers() {
+	// Working peer only in tmp list
+	s.client.SetPeers([]string{s.config.ArNodeUrl})
+
+	// Tmp break the main URL
+	tmp := strings.Clone(s.config.ArNodeUrl)
+	s.config.ArNodeUrl = "https://google.com"
+	defer func() {
+		s.config.ArNodeUrl = tmp
+	}()
+	out, err := s.client.GetNetworkInfo(s.ctx)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), out)
+	require.NotZero(s.T(), out.Blocks)
 }

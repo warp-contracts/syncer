@@ -116,7 +116,7 @@ func (self *Poller) monitorNetwork() {
 				continue
 			}
 
-			// There are new blocks, broad cast
+			// There are new blocks, broadcast
 			lastHeight = networkInfo.Height
 
 			// Writing is a blocking operation
@@ -133,11 +133,17 @@ func (self *Poller) monitorNetwork() {
 // Listens for changed height and downloads the missing blocks
 func (self *Poller) monitorBlocks() {
 	lastSyncedHeight := self.startHeight
+
+	// Listen for new blocks (blocks)
+	// Finishes when Poller is stopping
 	for presentHeight := range self.heightChannel {
+
+		// Download transactions from
 		for height := lastSyncedHeight + 1; height <= presentHeight; height++ {
 			block, err := self.client.GetBlockByHeight(self.Ctx, height)
 			if err != nil {
 				self.log.WithField("height", height).Error("Failed to download block")
+				continue
 				// FIXME: Inform downstream something's wrong
 			}
 
