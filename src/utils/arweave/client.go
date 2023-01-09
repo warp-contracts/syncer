@@ -3,27 +3,42 @@ package arweave
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
+	"strings"
+	"sync"
 	"syncer/src/utils/build_info"
 	"syncer/src/utils/config"
+	"syncer/src/utils/logger"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/sirupsen/logrus"
 )
 
 type Client struct {
 	client *resty.Client
 	config *config.Config
+	log    *logrus.Entry
+
+	// State
+	mtx   sync.RWMutex
+	peers []string
 }
 
 func NewClient(config *config.Config) (self *Client) {
 	self = new(Client)
 	self.config = config
+	self.log = logger.NewSublogger("arweave-client")
+
+	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
-			SetBaseURL(config.ArNodeUrl).
-			SetDebug(true).
+			// SetDebug(true).
 			SetTimeout(self.config.ArRequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
+			SetRetryCount(2).
+			AddRetryAfterErrorCondition().
+			OnAfterResponse(self.retryRequest).
 			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
 				// Non-success status code turns into an error
 				if resp.IsSuccess() {
@@ -35,12 +50,83 @@ func NewClient(config *config.Config) (self *Client) {
 	return
 }
 
+// Called upon error in the "main" client. Retries
+func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err error) {
+	if resp.IsSuccess() {
+		return nil
+	}
+	var (
+		idx            int
+		peer           string
+		secondResponse *resty.Response
+	)
+
+	endpoint := strings.TrimPrefix(resp.Request.URL, self.config.ArNodeUrl)
+
+	for {
+		self.mtx.Lock()
+		if idx >= len(self.peers) {
+			// No more peers, report the first failure
+			self.mtx.Unlock()
+			return
+		}
+		peer = self.peers[idx]
+		self.mtx.Unlock()
+
+		self.log.WithField("peer", peer).Info("Retrying request with different peer")
+
+		//	Make the same request, but change the URL
+		resp.Request.URL = peer + endpoint
+		secondResponse, err = resp.Request.Send()
+		if err == nil {
+			// Success
+			break
+		}
+
+		// Handle timeout in context
+		if secondResponse.Request.Context().Err() != nil {
+			err = secondResponse.Request.Context().Err()
+			return
+		}
+		idx += 1
+	}
+	// Replace the response returned to the API user
+	(*resp) = (*secondResponse)
+	return err
+}
+
+func (self *Client) url(endpoint string) (out string) {
+	if endpoint[0:1] != "/" {
+		endpoint = "/" + endpoint
+	}
+	return self.config.ArNodeUrl + endpoint
+}
+
+// Set the list of potential peers in order they should be used
+// Uses only peers that are proper urls
+func (self *Client) SetPeers(peers []string) {
+	filtered := make([]string, 0, len(peers))
+
+	for _, peer := range peers {
+		_, err := url.Parse(peer)
+		if err == nil {
+			peer = strings.TrimSuffix(peer, "/")
+			filtered = append(filtered, peer)
+		}
+	}
+
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
+	self.peers = filtered
+}
+
 // https://docs.arweave.org/developers/server/http-api#network-info
 func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err error) {
 	resp, err := self.client.R().
 		SetContext(ctx).
 		SetResult(NetworkInfo{}).
-		Get("info")
+		Get(self.url("info"))
 	if err != nil {
 		return
 	}
@@ -60,7 +146,7 @@ func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Bl
 		SetContext(ctx).
 		SetResult(&Block{}).
 		SetPathParam("height", strconv.FormatInt(height, 10)).
-		Get("block/height/{height}")
+		Get(self.url("block/height/{height}"))
 	if err != nil {
 		return
 	}
@@ -80,7 +166,7 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 		SetContext(ctx).
 		SetResult(&Transaction{}).
 		SetPathParam("id", id).
-		Get("tx/{id}")
+		Get(self.url("tx/{id}"))
 	if err != nil {
 		return
 	}
