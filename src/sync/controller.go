@@ -2,6 +2,7 @@ package sync
 
 import (
 	"syncer/src/utils/config"
+	"syncer/src/utils/listener"
 	"syncer/src/utils/logger"
 
 	"context"
@@ -95,12 +96,10 @@ func (self *Controller) run() (err error) {
 	}
 
 	// Listening for arweave transactions
-	listener, err := NewListener(self.config)
-	if err != nil {
-		return
-	}
+	listener := listener.NewListener(self.config).
+		WithStartHeight(startHeight)
 
-	listener.Start(startHeight + 1)
+	listener.Start()
 	defer listener.StopWait()
 
 	for {
@@ -108,7 +107,7 @@ func (self *Controller) run() (err error) {
 		case <-self.stopChannel:
 			self.log.Info("Controller is stopping")
 			listener.Stop()
-		case payload, ok := <-listener.Payloads:
+		case payload, ok := <-listener.PayloadChannel:
 			if !ok {
 				// Listener stopped
 				return

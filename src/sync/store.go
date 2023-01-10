@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
+	"syncer/src/utils/listener"
 	"syncer/src/utils/logger"
 	"syncer/src/utils/model"
 
@@ -25,7 +26,7 @@ type Store struct {
 
 	config *config.Config
 	log    *logrus.Entry
-	input  chan *Payload
+	input  chan *listener.Payload
 	DB     *gorm.DB
 
 	monitor *Monitor
@@ -48,7 +49,7 @@ func NewStore(config *config.Config, monitor *Monitor) (self *Store) {
 	self.stopChannel = make(chan bool, 1)
 
 	// Incoming interactions channel
-	self.input = make(chan *Payload)
+	self.input = make(chan *listener.Payload)
 
 	// Variable used for avoiding stopping Store two times upon panics/errors and saving to stopped Store
 	self.isStopping = &atomic.Bool{}
@@ -211,7 +212,7 @@ func (self *Store) run() (err error) {
 	}
 }
 
-func (self *Store) Save(ctx context.Context, payload *Payload) (err error) {
+func (self *Store) Save(ctx context.Context, payload *listener.Payload) (err error) {
 	if self.isStopping.Load() {
 		self.log.Error("Tried to store interaction after Store got stopped. Something's wrong in stopping order.")
 		return

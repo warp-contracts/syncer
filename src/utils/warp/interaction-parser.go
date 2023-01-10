@@ -9,15 +9,13 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
 	"syncer/src/utils/model"
 	"syncer/src/utils/smartweave"
 
 	"github.com/dvsekhvalnov/jose2go/base64url"
-	"github.com/everFinance/arsyncer"
-	"github.com/everFinance/goar/types"
-	"github.com/everFinance/goar/utils"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/sirupsen/logrus"
 )
@@ -39,28 +37,23 @@ func NewInteractionParser(config *config.Config) (self *InteractionParser, err e
 	return
 }
 
-func (self *InteractionParser) Parse(tx *arsyncer.SubscribeTx) (out *model.Interaction, err error) {
+func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64, blockId string, blockTimestamp int64) (out *model.Interaction, err error) {
 	out = &model.Interaction{
 		InteractionId:      tx.ID,
-		BlockHeight:        tx.BlockHeight,
-		BlockId:            tx.BlockId,
+		BlockHeight:        blockHeight,
+		BlockId:            blockId,
 		ConfirmationStatus: "confirmed",
 		Source:             "arweave",
 		// Owner:              tx.Owner,
 	}
 
-	// Parse and fill tags
-	decodedTags, err := utils.TagsDecode(tx.Tags)
+	// Fill tags, already decoded from base64
+	err = self.fillTags(tx, out)
 	if err != nil {
 		return
 	}
 
-	err = self.fillTags(decodedTags, out)
-	if err != nil {
-		return
-	}
-
-	out.SortKey = self.createSortKey(tx)
+	out.SortKey = self.createSortKey(tx, blockHeight, blockId)
 
 	out.Owner, err = self.getOwner(tx)
 	if err != nil {
@@ -74,11 +67,11 @@ func (self *InteractionParser) Parse(tx *arsyncer.SubscribeTx) (out *model.Inter
 			Address: tx.Owner,
 		},
 		Recipient: tx.Target,
-		Tags:      decodedTags,
+		Tags:      tx.Tags,
 		Block: smartweave.Block{
-			Height:    tx.BlockHeight,
-			Id:        tx.BlockId,
-			Timestamp: tx.BlockTimestamp,
+			Height:    blockHeight,
+			Id:        blockId,
+			Timestamp: blockTimestamp,
 		},
 		Fee: smartweave.Amount{
 			Winston: tx.Reward,
@@ -98,7 +91,7 @@ func (self *InteractionParser) Parse(tx *arsyncer.SubscribeTx) (out *model.Inter
 	return
 }
 
-func (self *InteractionParser) getOwner(tx *arsyncer.SubscribeTx) (owner string, err error) {
+func (self *InteractionParser) getOwner(tx *arweave.Transaction) (owner string, err error) {
 	// The n value is the public modulus and is used as the transaction owner field,
 	// and the address of a wallet is a Base64URL encoded SHA-256 hash of the n value from the JWK.
 	// https://docs.arweave.org/developers/server/http-api#addressing
@@ -115,26 +108,29 @@ func (self *InteractionParser) getOwner(tx *arsyncer.SubscribeTx) (owner string,
 	return
 }
 
-func (self *InteractionParser) fillTags(decodedTags []types.Tag, out *model.Interaction) (err error) {
+func (self *InteractionParser) fillTags(tx *arweave.Transaction, out *model.Interaction) (err error) {
 	// Fill data from tags
-	for _, t := range decodedTags {
+	var value string
+	for _, t := range tx.Tags {
+		// Base64String to string
+		value = string(t.Value)
 		switch t.Name {
 		case "Contract":
-			if !contractIdRegex.MatchString(t.Value) {
+			if !contractIdRegex.MatchString(value) {
 				err = errors.New("tag doesn't validate as a contractId")
 				self.log.Error("Failed to validate contract id")
 				return
 			}
-			out.ContractId = t.Value
+			out.ContractId = value
 		case "Interact-Write":
-			out.InteractWrite = append(out.InteractWrite, t.Value)
+			out.InteractWrite = append(out.InteractWrite, value)
 		case "Warp-Testnet":
 			out.Testnet = sql.NullString{
-				String: t.Value,
+				String: value,
 				Valid:  true,
 			}
 		case "Input":
-			out.Input = t.Value
+			out.Input = value
 
 			// Marshal tag into tmp struct
 			var input struct {
@@ -173,8 +169,8 @@ func (self *InteractionParser) fillTags(decodedTags []types.Tag, out *model.Inte
 	return nil
 }
 
-func (self *InteractionParser) createSortKey(tx *arsyncer.SubscribeTx) string {
-	blockId := []byte(tx.BlockId)
+func (self *InteractionParser) createSortKey(tx *arweave.Transaction, blockHeight int64, id string) string {
+	blockId := []byte(id)
 	transactionId := []byte(tx.ID)
 	d := (self.jwkKey.(jwk.RSAPrivateKey)).D()
 
@@ -188,5 +184,5 @@ func (self *InteractionParser) createSortKey(tx *arsyncer.SubscribeTx) string {
 	sum256 := sha256.Sum256(buffer)
 	hash := hex.EncodeToString(sum256[:])
 
-	return fmt.Sprintf("%.12d,0000000000000,%s", tx.BlockHeight, hash)
+	return fmt.Sprintf("%.12d,0000000000000,%s", blockHeight, hash)
 }

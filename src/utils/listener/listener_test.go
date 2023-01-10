@@ -1,12 +1,14 @@
-package sync
+package listener
 
 import (
 	"context"
+	"time"
 
-	"syncer/src/utils/common"
 	"syncer/src/utils/config"
+	"syncer/src/utils/logger"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	// "os"
@@ -23,12 +25,13 @@ type ListenerTestSuite struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	config *config.Config
+	log    *logrus.Entry
 }
 
 func (s *ListenerTestSuite) SetupSuite() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.config = config.Default()
-	s.ctx = common.SetConfig(s.ctx, s.config)
+	s.log = logger.NewSublogger("listener-test")
 }
 
 func (s *ListenerTestSuite) TearDownSuite() {
@@ -36,11 +39,10 @@ func (s *ListenerTestSuite) TearDownSuite() {
 }
 
 func (s *ListenerTestSuite) TestLifecycle() {
-	listener, err := NewListener(s.config)
-	assert.NotNil(s.T(), err)
-	assert.NotNil(s.T(), listener)
-	// listener.Start(10000)
-	// time.Sleep(time.Second * 15)
-	// listener.StopWait()
-	// <-listener.Ctx.Done()
+	listener := NewListener(s.config).WithStartHeight(1082024)
+	require.NotNil(s.T(), listener)
+
+	listener.Start()
+	time.Sleep(time.Minute)
+	listener.StopWait()
 }
