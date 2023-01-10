@@ -67,8 +67,8 @@ type Transaction struct {
 }
 
 type Tag struct {
-	Name  string `json:"name" avro:"name"`
-	Value string `json:"value" avro:"value"`
+	Name  Base64String `json:"name" avro:"name"`
+	Value Base64String `json:"value" avro:"value"`
 }
 
 type Chunks struct {
