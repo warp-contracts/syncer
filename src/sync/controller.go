@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
 	"syncer/src/utils/logger"
@@ -95,9 +96,17 @@ func (self *Controller) run() (err error) {
 		return
 	}
 
+	client := arweave.NewClient(self.config)
+	// Monitoring peers reported from the "main" node
+	peerMonitor := listener.NewPeerMonitor(self.config).
+		WithClient(client)
+	peerMonitor.Start()
+	defer peerMonitor.StopWait()
+
 	// Listening for arweave transactions
 	listener := listener.NewListener(self.config).
-		WithStartHeight(startHeight)
+		WithStartHeight(startHeight).
+		WithClient(client)
 
 	listener.Start()
 	defer listener.StopWait()

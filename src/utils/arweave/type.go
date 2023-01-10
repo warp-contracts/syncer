@@ -1,5 +1,7 @@
 package arweave
 
+type PeerList []string
+
 type NetworkInfo struct {
 	Network          string `json:"network"`
 	Version          int64  `json:"version"`

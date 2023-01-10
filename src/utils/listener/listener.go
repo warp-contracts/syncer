@@ -52,7 +52,6 @@ func NewListener(config *config.Config) (self *Listener) {
 	self = new(Listener)
 	self.log = logger.NewSublogger("listener")
 	self.config = config
-	self.client = arweave.NewClient(config)
 
 	// Listener context, active as long as there's anything running in Listener
 	self.Ctx, self.cancel = context.WithCancel(context.Background())
@@ -63,9 +62,6 @@ func NewListener(config *config.Config) (self *Listener) {
 	self.isStopping = &atomic.Bool{}
 	self.stopWaitGroup = sync.WaitGroup{}
 	self.stopChannel = make(chan bool, 1)
-
-	// Context active as long as there's anything running in Listener
-	self.Ctx, self.cancel = context.WithCancel(context.Background())
 
 	// A chain of channels
 	self.heightChannel = make(chan int64)
@@ -79,6 +75,11 @@ func NewListener(config *config.Config) (self *Listener) {
 		self.log.Panic("Failed to initialize parser")
 	}
 	return
+}
+
+func (self *Listener) WithClient(client *arweave.Client) *Listener {
+	self.client = client
+	return self
 }
 
 func (self *Listener) WithStartHeight(v int64) *Listener {
@@ -183,12 +184,6 @@ func (self *Listener) monitorBlocks() {
 				WithField("height", height).
 				WithField("length", len(block.Txs)).
 				Debug("Downloaded block")
-
-			// self.log.
-			// 	WithField("last", lastHeight).
-			// 	WithField("new", networkInfo.Height).
-			// 	WithField("numNewBlocks", networkInfo.Height-lastHeight).
-			// 	Debug("Discovered new blocks")
 
 			transactions := make([]*arweave.Transaction, len(block.Txs))
 			for idx, txId := range block.Txs {
