@@ -56,6 +56,15 @@ func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err err
 	if resp.IsSuccess() {
 		return nil
 	}
+
+	// Check if retrying is disabled through context
+	isDisabled, ok := resp.Request.Context().Value(ContextDisablePeers).(bool)
+	if ok && isDisabled {
+		return nil
+	}
+
+	// Retry request for each of the alternate peers.
+	// Peers should already be ordered from the most usefull
 	var (
 		idx            int
 		peer           string
@@ -161,6 +170,13 @@ func (self *Client) GetPeerList(ctx context.Context) (out []string, err error) {
 }
 
 func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *NetworkInfo, duration time.Duration, err error) {
+	// Disable retrying request with different peer
+	ctx = context.WithValue(ctx, ContextDisablePeers, true)
+
+	// Set timeout
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
 	resp, err := self.client.R().
 		SetContext(ctx).
 		SetResult(NetworkInfo{}).
