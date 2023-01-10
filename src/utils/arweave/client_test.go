@@ -46,6 +46,20 @@ func (s *ClientTestSuite) TestGetNetworkInfo() {
 	require.NotZero(s.T(), out.Blocks)
 }
 
+func (s *ClientTestSuite) TestGetPeerList() {
+	out, err := s.client.GetPeerList(s.ctx)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), out)
+	require.Greater(s.T(), len(out), 0)
+}
+func (s *ClientTestSuite) TestCheckPeer() {
+	out, t, err := s.client.CheckPeerConnection(s.ctx, s.config.ArNodeUrl)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), out)
+	require.NotZero(s.T(), out.Blocks)
+	require.NotZero(s.T(), t)
+}
+
 func (s *ClientTestSuite) TestGetBlockByHeight() {
 	out, err := s.client.GetBlockByHeight(s.ctx, 1082024)
 	require.Nil(s.T(), err)

@@ -10,6 +10,7 @@ import (
 	"syncer/src/utils/build_info"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
@@ -140,7 +141,46 @@ func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err e
 	return
 }
 
-// Undocumented
+// https://docs.arweave.org/developers/server/http-api#peer-list
+func (self *Client) GetPeerList(ctx context.Context) (out []string, err error) {
+	resp, err := self.client.R().
+		SetContext(ctx).
+		SetResult([]string{}).
+		Get(self.url("peers"))
+	if err != nil {
+		return
+	}
+
+	peers, ok := resp.Result().(*[]string)
+	if !ok {
+		err = ErrFailedToParse
+		return
+	}
+
+	return *peers, nil
+}
+
+func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *NetworkInfo, duration time.Duration, err error) {
+	resp, err := self.client.R().
+		SetContext(ctx).
+		SetResult(NetworkInfo{}).
+		Get(peer + "/info")
+	if err != nil {
+		return
+	}
+
+	out, ok := resp.Result().(*NetworkInfo)
+	if !ok {
+		err = ErrFailedToParse
+		return
+	}
+
+	duration = resp.Time()
+
+	return
+}
+
+// https://docs.arweave.org/developers/server/http-api#get-block-by-height
 func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Block, err error) {
 	resp, err := self.client.R().
 		SetContext(ctx).
