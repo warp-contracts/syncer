@@ -100,7 +100,7 @@ func (self *PeerMonitor) run() (err error) {
 			self.log.WithField("numPeers", len(peers)).WithField("peers", peers).Debug("Got peers")
 
 			for i, peer := range peers {
-				peers[i] = "https://" + peer
+				peers[i] = "http://" + peer
 			}
 			self.updateMetrics(peers)
 		}
