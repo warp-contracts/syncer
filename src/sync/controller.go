@@ -116,6 +116,7 @@ func (self *Controller) run() (err error) {
 		case <-self.stopChannel:
 			self.log.Info("Controller is stopping")
 			listener.Stop()
+			peerMonitor.Stop()
 		case payload, ok := <-listener.PayloadChannel:
 			if !ok {
 				// Listener stopped
