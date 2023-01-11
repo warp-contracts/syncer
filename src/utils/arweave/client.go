@@ -38,6 +38,7 @@ func NewClient(config *config.Config) (self *Client) {
 			SetTimeout(self.config.ArRequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
 			SetRetryCount(2).
+			SetLogger(NewLogger()).
 			AddRetryAfterErrorCondition().
 			OnAfterResponse(self.retryRequest).
 			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
@@ -135,7 +136,8 @@ func (self *Client) SetPeers(peers []string) {
 func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err error) {
 	resp, err := self.client.R().
 		SetContext(ctx).
-		SetResult(NetworkInfo{}).
+		ForceContentType("application/json").
+		SetResult(&NetworkInfo{}).
 		Get(self.url("info"))
 	if err != nil {
 		return
@@ -154,6 +156,7 @@ func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err e
 func (self *Client) GetPeerList(ctx context.Context) (out []string, err error) {
 	resp, err := self.client.R().
 		SetContext(ctx).
+		ForceContentType("application/json").
 		SetResult([]string{}).
 		Get(self.url("peers"))
 	if err != nil {
@@ -179,17 +182,20 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 
 	resp, err := self.client.R().
 		SetContext(ctx).
-		SetResult(NetworkInfo{}).
+		ForceContentType("application/json").
+		SetResult(&NetworkInfo{}).
 		Get(peer + "/info")
 	if err != nil {
 		return
 	}
 
-	out, ok := resp.Result().(*NetworkInfo)
+	var ok bool
+	out, ok = resp.Result().(*NetworkInfo)
 	if !ok {
 		err = ErrFailedToParse
 		return
 	}
+	self.log.WithField("body", string(resp.Body())).WithField("out", out).Info("CHECK")
 
 	duration = resp.Time()
 
@@ -200,6 +206,7 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Block, err error) {
 	resp, err := self.client.R().
 		SetContext(ctx).
+		ForceContentType("application/json").
 		SetResult(&Block{}).
 		SetPathParam("height", strconv.FormatInt(height, 10)).
 		Get(self.url("block/height/{height}"))
@@ -220,6 +227,7 @@ func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Bl
 func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Transaction, err error) {
 	resp, err := self.client.R().
 		SetContext(ctx).
+		ForceContentType("application/json").
 		SetResult(&Transaction{}).
 		SetPathParam("id", id).
 		Get(self.url("tx/{id}"))

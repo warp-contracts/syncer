@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"syncer/src/utils/arweave"
@@ -14,6 +15,7 @@ import (
 
 	"time"
 
+	"github.com/gammazero/workerpool"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,6 +34,8 @@ type PeerMonitor struct {
 
 	// State
 	blacklisted sync.Map
+
+	workers *workerpool.WorkerPool
 }
 
 type metric struct {
@@ -39,9 +43,13 @@ type metric struct {
 	Duration    time.Duration
 }
 
+func (self *metric) String() string {
+	return strconv.Itoa(int(self.BlockHeight))
+}
+
 func NewPeerMonitor(config *config.Config) (self *PeerMonitor) {
 	self = new(PeerMonitor)
-	self.log = logger.NewSublogger("listener")
+	self.log = logger.NewSublogger("peer-monitor")
 	self.config = config
 
 	// PeerMonitor context, active as long as there's anything running in PeerMonitor
@@ -54,6 +62,8 @@ func NewPeerMonitor(config *config.Config) (self *PeerMonitor) {
 	self.stopWaitGroup = sync.WaitGroup{}
 	self.stopChannel = make(chan bool, 1)
 
+	// Worker pool for checking peers in parallel
+	self.workers = workerpool.New(50)
 	return
 }
 
@@ -117,7 +127,7 @@ func (self *PeerMonitor) getPeers() (peers []string, err error) {
 		self.log.Error("Failed to get Arweave network info")
 		return
 	}
-	self.log.WithField("numPeers", len(allPeers)).WithField("peers", allPeers).Debug("Got peers")
+	self.log.WithField("numPeers", len(allPeers)).Debug("Got peers")
 
 	// Slice of checked addresses in proper format
 	peers = make([]string, 0, len(allPeers))
@@ -141,6 +151,11 @@ func (self *PeerMonitor) getPeers() (peers []string, err error) {
 func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) {
 	self.log.Debug("Checking peers")
 
+	// Sync between workers
+	var mtx sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(len(allPeers))
+
 	// Metrics used to sort peers
 	metrics := make([]*metric, 0, len(allPeers))
 
@@ -149,33 +164,55 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 
 	// Perform test requests
 	for i, peer := range allPeers {
-		// Neglect blacklisted peers
-		if _, ok := self.blacklisted.Load(peer); ok {
-			continue
-		}
+		// Copy variables
+		peer := peer
+		i := i
 
-		self.log.WithField("peer", peer).WithField("idx", i).WithField("maxIdx", len(allPeers)-1).Debug("Checking peer")
-		info, duration, err := self.client.CheckPeerConnection(self.Ctx, peer)
-		if err != nil {
-			self.log.WithField("peer", peer).Error("Failed to check peer")
+		self.workers.Submit(func() {
+			var (
+				info     *arweave.NetworkInfo
+				duration time.Duration
+				err      error
+			)
 
-			// Put the peer on the blacklist
-			self.blacklisted.Store(peer, time.Now())
+			// Neglect blacklisted peers
+			if _, ok := self.blacklisted.Load(peer); ok {
+				goto end
+			}
 
-			// Neglect peers that returned and error
-			continue
-		}
+			self.log.WithField("peer", peer).WithField("idx", i).WithField("maxIdx", len(allPeers)-1).Trace("Checking peer")
+			info, duration, err = self.client.CheckPeerConnection(self.Ctx, peer)
+			if err != nil {
+				self.log.WithField("peer", peer).Debug("Black list peer")
 
-		peers = append(peers, peer)
-		metrics = append(metrics, &metric{
-			Duration:    duration,
-			BlockHeight: info.Height,
+				// Put the peer on the blacklist
+				self.blacklisted.Store(peer, struct{}{})
+
+				// Neglect peers that returned and error
+				goto end
+			}
+
+			mtx.Lock()
+			peers = append(peers, peer)
+			metrics = append(metrics, &metric{
+				Duration:    duration,
+				BlockHeight: info.Height,
+			})
+
+			mtx.Unlock()
+
+			self.log.WithField("i", info).WithField("d", duration).Info("Metrics")
+
+			if self.isStopping.Load() {
+				goto end
+			}
+		end:
+			wg.Done()
 		})
-
-		if self.isStopping.Load() {
-			return
-		}
 	}
+
+	// Wait for workers to finish
+	wg.Wait()
 
 	self.log.WithField("metrics", len(metrics)).WithField("metrics", metrics).Debug("Metrics")
 
@@ -195,6 +232,8 @@ func (self *PeerMonitor) Stop() {
 
 		// Mark that we're stopping
 		self.isStopping.Store(true)
+
+		self.workers.Stop()
 	})
 }
 
