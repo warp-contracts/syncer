@@ -29,6 +29,9 @@ type PeerMonitor struct {
 	stopWaitGroup sync.WaitGroup
 	Ctx           context.Context
 	cancel        context.CancelFunc
+
+	// State
+	blacklisted sync.Map
 }
 
 type metric struct {
@@ -134,6 +137,7 @@ func (self *PeerMonitor) getPeers() (peers []string, err error) {
 
 	return
 }
+
 func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) {
 	self.log.Debug("Checking peers")
 
@@ -145,11 +149,19 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 
 	// Perform test requests
 	for i, peer := range allPeers {
-		self.log.WithField("peer", peer).WithField("idx", i).WithField("maxIdx", len(allPeers)-1).Debug("Checking peer")
+		// Neglect blacklisted peers
+		if _, ok := self.blacklisted.Load(peer); ok {
+			continue
+		}
 
+		self.log.WithField("peer", peer).WithField("idx", i).WithField("maxIdx", len(allPeers)-1).Debug("Checking peer")
 		info, duration, err := self.client.CheckPeerConnection(self.Ctx, peer)
 		if err != nil {
 			self.log.WithField("peer", peer).Error("Failed to check peer")
+
+			// Put the peer on the blacklist
+			self.blacklisted.Store(peer, time.Now())
+
 			// Neglect peers that returned and error
 			continue
 		}
