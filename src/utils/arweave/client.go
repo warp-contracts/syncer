@@ -174,7 +174,7 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 	ctx = context.WithValue(ctx, ContextDisablePeers, true)
 
 	// Set timeout
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 600*time.Millisecond)
 	defer cancel()
 
 	resp, err := self.client.R().

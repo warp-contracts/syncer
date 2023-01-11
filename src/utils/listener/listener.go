@@ -133,7 +133,7 @@ func (self *Listener) monitorNetwork() {
 		case <-ticker.C:
 			networkInfo, err := self.client.GetNetworkInfo(self.Ctx)
 			if err != nil {
-				self.log.Error("Failed to get Arweave network info")
+				self.log.WithError(err).Error("Failed to get Arweave network info")
 				continue
 			}
 
@@ -187,11 +187,20 @@ func (self *Listener) monitorBlocks() {
 
 			transactions := make([]*arweave.Transaction, len(block.Txs))
 			for idx, txId := range block.Txs {
-				self.log.WithField("txId", txId).Debug("Downloading transaction")
+			retry:
+				self.log.WithField("txId", txId).Trace("Downloading transaction")
 
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {
-					self.log.WithField("height", height).Error("Failed to download block")
+					self.log.WithField("txId", txId).Error("Failed to download transaction, retrying")
+
+					time.Sleep(2 * time.Second)
+					if self.isStopping.Load() {
+						// Neglect this block and close the goroutine
+						goto end
+					}
+
+					goto retry
 					// FIXME: Inform downstream something's wrong
 				}
 				transactions[idx] = tx
@@ -208,6 +217,7 @@ func (self *Listener) monitorBlocks() {
 		}
 	}
 
+end:
 	// Monitoring Network stopped, so it's safe to close
 	// We don't wait for stopChannel because we want to process pending network infos before stopping
 	self.log.Debug("Closing TransactionsChannel")

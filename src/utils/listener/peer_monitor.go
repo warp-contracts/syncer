@@ -3,6 +3,7 @@ package listener
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -10,6 +11,7 @@ import (
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
+
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -85,49 +87,92 @@ func (self *PeerMonitor) Start() {
 
 // Periodically checks Arweave network info for updated height
 func (self *PeerMonitor) run() (err error) {
-	ticker := time.NewTicker(self.config.StoreMaxTimeInQueue)
+	ticker := time.NewTicker(10 * time.Second)
 
 	for {
 		select {
 		case <-self.stopChannel:
 			return nil
 		case <-ticker.C:
-			peers, err := self.client.GetPeerList(self.Ctx)
+			peers, err := self.getPeers()
 			if err != nil {
-				self.log.Error("Failed to get Arweave network info")
+				self.log.WithError(err).Error("Failed to get peers")
 				continue
 			}
-			self.log.WithField("numPeers", len(peers)).WithField("peers", peers).Debug("Got peers")
 
-			for i, peer := range peers {
-				peers[i] = "http://" + peer
-			}
-			self.updateMetrics(peers)
+			peers = self.sortPeersByMetrics(peers)
+
+			self.client.SetPeers(peers)
 		}
 	}
 }
 
-func (self *PeerMonitor) updateMetrics(peers []string) {
-	// Get the metrics
-	metrics := make([]*metric, len(peers))
-	for i, peer := range peers {
-		self.log.WithField("peer", peer).Debug("Checking peer")
+func (self *PeerMonitor) getPeers() (peers []string, err error) {
+	// Get peers available in the network
+	allPeers, err := self.client.GetPeerList(self.Ctx)
+	if err != nil {
+		self.log.Error("Failed to get Arweave network info")
+		return
+	}
+	self.log.WithField("numPeers", len(allPeers)).WithField("peers", allPeers).Debug("Got peers")
+
+	// Slice of checked addresses in proper format
+	peers = make([]string, 0, len(allPeers))
+
+	var addr netip.AddrPort
+	for _, peer := range allPeers {
+		// Validate peer address
+		addr, err = netip.ParseAddrPort(peer)
+		if err != nil || !addr.IsValid() {
+			self.log.WithField("peer", peer).Error("Bad peer address")
+			continue
+		}
+
+		// Peers are in format <ip>:<port>, add http schema
+		peers = append(peers, "http://"+peer)
+	}
+
+	return
+}
+func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) {
+	self.log.Debug("Checking peers")
+
+	// Metrics used to sort peers
+	metrics := make([]*metric, 0, len(allPeers))
+
+	// Peers that responded to the test request
+	peers = make([]string, 0, len(allPeers))
+
+	// Perform test requests
+	for i, peer := range allPeers {
+		self.log.WithField("peer", peer).WithField("idx", i).WithField("maxIdx", len(allPeers)-1).Debug("Checking peer")
+
 		info, duration, err := self.client.CheckPeerConnection(self.Ctx, peer)
 		if err != nil {
 			self.log.WithField("peer", peer).Error("Failed to check peer")
+			// Neglect peers that returned and error
 			continue
 		}
-		metrics[i] = &metric{
+
+		peers = append(peers, peer)
+		metrics = append(metrics, &metric{
 			Duration:    duration,
 			BlockHeight: info.Height,
+		})
+
+		if self.isStopping.Load() {
+			return
 		}
 	}
 
+	self.log.WithField("metrics", len(metrics)).WithField("metrics", metrics).Debug("Metrics")
+
+	// Sort peers using the metric
 	sort.Slice(peers, func(i int, j int) bool {
 		return metrics[i].BlockHeight > metrics[j].BlockHeight || metrics[i].Duration < metrics[j].Duration
 	})
 
-	self.client.SetPeers(peers)
+	return
 }
 
 func (self *PeerMonitor) Stop() {
