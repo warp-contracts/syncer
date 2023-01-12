@@ -36,6 +36,7 @@ type PeerMonitor struct {
 	blacklisted    sync.Map
 	numBlacklisted atomic.Int64
 
+	// Worker pool for checking peers in parallel
 	workers *workerpool.WorkerPool
 }
 
@@ -205,9 +206,6 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 
 			mtx.Unlock()
 
-			if self.isStopping.Load() {
-				goto end
-			}
 		end:
 			wg.Done()
 		})
