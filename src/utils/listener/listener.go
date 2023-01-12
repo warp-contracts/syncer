@@ -13,6 +13,7 @@ import (
 	"syncer/src/utils/warp"
 	"time"
 
+	"github.com/gammazero/workerpool"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,6 +30,9 @@ type Listener struct {
 	stopWaitGroup sync.WaitGroup
 	Ctx           context.Context
 	cancel        context.CancelFunc
+
+	// Worker pool for downloading transactions in parallel
+	workers *workerpool.WorkerPool
 
 	// Internal state
 	heightChannel       chan int64
@@ -67,6 +71,9 @@ func NewListener(config *config.Config) (self *Listener) {
 	self.heightChannel = make(chan int64)
 	self.TransactionsChannel = make(chan *Payload, config.ListenerQueueSize)
 	self.PayloadChannel = make(chan *Payload, config.ListenerQueueSize)
+
+	// Worker pool for downloading transactions in parallel
+	self.workers = workerpool.New(50)
 
 	// Converting Arweave transactions to interactions
 	var err error
@@ -176,6 +183,10 @@ func (self *Listener) monitorBlocks() {
 			block, err := self.client.GetBlockByHeight(self.Ctx, height)
 			if err != nil {
 				self.log.WithError(err).WithField("height", height).Error("Failed to download block")
+				if self.isStopping.Load() {
+					// Neglect this block and close the goroutine
+					goto end
+				}
 				continue
 				// FIXME: Inform downstream something's wrong
 			}
@@ -185,25 +196,14 @@ func (self *Listener) monitorBlocks() {
 				WithField("length", len(block.Txs)).
 				Debug("Downloaded block")
 
-			transactions := make([]*arweave.Transaction, len(block.Txs))
-			for idx, txId := range block.Txs {
-			retry:
-				self.log.WithField("txId", txId).Trace("Downloading transaction")
-
-				tx, err := self.client.GetTransactionById(self.Ctx, txId)
-				if err != nil {
-					self.log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, retrying after timeout")
-
-					time.Sleep(2 * time.Second)
-					if self.isStopping.Load() {
-						// Neglect this block and close the goroutine
-						goto end
-					}
-
-					goto retry
-					// FIXME: Inform downstream something's wrong
+			transactions, err := self.downloadTransactions(block)
+			if err != nil {
+				self.log.WithError(err).WithField("height", height).Error("Failed to download transactions in block")
+				if self.isStopping.Load() {
+					// Neglect this block and close the goroutine
+					goto end
 				}
-				transactions[idx] = tx
+				continue
 			}
 
 			payload := &Payload{
@@ -222,6 +222,54 @@ end:
 	// We don't wait for stopChannel because we want to process pending network infos before stopping
 	self.log.Debug("Closing TransactionsChannel")
 	close(self.TransactionsChannel)
+}
+
+func (self *Listener) downloadTransactions(block *arweave.Block) (out []*arweave.Transaction, err error) {
+	// Sync between workers
+	var mtx sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(len(block.Txs))
+
+	out = make([]*arweave.Transaction, len(block.Txs))
+	for idx, txId := range block.Txs {
+		idx := idx
+		txId := txId
+
+		self.workers.Submit(func() {
+			// NOTE: Infinite loop, because there's nothing better we can do.
+			for {
+				self.log.WithField("txId", txId).Trace("Downloading transaction")
+
+				tx, err := self.client.GetTransactionById(self.Ctx, txId)
+				if err != nil {
+					self.log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, retrying after timeout")
+
+					time.Sleep(2 * time.Second)
+					if self.isStopping.Load() {
+						// Neglect this block and close the goroutine
+						self.log.WithError(err).WithField("txId", txId).Error("Neglect downloading transaction, listener is stopping anyway")
+						goto end
+					}
+
+					continue
+					// FIXME: Inform downstream something's wrong
+				}
+
+				mtx.Lock()
+				out[idx] = tx
+				mtx.Unlock()
+
+				goto end
+			}
+		end:
+			wg.Done()
+		})
+	}
+
+	// Wait for workers to finish
+	wg.Wait()
+
+	return
 }
 
 // Listens for downloaded transactions and processes them
@@ -264,6 +312,9 @@ func (self *Listener) Stop() {
 
 		// Mark that we're stopping
 		self.isStopping.Store(true)
+
+		// Stops the pool of workers
+		self.workers.Stop()
 	})
 }
 

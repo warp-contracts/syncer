@@ -64,6 +64,10 @@ func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err err
 		return nil
 	}
 
+	// Disable retrying request with different peer
+	ctx := context.WithValue(resp.Request.Context(), ContextDisablePeers, true)
+	resp.Request.SetContext(ctx)
+
 	// Retry request for each of the alternate peerRetrying request with different peers.
 	// Peers should already be ordered from the most usefull
 	var (
