@@ -72,7 +72,9 @@ func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err err
 		secondResponse *resty.Response
 	)
 
-	endpoint := strings.TrimPrefix(resp.Request.URL, self.config.ArNodeUrl)
+	endpoint := strings.Clone(strings.TrimPrefix(resp.Request.URL, self.config.ArNodeUrl))
+
+	self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying begin")
 
 	for {
 		self.mtx.Lock()
@@ -85,7 +87,7 @@ func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err err
 		peer = self.peers[idx]
 		self.mtx.Unlock()
 
-		// self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying request with different peer")
+		self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying request with different peer")
 
 		// INFO[2023-01-11T22:30:06+01:00] Retrying request with different peer          endpoint="http://34.123.162.40:1984/tx/OKfCs5KVF_-vXQPH1isECWdXNlMgit494mnE6xpSdK8" module=warp.arweave-client peer="http://34.123.162.40:1984"
 
@@ -141,7 +143,7 @@ func (self *Client) SetPeers(peers []string) {
 func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err error) {
 	resp, err := self.client.R().
 		SetContext(ctx).
-		// ForceContentType("application/json").
+		ForceContentType("application/json").
 		SetResult(&NetworkInfo{}).
 		Get(self.url("info"))
 	if err != nil {
