@@ -33,7 +33,8 @@ type PeerMonitor struct {
 	cancel        context.CancelFunc
 
 	// State
-	blacklisted sync.Map
+	blacklisted    sync.Map
+	numBlacklisted atomic.Int64
 
 	workers *workerpool.WorkerPool
 }
@@ -100,7 +101,7 @@ func (self *PeerMonitor) Start() {
 
 // Periodically checks Arweave network info for updated height
 func (self *PeerMonitor) run() (err error) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 
 	for {
 		select {
@@ -115,7 +116,9 @@ func (self *PeerMonitor) run() (err error) {
 
 			peers = self.sortPeersByMetrics(peers)
 
-			self.client.SetPeers(peers)
+			self.client.SetPeers(peers[:15])
+
+			self.log.WithField("numBlacklisted", self.numBlacklisted.Load()).Info("Set new peers")
 		}
 	}
 }
@@ -183,10 +186,11 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 			self.log.WithField("peer", peer).WithField("idx", i).WithField("maxIdx", len(allPeers)-1).Trace("Checking peer")
 			info, duration, err = self.client.CheckPeerConnection(self.Ctx, peer)
 			if err != nil {
-				self.log.WithField("peer", peer).Debug("Black list peer")
+				self.log.WithField("peer", peer).Trace("Black list peer")
 
 				// Put the peer on the blacklist
 				self.blacklisted.Store(peer, struct{}{})
+				self.numBlacklisted.Add(1)
 
 				// Neglect peers that returned and error
 				goto end
@@ -201,8 +205,6 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 
 			mtx.Unlock()
 
-			self.log.WithField("i", info).WithField("d", duration).Info("Metrics")
-
 			if self.isStopping.Load() {
 				goto end
 			}
@@ -214,7 +216,7 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 	// Wait for workers to finish
 	wg.Wait()
 
-	self.log.WithField("metrics", len(metrics)).WithField("metrics", metrics).Debug("Metrics")
+	// self.log.WithField("metrics", len(metrics)).WithField("metrics", metrics).Debug("Metrics")
 
 	// Sort peers using the metric
 	sort.Slice(peers, func(i int, j int) bool {

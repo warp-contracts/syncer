@@ -175,7 +175,7 @@ func (self *Listener) monitorBlocks() {
 
 			block, err := self.client.GetBlockByHeight(self.Ctx, height)
 			if err != nil {
-				self.log.WithField("height", height).Error("Failed to download block")
+				self.log.WithError(err).WithField("height", height).Error("Failed to download block")
 				continue
 				// FIXME: Inform downstream something's wrong
 			}
@@ -192,7 +192,7 @@ func (self *Listener) monitorBlocks() {
 
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {
-					self.log.WithField("txId", txId).Error("Failed to download transaction, retrying")
+					self.log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, retrying after timeout")
 
 					time.Sleep(2 * time.Second)
 					if self.isStopping.Load() {
@@ -224,7 +224,7 @@ end:
 	close(self.TransactionsChannel)
 }
 
-// Listens for downloaded transactions
+// Listens for downloaded transactions and processes them
 func (self *Listener) monitorTransactions() {
 
 	var err error
@@ -232,6 +232,9 @@ func (self *Listener) monitorTransactions() {
 	// Listen for downloaded transactions
 	// Finishes when Listener is stopping, after self.TransactionsChannel is closed
 	for payload := range self.TransactionsChannel {
+		// Filter out transactions that do not have the matching tags
+		payload.Transactions = self.filterTransactions(payload.Transactions)
+
 		// Parse transactions into interactions
 		payload.Interactions = make([]*model.Interaction, len(payload.Transactions))
 		for i, tx := range payload.Transactions {
@@ -262,6 +265,19 @@ func (self *Listener) Stop() {
 		// Mark that we're stopping
 		self.isStopping.Store(true)
 	})
+}
+
+func (self *Listener) filterTransactions(transactions []*arweave.Transaction) (out []*arweave.Transaction) {
+	out = make([]*arweave.Transaction, 0, len(transactions))
+	for _, tx := range transactions {
+		for _, tag := range tx.Tags {
+			if tag.Value == "SmartWeaveAction" && tag.Name == "App-Name" {
+				out = append(out, tx)
+				break
+			}
+		}
+	}
+	return
 }
 
 func (self *Listener) StopWait() {

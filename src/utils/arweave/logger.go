@@ -18,11 +18,11 @@ func NewLogger() (self *Logger) {
 }
 
 func (self *Logger) Errorf(format string, v ...interface{}) {
-	self.log.Debugf(format, v...)
+	self.log.Tracef(format, v...)
 }
 func (self *Logger) Warnf(format string, v ...interface{}) {
-	self.log.Debugf(format, v...)
+	self.log.Tracef(format, v...)
 }
 func (self *Logger) Debugf(format string, v ...interface{}) {
-	self.log.Debugf(format, v...)
+	self.log.Tracef(format, v...)
 }
