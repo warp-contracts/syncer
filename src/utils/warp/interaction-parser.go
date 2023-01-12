@@ -44,7 +44,7 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 		BlockId:            blockId,
 		ConfirmationStatus: "confirmed",
 		Source:             "arweave",
-		// Owner:              tx.Owner,
+		Owner:              tx.Owner,
 	}
 
 	// Fill tags, already decoded from base64

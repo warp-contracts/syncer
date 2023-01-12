@@ -64,7 +64,7 @@ func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err err
 		return nil
 	}
 
-	// Retry request for each of the alternate peers.
+	// Retry request for each of the alternate peerRetrying request with different peers.
 	// Peers should already be ordered from the most usefull
 	var (
 		idx            int
@@ -78,13 +78,18 @@ func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err err
 		self.mtx.Lock()
 		if idx >= len(self.peers) {
 			// No more peers, report the first failure
+			self.log.WithField("idx", idx).Info("No more peers to check")
 			self.mtx.Unlock()
 			return
 		}
 		peer = self.peers[idx]
 		self.mtx.Unlock()
 
-		self.log.WithField("peer", peer).Info("Retrying request with different peer")
+		// self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying request with different peer")
+
+		// INFO[2023-01-11T22:30:06+01:00] Retrying request with different peer          endpoint="http://34.123.162.40:1984/tx/OKfCs5KVF_-vXQPH1isECWdXNlMgit494mnE6xpSdK8" module=warp.arweave-client peer="http://34.123.162.40:1984"
+
+		// printnij te oba, peer się nie podmienia pewnie przez ten break w
 
 		//	Make the same request, but change the URL
 		resp.Request.URL = peer + endpoint
@@ -136,7 +141,7 @@ func (self *Client) SetPeers(peers []string) {
 func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err error) {
 	resp, err := self.client.R().
 		SetContext(ctx).
-		ForceContentType("application/json").
+		// ForceContentType("application/json").
 		SetResult(&NetworkInfo{}).
 		Get(self.url("info"))
 	if err != nil {
@@ -189,13 +194,11 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 		return
 	}
 
-	var ok bool
-	out, ok = resp.Result().(*NetworkInfo)
+	out, ok := resp.Result().(*NetworkInfo)
 	if !ok {
 		err = ErrFailedToParse
 		return
 	}
-	self.log.WithField("body", string(resp.Body())).WithField("out", out).Info("CHECK")
 
 	duration = resp.Time()
 

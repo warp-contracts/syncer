@@ -132,6 +132,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 					Error
 				if err != nil {
 					self.log.WithError(err).Error("Failed to insert Interactions")
+					self.log.WithField("interactions", pendingInteractions).Debug("Failed interactions")
 					self.monitor.ReportDBError()
 					return err
 				}
