@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
 )
 
 type Client struct {
@@ -22,8 +23,9 @@ type Client struct {
 	log    *logrus.Entry
 
 	// State
-	mtx   sync.RWMutex
-	peers []string
+	mtx      sync.RWMutex
+	peers    []string
+	limiters map[string]*rate.Limiter
 }
 
 func NewClient(config *config.Config) (self *Client) {
@@ -31,15 +33,19 @@ func NewClient(config *config.Config) (self *Client) {
 	self.config = config
 	self.log = logger.NewSublogger("arweave-client")
 
+	self.limiters = make(map[string]*rate.Limiter)
+
 	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
 			// SetDebug(true).
+			// DisableTrace().
 			SetTimeout(self.config.ArRequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
 			SetRetryCount(2).
 			SetLogger(NewLogger()).
 			AddRetryAfterErrorCondition().
+			OnBeforeRequest(self.rateLimit).
 			OnAfterResponse(self.retryRequest).
 			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
 				// Non-success status code turns into an error
@@ -49,6 +55,37 @@ func NewClient(config *config.Config) (self *Client) {
 				return fmt.Errorf("unexpected status: %s", resp.Status())
 			})
 
+	return
+}
+
+func (self *Client) rateLimit(c *resty.Client, req *resty.Request) (err error) {
+	self.log.Debug("Start rate limiter")
+	defer self.log.Debug("Finish rate limiter")
+	// Get the limiter, create it if needed
+	var (
+		limiter *rate.Limiter
+		ok      bool
+	)
+
+	url, err := url.ParseRequestURI(req.URL)
+	if err != nil {
+		return
+	}
+
+	self.mtx.Lock()
+	limiter, ok = self.limiters[url.Host]
+	if !ok {
+		limiter = rate.NewLimiter(rate.Every(700*time.Millisecond), 1)
+		self.limiters[url.Host] = limiter
+	}
+	self.mtx.Unlock()
+
+	// Blocks till the request is possible
+	// Or ctx gets canceled
+	err = limiter.Wait(req.Context())
+	if err != nil {
+		self.log.WithError(err).Error("Rate limiting failed")
+	}
 	return
 }
 
@@ -93,10 +130,6 @@ func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err err
 
 		self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying request with different peer")
 
-		// INFO[2023-01-11T22:30:06+01:00] Retrying request with different peer          endpoint="http://34.123.162.40:1984/tx/OKfCs5KVF_-vXQPH1isECWdXNlMgit494mnE6xpSdK8" module=warp.arweave-client peer="http://34.123.162.40:1984"
-
-		// printnij te oba, peer się nie podmienia pewnie przez ten break w
-
 		//	Make the same request, but change the URL
 		resp.Request.URL = peer + endpoint
 		secondResponse, err = resp.Request.Send()
@@ -104,6 +137,8 @@ func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err err
 			// Success
 			break
 		}
+
+		self.log.WithError(err).Debug("Retried request failed")
 
 		// Handle timeout in context
 		if secondResponse.Request.Context().Err() != nil {

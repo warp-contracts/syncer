@@ -73,7 +73,7 @@ func NewListener(config *config.Config) (self *Listener) {
 	self.PayloadChannel = make(chan *Payload, config.ListenerQueueSize)
 
 	// Worker pool for downloading transactions in parallel
-	self.workers = workerpool.New(50)
+	self.workers = workerpool.New(1)
 
 	// Converting Arweave transactions to interactions
 	var err error
