@@ -3,6 +3,7 @@ package arweave
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -44,9 +45,10 @@ func NewClient(config *config.Config) (self *Client) {
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
 			SetRetryCount(2).
 			SetLogger(NewLogger()).
+			AddRetryCondition(self.onRetryCondition).
 			AddRetryAfterErrorCondition().
-			OnBeforeRequest(self.rateLimit).
-			OnAfterResponse(self.retryRequest).
+			OnBeforeRequest(self.onRateLimit).
+			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
 				// Non-success status code turns into an error
 				if resp.IsSuccess() {
@@ -58,9 +60,54 @@ func NewClient(config *config.Config) (self *Client) {
 	return
 }
 
-func (self *Client) rateLimit(c *resty.Client, req *resty.Request) (err error) {
-	self.log.Debug("Start rate limiter")
-	defer self.log.Debug("Finish rate limiter")
+// Returns true if request should be retried
+func (self *Client) onRetryCondition(resp *resty.Response, err error) bool {
+	if err == nil {
+		// No error
+		if resp.IsSuccess() || !resp.IsError() {
+			// OK response or redirect, skip retrying
+			return false
+		}
+		// Error status code
+
+		if resp.StatusCode() == http.StatusTooManyRequests {
+			// Remote host receives too much requests, adjust rate limit
+			url, err := url.ParseRequestURI(resp.Request.URL)
+			if err == nil {
+				self.decrementLimit(url.Host)
+			}
+			return false
+		}
+
+		// Server side errors may be retried
+		return resp.StatusCode() >= 500
+	}
+
+	// There was an error
+	return false
+}
+
+func (self *Client) decrementLimit(peer string) {
+	var (
+		limiter *rate.Limiter
+		ok      bool
+	)
+
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+	limiter, ok = self.limiters[peer]
+	if !ok {
+		return
+	}
+
+	self.log.WithField("peer", peer).Debug("Decreasing limit")
+
+	limiter.SetLimit(limiter.Limit() * 0.999)
+}
+
+func (self *Client) onRateLimit(c *resty.Client, req *resty.Request) (err error) {
+	self.log.Trace("Start rate limiter")
+	defer self.log.Trace("Finish rate limiter")
 	// Get the limiter, create it if needed
 	var (
 		limiter *rate.Limiter
@@ -75,8 +122,9 @@ func (self *Client) rateLimit(c *resty.Client, req *resty.Request) (err error) {
 	self.mtx.Lock()
 	limiter, ok = self.limiters[url.Host]
 	if !ok {
-		limiter = rate.NewLimiter(rate.Every(700*time.Millisecond), 1)
+		limiter = rate.NewLimiter(rate.Every(1000*time.Millisecond), 1)
 		self.limiters[url.Host] = limiter
+		self.log.WithField("peer", url.Host).Debug("Created limiter for peer")
 	}
 	self.mtx.Unlock()
 
@@ -84,13 +132,14 @@ func (self *Client) rateLimit(c *resty.Client, req *resty.Request) (err error) {
 	// Or ctx gets canceled
 	err = limiter.Wait(req.Context())
 	if err != nil {
-		self.log.WithError(err).Error("Rate limiting failed")
+		d, _ := req.Context().Deadline()
+		self.log.WithField("deadline", time.Until(d)).WithError(err).Error("Rate limiting failed")
 	}
 	return
 }
 
 // Called upon error in the "main" client. Retries
-func (self *Client) retryRequest(c *resty.Client, resp *resty.Response) (err error) {
+func (self *Client) onRetryRequest(c *resty.Client, resp *resty.Response) (err error) {
 	if resp.IsSuccess() {
 		return nil
 	}
@@ -223,7 +272,7 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 	ctx = context.WithValue(ctx, ContextDisablePeers, true)
 
 	// Set timeout
-	ctx, cancel := context.WithTimeout(ctx, 600*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, self.config.ArCheckPeerTimeout)
 	defer cancel()
 
 	resp, err := self.client.R().
