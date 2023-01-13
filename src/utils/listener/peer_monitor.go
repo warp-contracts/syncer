@@ -104,22 +104,28 @@ func (self *PeerMonitor) Start() {
 func (self *PeerMonitor) run() (err error) {
 	ticker := time.NewTicker(30 * time.Second)
 
+	f := func() {
+		peers, err := self.getPeers()
+		if err != nil {
+			self.log.WithError(err).Error("Failed to get peers")
+			return
+		}
+
+		peers = self.sortPeersByMetrics(peers)
+
+		self.client.SetPeers(peers[:15])
+
+		self.log.WithField("numBlacklisted", self.numBlacklisted.Load()).Info("Set new peers")
+	}
+
 	for {
+		// Start monitoring peers right away
+		f()
 		select {
 		case <-self.stopChannel:
 			return nil
 		case <-ticker.C:
-			peers, err := self.getPeers()
-			if err != nil {
-				self.log.WithError(err).Error("Failed to get peers")
-				continue
-			}
-
-			peers = self.sortPeersByMetrics(peers)
-
-			self.client.SetPeers(peers[:15])
-
-			self.log.WithField("numBlacklisted", self.numBlacklisted.Load()).Info("Set new peers")
+			f()
 		}
 	}
 }
