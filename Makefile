@@ -79,6 +79,14 @@ docker-build: all | ; $(info $(M) building docker container) @
 	DOCKER_BUILDKIT=0 docker build -t "warpredstone/syncer:$(VERSION)" .
 	rm -rf vendor
 
+.PHONY: docker-push
+docker-push: all | ; $(info $(M) building docker container) @ 
+	$(GO) mod vendor
+	TAG=$(VERSION) docker buildx bake -f docker-bake.hcl
+	docker push warpredstone/syncer:latest
+	docker push warpredstone/syncer:$(VERSION)
+	rm -rf vendor
+
 .PHONY: docker-run
 docker-run: docker-build | ; $(info $(M) running docker container) @ 
 	docker compose --profile syncer up syncer
