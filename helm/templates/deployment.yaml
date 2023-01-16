@@ -49,7 +49,7 @@ spec:
             - name: SYNCER_DBPINGTIMEOUT
               value: "15s"
             - name: SYNCER_LOGLEVEL
-              value: "INFO"
+              value: "DEBUG"
             - name: SYNCER_ARNODEURL
               value: "https://arweave.net"
             - name: SYNCER_ARSTABLEDISTANCE
@@ -63,7 +63,7 @@ spec:
             - name: SYNCER_STOREMAXTIMEBETWEENRECONNECTS
               value: "2s"
             - name: SYNCER_RESTLISTENADDRESS
-              value: ":80"
+              value: ":8080"
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
