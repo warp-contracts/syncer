@@ -43,7 +43,7 @@ func NewClient(config *config.Config) (self *Client) {
 			// DisableTrace().
 			SetTimeout(self.config.ArRequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
-			SetRetryCount(2).
+			SetRetryCount(1).
 			SetLogger(NewLogger()).
 			AddRetryCondition(self.onRetryCondition).
 			AddRetryAfterErrorCondition().
@@ -62,29 +62,29 @@ func NewClient(config *config.Config) (self *Client) {
 
 // Returns true if request should be retried
 func (self *Client) onRetryCondition(resp *resty.Response, err error) bool {
-	if err == nil {
-		// No error
-		if resp.IsSuccess() || !resp.IsError() {
-			// OK response or redirect, skip retrying
-			return false
-		}
-		// Error status code
-
-		if resp.StatusCode() == http.StatusTooManyRequests {
-			// Remote host receives too much requests, adjust rate limit
-			url, err := url.ParseRequestURI(resp.Request.URL)
-			if err == nil {
-				self.decrementLimit(url.Host)
-			}
-			return false
-		}
-
-		// Server side errors may be retried
-		return resp.StatusCode() >= 500
+	if err != nil {
+		// There was an error
+		return false
 	}
 
-	// There was an error
-	return false
+	// No error
+	if resp.IsSuccess() || !resp.IsError() {
+		// OK response or redirect, skip retrying
+		return false
+	}
+
+	// Error status code
+	if resp.StatusCode() == http.StatusTooManyRequests {
+		// Remote host receives too much requests, adjust rate limit
+		url, err := url.ParseRequestURI(resp.Request.URL)
+		if err == nil {
+			self.decrementLimit(url.Host)
+		}
+		return false
+	}
+
+	// Server side errors may be retried
+	return resp.StatusCode() >= 500
 }
 
 func (self *Client) decrementLimit(peer string) {
@@ -124,7 +124,6 @@ func (self *Client) onRateLimit(c *resty.Client, req *resty.Request) (err error)
 	if !ok {
 		limiter = rate.NewLimiter(rate.Every(1000*time.Millisecond), 1)
 		self.limiters[url.Host] = limiter
-		self.log.WithField("peer", url.Host).Debug("Created limiter for peer")
 	}
 	self.mtx.Unlock()
 
@@ -133,7 +132,7 @@ func (self *Client) onRateLimit(c *resty.Client, req *resty.Request) (err error)
 	err = limiter.Wait(req.Context())
 	if err != nil {
 		d, _ := req.Context().Deadline()
-		self.log.WithField("deadline", time.Until(d)).WithError(err).Error("Rate limiting failed")
+		self.log.WithField("peer", url.Host).WithField("deadline", time.Until(d)).WithError(err).Error("Rate limiting failed")
 	}
 	return
 }

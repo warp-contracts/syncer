@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   syncer:
-    image: warp.cc/syncer:latest
+    image: warpredstone/syncer:latest
     profiles:
       - syncer
     command: [ "/app/bin/syncer", "sync" ]
