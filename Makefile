@@ -5,6 +5,8 @@ BIN      = $(GOPATH)/bin
 BASE     = $(GOPATH)/src/$(PACKAGE)
 PATH    := bin:$(PATH)
 GO       = go
+VERSION ?= $(shell git describe --tags --always --match=v* 2> /dev/null || \
+			cat $(CURDIR)/.version 2> /dev/null || echo v0)
 
 export GOPATH
 
@@ -62,6 +64,10 @@ generate: $(GENTOOL) | $(BASE) ; $(info $(M) generating model from the database)
 test:
 	$(GO) test ./...
 
+.PHONY: version
+version:
+	$Q echo $(VERSION)
+
 .PHONY: clean
 clean:
 	rm -rf bin/$(PACKAGE) .gopath~
@@ -69,7 +75,8 @@ clean:
 .PHONY: docker-build
 docker-build: all | ; $(info $(M) building docker container) @ 
 	$(GO) mod vendor
-	DOCKER_BUILDKIT=0 docker build -t "warp.cc/syncer:latest" .
+	DOCKER_BUILDKIT=0 docker build -t "warpredstone/syncer:latest" .
+	DOCKER_BUILDKIT=0 docker build -t "warpredstone/syncer:$(VERSION)" .
 	rm -rf vendor
 
 .PHONY: docker-run
