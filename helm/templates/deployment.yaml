@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "warp-syncer.fullname" . }}
+  labels:
+    {{- include "warp-syncer.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "warp-syncer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "warp-syncer.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "warp-syncer.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: SYNCER_DBPORT
+              value: 7654
+            - name: SYNCER_DBHOST
+              value: 127.0.0.1
+            - name: SYNCER_DBUSER
+              value: postgres
+            - name: SYNCER_DBPASSWORD
+              value: postgres
+            - name: SYNCER_DBNAME
+              value: syncer
+            - name: SYNCER_DBSSLMODE
+              value: disable
+            - name: SYNCER_DBPINGTIMEOUT
+              value: 15s
+            - name: SYNCER_LOGLEVEL
+              value: INFO
+            - name: SYNCER_ARNODEURL
+              value: https://arweave.net
+            - name: SYNCER_ARSTABLEDISTANCE
+              value: 10
+            - name: SYNCER_LISTENERQUEUESIZE
+              value: 20
+            - name: SYNCER_STOREBATCHSIZE
+              value: 100
+            - name: SYNCER_STOREMAXTIMEINQUEUE
+              value: 2s
+            - name: SYNCER_STOREMAXTIMEBETWEENRECONNECTS
+              value: 2s
+            - name: SYNCER_RESTLISTENADDRESS
+              value: :80
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
