@@ -82,9 +82,9 @@ docker-build: all | ; $(info $(M) building docker container) @
 .PHONY: docker-push
 docker-push: all | ; $(info $(M) building docker container) @ 
 	$(GO) mod vendor
-	TAG=$(VERSION) docker buildx bake -f docker-bake.hcl
-	docker push warpredstone/syncer:latest
-	docker push warpredstone/syncer:$(VERSION)
+	DOCKER_BUILDKIT=0 TAG=$(VERSION) docker buildx bake -f docker-bake.hcl --push
+	# docker push warpredstone/syncer:latest
+	# docker push warpredstone/syncer:$(VERSION)
 	rm -rf vendor
 
 .PHONY: docker-run

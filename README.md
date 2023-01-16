@@ -50,7 +50,6 @@ Syncer has a default configuration that works in local development (*src/utils/c
 | SYNCER_DBPINGTIMEOUT | How much time can PING to the db take before it's considered a failure |
 | SYNCER_LOGLEVEL | Log level. Possible values: trace, debug, info, warn, error |
 | SYNCER_ARNODEURL | Arweave node URL |
-| SYNCER_ARCONCURRENTCONNECTIONS | How many concurrent connections arsyncer uses to download transactions |
 | SYNCER_ARSTABLEDISTANCE | Blockchain depth considered to be stable. Only stable blocks are saved to the DB. |
 | SYNCER_LISTENERQUEUESIZE | Number of blocks cached before listener stops downloading new ones |
 | SYNCER_STOREBATCHSIZE | Minimal number of interactions that trigger an insert to the db |
