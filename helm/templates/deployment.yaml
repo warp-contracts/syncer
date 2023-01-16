@@ -35,35 +35,35 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: SYNCER_DBPORT
-              value: 7654
+              value: "7654"
             - name: SYNCER_DBHOST
-              value: 127.0.0.1
+              value: "127.0.0.1"
             - name: SYNCER_DBUSER
-              value: postgres
+              value: "postgres"
             - name: SYNCER_DBPASSWORD
-              value: postgres
+              value: "postgres"
             - name: SYNCER_DBNAME
-              value: syncer
+              value: "syncer"
             - name: SYNCER_DBSSLMODE
-              value: disable
+              value: "disable"
             - name: SYNCER_DBPINGTIMEOUT
-              value: 15s
+              value: "15s"
             - name: SYNCER_LOGLEVEL
-              value: INFO
+              value: "INFO"
             - name: SYNCER_ARNODEURL
-              value: https://arweave.net
+              value: "https://arweave.net"
             - name: SYNCER_ARSTABLEDISTANCE
-              value: 10
+              value: "10"
             - name: SYNCER_LISTENERQUEUESIZE
-              value: 20
+              value: "20"
             - name: SYNCER_STOREBATCHSIZE
-              value: 100
+              value: "100"
             - name: SYNCER_STOREMAXTIMEINQUEUE
-              value: 2s
+              value: "2s"
             - name: SYNCER_STOREMAXTIMEBETWEENRECONNECTS
-              value: 2s
+              value: "2s"
             - name: SYNCER_RESTLISTENADDRESS
-              value: :80
+              value: ":80"
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
