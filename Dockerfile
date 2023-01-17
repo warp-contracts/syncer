@@ -11,4 +11,4 @@ COPY src src
 COPY vendor vendor
 RUN make build
 
-CMD ["/app/syncer", "sync"]
+CMD ["/app/bin/syncer", "sync"]
