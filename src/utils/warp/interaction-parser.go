@@ -64,7 +64,8 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 	swInteraction := smartweave.Interaction{
 		Id: tx.ID,
 		Owner: smartweave.Owner{
-			Address: tx.Owner,
+			// TODO: CHeck if this is the address or N
+			Address: out.Owner,
 		},
 		Recipient: tx.Target,
 		Tags:      tx.Tags,
@@ -95,16 +96,9 @@ func (self *InteractionParser) getOwner(tx *arweave.Transaction) (owner string, 
 	// The n value is the public modulus and is used as the transaction owner field,
 	// and the address of a wallet is a Base64URL encoded SHA-256 hash of the n value from the JWK.
 	// https://docs.arweave.org/developers/server/http-api#addressing
-	n, err := base64url.Decode(tx.Owner)
-	if err != nil {
-		self.log.WithError(err).Error("Failed to decode owner")
-		return
-	}
-
 	h := sha256.New()
-	h.Write(n)
+	h.Write([]byte(tx.Owner))
 	owner = base64url.Encode(h.Sum(nil))
-
 	return
 }
 
