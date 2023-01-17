@@ -34,18 +34,6 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: SYNCER_DBPORT
-              value: "7654"
-            - name: SYNCER_DBHOST
-              value: "127.0.0.1"
-            - name: SYNCER_DBUSER
-              value: "postgres"
-            - name: SYNCER_DBPASSWORD
-              value: "postgres"
-            - name: SYNCER_DBNAME
-              value: "syncer"
-            - name: SYNCER_DBSSLMODE
-              value: "disable"
             - name: SYNCER_DBPINGTIMEOUT
               value: "15s"
             - name: SYNCER_LOGLEVEL
@@ -64,6 +52,9 @@ spec:
               value: "2s"
             - name: SYNCER_RESTLISTENADDRESS
               value: ":8080"
+          envFrom:
+            - secretRef:
+                name: syncer-prod
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
