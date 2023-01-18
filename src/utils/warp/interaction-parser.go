@@ -16,13 +16,11 @@ import (
 	"syncer/src/utils/smartweave"
 
 	"github.com/dvsekhvalnov/jose2go/base64url"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/sirupsen/logrus"
 )
 
 type InteractionParser struct {
-	jwkKey jwk.Key
-	log    *logrus.Entry
+	log *logrus.Entry
 }
 
 var (
@@ -33,7 +31,6 @@ var (
 func NewInteractionParser(config *config.Config) (self *InteractionParser, err error) {
 	self = new(InteractionParser)
 	self.log = logger.NewSublogger("interaction-parser")
-	self.jwkKey, err = jwk.ParseKey([]byte(config.ArWalletJwk))
 	return
 }
 
@@ -166,13 +163,11 @@ func (self *InteractionParser) fillTags(tx *arweave.Transaction, out *model.Inte
 func (self *InteractionParser) createSortKey(tx *arweave.Transaction, blockHeight int64, id string) string {
 	blockId := []byte(id)
 	transactionId := []byte(tx.ID)
-	d := (self.jwkKey.(jwk.RSAPrivateKey)).D()
 
 	// Concatenate data
-	buffer := make([]byte, 0, len(blockId)+len(transactionId)+len(d))
+	buffer := make([]byte, 0, len(blockId)+len(transactionId))
 	buffer = append(buffer, blockId...)
 	buffer = append(buffer, transactionId...)
-	buffer = append(buffer, d...)
 
 	// Compute hash
 	sum256 := sha256.Sum256(buffer)
