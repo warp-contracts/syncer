@@ -105,6 +105,7 @@ func (self *PeerMonitor) run() (err error) {
 	ticker := time.NewTicker(30 * time.Second)
 
 	f := func() {
+		defer ticker.Reset(30 * time.Second)
 		peers, err := self.getPeers()
 		if err != nil {
 			self.log.WithError(err).Error("Failed to get peers")
