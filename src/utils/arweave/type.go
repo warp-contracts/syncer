@@ -50,29 +50,6 @@ type POA struct {
 	Chunk    string `json:"chunk"`
 }
 
-type Transaction struct {
-	Format    int          `json:"format"`
-	ID        string       `json:"id"`
-	LastTx    string       `json:"last_tx"`
-	Owner     Base64String `json:"owner"` // utils.Base64Encode(wallet.PubKey.N.Bytes())
-	Tags      []Tag        `json:"tags"`
-	Target    string       `json:"target"`
-	Quantity  string       `json:"quantity"`
-	Data      string       `json:"data"` // base64.encode
-	DataSize  string       `json:"data_size"`
-	DataRoot  string       `json:"data_root"`
-	Reward    string       `json:"reward"`
-	Signature string       `json:"signature"`
-
-	// Computed when needed.
-	Chunks *Chunks `json:"-"`
-}
-
-type Tag struct {
-	Name  Base64String `json:"name" avro:"name"`
-	Value Base64String `json:"value" avro:"value"`
-}
-
 type Chunks struct {
 	DataRoot []byte   `json:"data_root"`
 	Chunks   []Chunk  `json:"chunks"`

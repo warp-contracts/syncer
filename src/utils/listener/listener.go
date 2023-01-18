@@ -128,6 +128,7 @@ func (self *Listener) Start() {
 
 // Periodically checks Arweave network info for updated height
 func (self *Listener) monitorNetwork() {
+	// TODO: Fix timeout
 	ticker := time.NewTicker(self.config.StoreMaxTimeInQueue)
 
 	var lastHeight int64
@@ -283,6 +284,12 @@ func (self *Listener) monitorTransactions() {
 		// Filter out transactions that do not have the matching tags
 		payload.Transactions = self.filterTransactions(payload.Transactions)
 
+		// Check signatures of all transactions
+		err = self.verifyTransactions(payload.Transactions)
+		if err != nil {
+			continue
+		}
+
 		// Parse transactions into interactions
 		payload.Interactions = make([]*model.Interaction, len(payload.Transactions))
 		for i, tx := range payload.Transactions {
@@ -322,10 +329,24 @@ func (self *Listener) filterTransactions(transactions []*arweave.Transaction) (o
 	out = make([]*arweave.Transaction, 0, len(transactions))
 	for _, tx := range transactions {
 		for _, tag := range tx.Tags {
-			if tag.Value == "SmartWeaveAction" && tag.Name == "App-Name" {
+			// Format needst to be 2 in order for the verification to work
+			if tx.Format == 2 &&
+				string(tag.Value) == "SmartWeaveAction" &&
+				string(tag.Name) == "App-Name" {
 				out = append(out, tx)
 				break
 			}
+		}
+	}
+	return
+}
+
+func (self *Listener) verifyTransactions(transactions []*arweave.Transaction) (err error) {
+	for _, tx := range transactions {
+		err = tx.Verify()
+		if err != nil {
+			self.log.Error("Transaction failed to verify")
+			return
 		}
 	}
 	return

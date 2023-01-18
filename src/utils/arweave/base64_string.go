@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 )
 
-type Base64String string
+type Base64String []byte
 
 func (self *Base64String) UnmarshalJSON(data []byte) error {
 	var s string
@@ -20,6 +20,6 @@ func (self *Base64String) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*self = Base64String(b)
+	*self = []byte(b)
 	return nil
 }

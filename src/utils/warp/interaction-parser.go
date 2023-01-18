@@ -41,7 +41,6 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 		BlockId:            blockId,
 		ConfirmationStatus: "confirmed",
 		Source:             "arweave",
-		Owner:              tx.Owner,
 	}
 
 	// Fill tags, already decoded from base64
@@ -64,7 +63,7 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 			// TODO: CHeck if this is the address or N
 			Address: out.Owner,
 		},
-		Recipient: tx.Target,
+		Recipient: string(tx.Target),
 		Tags:      tx.Tags,
 		Block: smartweave.Block{
 			Height:    blockHeight,
@@ -105,7 +104,7 @@ func (self *InteractionParser) fillTags(tx *arweave.Transaction, out *model.Inte
 	for _, t := range tx.Tags {
 		// Base64String to string
 		value = string(t.Value)
-		switch t.Name {
+		switch string(t.Name) {
 		case "Contract":
 			if !contractIdRegex.MatchString(value) {
 				err = errors.New("tag doesn't validate as a contractId")
