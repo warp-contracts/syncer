@@ -145,12 +145,16 @@ func (self *Listener) monitorNetwork() {
 				continue
 			}
 
-			if networkInfo.Height <= lastHeight {
+			// This is the last block height we consider stable
+			stableHeight := networkInfo.Height - self.config.ListenerStableDistance
+
+			if stableHeight <= lastHeight {
+				// Nothing changed, retry later
 				continue
 			}
 
 			// There are new blocks, broadcast
-			lastHeight = networkInfo.Height
+			lastHeight = stableHeight
 
 			// Writing is a blocking operation
 			// There needs to be a goroutine ready (@see monitorBlocks) to download the blocks
