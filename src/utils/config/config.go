@@ -28,7 +28,6 @@ type Config struct {
 	LogPath  string
 
 	// FIXME: Use this value in listener
-	ArStableDistance   int64
 	ArNodeUrl          string
 	ArRequestTimeout   time.Duration
 	ArCheckPeerTimeout time.Duration
@@ -43,6 +42,9 @@ type Config struct {
 	// Normally interactions are passed to the Store right away, but if Store is in the middle of transaction it's not receiving data.
 	// So this capacity should account for interactions that may appear during a few second window when the previous batch is inserted to the database.
 	ListenerQueueSize int
+
+	// Distance from the current chain height that is considered stable. Newer blocks won't be downloaded.
+	ListenerStableDistance int64
 
 	// Num of Interactions that are stored in the Store
 	// before being inserted into the database in one db transaction and batch.
@@ -65,7 +67,7 @@ func setDefaults() {
 	viper.SetDefault("LogLevel", "DEBUG")
 	viper.SetDefault("LogPath", "")
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")
-	viper.SetDefault("ArStableDistance", "15")
+	viper.SetDefault("ListenerStableDistance", "15")
 	viper.SetDefault("ArRequestTimeout", "30s")
 	viper.SetDefault("ArCheckPeerTimeout", "2s")
 	viper.SetDefault("ListenerQueueSize", "50")
