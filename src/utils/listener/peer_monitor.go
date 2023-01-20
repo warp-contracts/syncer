@@ -117,6 +117,8 @@ func (self *PeerMonitor) run() (err error) {
 		self.client.SetPeers(peers[:15])
 
 		self.log.WithField("numBlacklisted", self.numBlacklisted.Load()).Info("Set new peers")
+
+		self.cleanupBlacklist()
 	}
 
 	for {
@@ -197,7 +199,7 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 				self.log.WithField("peer", peer).Trace("Black list peer")
 
 				// Put the peer on the blacklist
-				self.blacklisted.Store(peer, struct{}{})
+				self.blacklisted.Store(peer, time.Now())
 				self.numBlacklisted.Add(1)
 
 				// Neglect peers that returned and error
@@ -229,6 +231,33 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 	})
 
 	return
+}
+
+func (self *PeerMonitor) cleanupBlacklist() {
+	now := time.Now()
+	numRemoved := 0
+
+	self.blacklisted.Range(func(peer, timeWhenAdded any) bool {
+		t, ok := timeWhenAdded.(time.Time)
+		if !ok {
+			self.log.Error("Bad value stored in the blacklist")
+			return false
+		}
+
+		if now.Sub(t) >= self.config.PeerMonitorMaxTimeBlacklisted {
+			// Peer has been blacklisted long enough
+			self.blacklisted.Delete(peer)
+			self.numBlacklisted.Add(-1)
+			self.log.WithField("peer", peer).Debug("Removed peer from blacklist")
+		}
+
+		if numRemoved >= self.config.PeerMonitorMaxPeersRemovedFromBlacklist {
+			// Maximum of blacklisted peers got removed, rest will be removed later
+			return false
+		}
+
+		return true
+	})
 }
 
 func (self *PeerMonitor) Stop() {
