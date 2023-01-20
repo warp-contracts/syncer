@@ -2,10 +2,10 @@ package listener
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"sort"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"syncer/src/utils/arweave"
@@ -41,12 +41,15 @@ type PeerMonitor struct {
 }
 
 type metric struct {
-	BlockHeight int64
-	Duration    time.Duration
+	Peer     string
+	Height   int64
+	Blocks   int64
+	Duration time.Duration
 }
 
 func (self *metric) String() string {
-	return strconv.Itoa(int(self.BlockHeight))
+	b, _ := json.Marshal(self)
+	return string(b)
 }
 
 func NewPeerMonitor(config *config.Config) (self *PeerMonitor) {
@@ -172,9 +175,6 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 	// Metrics used to sort peers
 	metrics := make([]*metric, 0, len(allPeers))
 
-	// Peers that responded to the test request
-	peers = make([]string, 0, len(allPeers))
-
 	// Perform test requests
 	for i, peer := range allPeers {
 		// Copy variables
@@ -207,13 +207,16 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 			}
 
 			mtx.Lock()
-			peers = append(peers, peer)
 			metrics = append(metrics, &metric{
-				Duration:    duration,
-				BlockHeight: info.Height,
+				Duration: duration,
+				Height:   info.Height,
+				Blocks:   info.Blocks,
+				Peer:     peer,
 			})
 
 			mtx.Unlock()
+
+			// self.log.WithField("metric", metrics[len(metrics)-1]).Info("Metric")
 
 		end:
 			wg.Done()
@@ -225,10 +228,23 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 
 	// self.log.WithField("metrics", len(metrics)).WithField("metrics", metrics).Debug("Metrics")
 
-	// Sort peers using the metric
-	sort.Slice(peers, func(i int, j int) bool {
-		return metrics[i].BlockHeight > metrics[j].BlockHeight || metrics[i].Duration < metrics[j].Duration
+	// Sort using response times (less is better)
+	sort.Slice(metrics, func(i int, j int) bool {
+		return metrics[i].Duration < metrics[j].Duration
 	})
+
+	// Sort using number of not synchronized blocks (less is better)
+	sort.SliceStable(metrics, func(i int, j int) bool {
+		a := metrics[i]
+		b := metrics[j]
+		return (a.Height-a.Blocks < b.Height-b.Blocks)
+	})
+
+	// Get the sorted peers
+	peers = make([]string, len(metrics))
+	for i, metric := range metrics {
+		peers[i] = metric.Peer
+	}
 
 	return
 }
