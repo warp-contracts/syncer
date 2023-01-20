@@ -2,6 +2,7 @@ package listener
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -183,6 +184,7 @@ func (self *Listener) monitorBlocks() {
 
 		// Download transactions from
 		for height := lastSyncedHeight + 1; height <= presentHeight; height++ {
+		retry:
 			self.log.WithField("height", height).Debug("Downloading block")
 
 			block, err := self.client.GetBlockByHeight(self.Ctx, height)
@@ -194,6 +196,15 @@ func (self *Listener) monitorBlocks() {
 				}
 				continue
 				// FIXME: Inform downstream something's wrong
+			}
+
+			if !block.IsValid() {
+				self.log.WithField("height", height).Panic("Block hash isn't valid")
+				// self.log.WithField("height", height).Error("Block hash isn't valid, blacklisting peer for ever and retrying")
+
+				goto retry
+				// FIXME: Inform downstream something's wrong
+				// FIXME: Blacklist peer, retry downloading block
 			}
 
 			self.log.
@@ -238,7 +249,7 @@ func (self *Listener) downloadTransactions(block *arweave.Block) (out []*arweave
 	out = make([]*arweave.Transaction, len(block.Txs))
 	for idx, txId := range block.Txs {
 		idx := idx
-		txId := txId
+		txId := base64.RawURLEncoding.EncodeToString(txId)
 
 		self.workers.Submit(func() {
 			// NOTE: Infinite loop, because there's nothing better we can do.
