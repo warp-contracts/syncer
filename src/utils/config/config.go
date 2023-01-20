@@ -47,6 +47,10 @@ type Config struct {
 	// a given block as confirmed (i.e. not being a fork)
 	ListenerRequiredConfirmationBlocks int64
 
+	// URL of the node we're using to get the current block height.
+	// It's the Warp's Gateway URL to avoid race conditions
+	ListenerNetworkInfoNodeUrl string
+
 	// Num of Interactions that are stored in the Store
 	// before being inserted into the database in one db transaction and batch.
 	StoreBatchSize int
@@ -72,6 +76,7 @@ func setDefaults() {
 	viper.SetDefault("ArRequestTimeout", "30s")
 	viper.SetDefault("ArCheckPeerTimeout", "2s")
 	viper.SetDefault("ListenerQueueSize", "50")
+	viper.SetDefault("ListenerNetworkInfoNodeUrl", "https://gateway.warp.cc/gateway/arweave")
 	viper.SetDefault("PollerNetworkInfoTimeout", "2s")
 	viper.SetDefault("PollerWorkerPoolSize", "10")
 	viper.SetDefault("StoreBatchSize", "50")

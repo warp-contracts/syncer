@@ -131,6 +131,10 @@ func (self *Listener) monitorNetwork() {
 	// TODO: Fix timeout
 	ticker := time.NewTicker(self.config.StoreMaxTimeInQueue)
 
+	// Use a specific URL as the source of truth, to avoid race conditions with SDK
+	ctx := context.WithValue(self.Ctx, arweave.ContextForcePeer, self.config.ListenerNetworkInfoNodeUrl)
+	ctx = context.WithValue(ctx, arweave.ContextDisablePeers, true)
+
 	var lastHeight int64
 	for {
 		select {
@@ -139,7 +143,7 @@ func (self *Listener) monitorNetwork() {
 			close(self.heightChannel)
 			return
 		case <-ticker.C:
-			networkInfo, err := self.client.GetNetworkInfo(self.Ctx)
+			networkInfo, err := self.client.GetNetworkInfo(ctx)
 			if err != nil {
 				self.log.WithError(err).Error("Failed to get Arweave network info")
 				continue

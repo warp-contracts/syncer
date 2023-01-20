@@ -242,7 +242,7 @@ func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err e
 		SetContext(ctx).
 		ForceContentType("application/json").
 		SetResult(&NetworkInfo{}).
-		Get("info")
+		Get("/info")
 	if err != nil {
 		return
 	}
@@ -262,7 +262,7 @@ func (self *Client) GetPeerList(ctx context.Context) (out []string, err error) {
 		SetContext(ctx).
 		ForceContentType("application/json").
 		SetResult([]string{}).
-		Get("peers")
+		Get("/peers")
 	if err != nil {
 		return
 	}
@@ -312,7 +312,7 @@ func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Bl
 		ForceContentType("application/json").
 		SetResult(&Block{}).
 		SetPathParam("height", strconv.FormatInt(height, 10)).
-		Get("block/height/{height}")
+		Get("/block/height/{height}")
 	if err != nil {
 		return
 	}
@@ -333,7 +333,7 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 		ForceContentType("application/json").
 		SetResult(&Transaction{}).
 		SetPathParam("id", id).
-		Get("tx/{id}")
+		Get("/tx/{id}")
 	if err != nil {
 		return
 	}
