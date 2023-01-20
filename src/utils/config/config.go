@@ -51,6 +51,15 @@ type Config struct {
 	// It's the Warp's Gateway URL to avoid race conditions
 	ListenerNetworkInfoNodeUrl string
 
+	// Maximum time a peer is blacklisted.
+	// Even after this duration is over it may take some time for the peer to be re-checked
+	PeerMonitorMaxTimeBlacklisted time.Duration
+
+	// Maximum number of peers that can be removed from the blacklist
+	// Peers that are blacklisted longer than `PeerMonitorMaxTimeBlacklisted` will get eventually re-used
+	// To avoid spikes we can only remove at most this many peers from the blacklist in one try
+	PeerMonitorMaxPeersRemovedFromBlacklist int
+
 	// Num of Interactions that are stored in the Store
 	// before being inserted into the database in one db transaction and batch.
 	StoreBatchSize int
@@ -77,6 +86,8 @@ func setDefaults() {
 	viper.SetDefault("ArCheckPeerTimeout", "2s")
 	viper.SetDefault("ListenerQueueSize", "50")
 	viper.SetDefault("ListenerNetworkInfoNodeUrl", "https://gateway.warp.cc/gateway/arweave")
+	viper.SetDefault("PeerMonitorMaxTimeBlacklisted", "30m")
+	viper.SetDefault("PeerMonitorMaxPeersRemovedFromBlacklist", "5")
 	viper.SetDefault("PollerNetworkInfoTimeout", "2s")
 	viper.SetDefault("PollerWorkerPoolSize", "10")
 	viper.SetDefault("StoreBatchSize", "50")
