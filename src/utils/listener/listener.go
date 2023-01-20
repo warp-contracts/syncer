@@ -145,7 +145,7 @@ func (self *Listener) monitorNetwork() {
 			}
 
 			// This is the last block height we consider stable
-			stableHeight := networkInfo.Height - self.config.ListenerStableDistance
+			stableHeight := networkInfo.Height - self.config.ListenerRequiredConfirmationBlocks
 
 			if stableHeight <= lastHeight {
 				// Nothing changed, retry later
