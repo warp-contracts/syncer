@@ -4,7 +4,6 @@ import (
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/sha512"
 	"errors"
 	"fmt"
 	"math/big"
@@ -52,15 +51,15 @@ func (self *Transaction) Verify() (err error) {
 
 	// Initialize leaves of the merkle tree
 	values := []interface{}{
-		[]byte(fmt.Sprintf("%d", self.Format)),
-		[]byte(self.Owner),
-		[]byte(self.Target),
-		[]byte(self.Quantity),
-		[]byte(self.Reward),
-		[]byte(self.LastTx),
+		fmt.Sprintf("%d", self.Format),
+		self.Owner,
+		self.Target,
+		self.Quantity,
+		self.Reward,
+		self.LastTx,
 		tags,
-		[]byte(self.DataSize),
-		[]byte(self.DataRoot),
+		self.DataSize,
+		self.DataRoot,
 	}
 
 	ownerPublicKey := &rsa.PublicKey{
@@ -75,60 +74,4 @@ func (self *Transaction) Verify() (err error) {
 		SaltLength: rsa.PSSSaltLengthAuto,
 		Hash:       crypto.SHA256,
 	})
-}
-
-func deepHash(data []any) [48]byte {
-	tag := append([]byte("list"), []byte(fmt.Sprintf("%d", len(data)))...)
-	tagHash := sha512.Sum384(tag)
-	return deepHashAcc(data, tagHash)
-}
-
-func deepHashBytes(x []byte) [48]byte {
-	tag := append([]byte("blob"), []byte(fmt.Sprintf("%d", len(x)))...)
-	tagHash := sha512.Sum384(tag)
-	blobHash := sha512.Sum384(x)
-	tagged := append(tagHash[:], blobHash[:]...)
-	return sha512.Sum384(tagged)
-}
-
-func convertToSliceOfAny[T string | []byte | Base64String](in []T) (out []any) {
-	out = make([]any, len(in))
-	for i, v := range in {
-		out[i] = []byte(v)
-	}
-	return
-}
-
-func deepHashAcc(data []interface{}, acc [48]byte) [48]byte {
-	if len(data) < 1 {
-		return acc
-	}
-
-	dHash := [48]byte{}
-	d := data[0]
-
-	switch x := d.(type) {
-	case []byte:
-		dHash = deepHashBytes(x)
-	case string:
-		dHash = deepHashBytes([]byte(x))
-	case Base64String:
-		dHash = deepHashBytes([]byte(x))
-	case RewardAddr:
-		dHash = deepHashBytes([]byte(x))
-	case []Base64String:
-		dHash = deepHash(convertToSliceOfAny(x))
-	case []string:
-		dHash = deepHash(convertToSliceOfAny(x))
-	case [][]byte:
-		dHash = deepHash(convertToSliceOfAny(x))
-	case []interface{}:
-		dHash = deepHash(x)
-	default:
-		panic("unsupported deep hash type")
-	}
-
-	hashPair := append(acc[:], dHash[:]...)
-	newAcc := sha512.Sum384(hashPair)
-	return deepHashAcc(data[1:], newAcc)
 }
