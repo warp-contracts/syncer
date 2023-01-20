@@ -77,10 +77,26 @@ func (self *Transaction) Verify() (err error) {
 	})
 }
 
-func deepHash(data []interface{}) [48]byte {
+func deepHash(data []any) [48]byte {
 	tag := append([]byte("list"), []byte(fmt.Sprintf("%d", len(data)))...)
 	tagHash := sha512.Sum384(tag)
 	return deepHashAcc(data, tagHash)
+}
+
+func deepHashBytes(x []byte) [48]byte {
+	tag := append([]byte("blob"), []byte(fmt.Sprintf("%d", len(x)))...)
+	tagHash := sha512.Sum384(tag)
+	blobHash := sha512.Sum384(x)
+	tagged := append(tagHash[:], blobHash[:]...)
+	return sha512.Sum384(tagged)
+}
+
+func convertToSliceOfAny[T string | []byte | Base64String](in []T) (out []any) {
+	out = make([]any, len(in))
+	for i, v := range in {
+		out[i] = []byte(v)
+	}
+	return
 }
 
 func deepHashAcc(data []interface{}, acc [48]byte) [48]byte {
@@ -89,13 +105,23 @@ func deepHashAcc(data []interface{}, acc [48]byte) [48]byte {
 	}
 
 	dHash := [48]byte{}
-	switch x := data[0].(type) {
+	d := data[0]
+
+	switch x := d.(type) {
 	case []byte:
-		tag := append([]byte("blob"), []byte(fmt.Sprintf("%d", len(x)))...)
-		tagHash := sha512.Sum384(tag)
-		blobHash := sha512.Sum384(x)
-		tagged := append(tagHash[:], blobHash[:]...)
-		dHash = sha512.Sum384(tagged)
+		dHash = deepHashBytes(x)
+	case string:
+		dHash = deepHashBytes([]byte(x))
+	case Base64String:
+		dHash = deepHashBytes([]byte(x))
+	case RewardAddr:
+		dHash = deepHashBytes([]byte(x))
+	case []Base64String:
+		dHash = deepHash(convertToSliceOfAny(x))
+	case []string:
+		dHash = deepHash(convertToSliceOfAny(x))
+	case [][]byte:
+		dHash = deepHash(convertToSliceOfAny(x))
 	case []interface{}:
 		dHash = deepHash(x)
 	default:

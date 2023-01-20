@@ -323,6 +323,8 @@ func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Bl
 		return
 	}
 
+	// self.log.WithField("block", string(resp.Body())).Info("Block")
+
 	return
 }
 
