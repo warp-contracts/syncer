@@ -47,6 +47,7 @@ func NewClient(config *config.Config) (self *Client) {
 			SetLogger(NewLogger()).
 			AddRetryCondition(self.onRetryCondition).
 			AddRetryAfterErrorCondition().
+			OnBeforeRequest(self.onForcePeer).
 			OnBeforeRequest(self.onRateLimit).
 			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
@@ -103,6 +104,22 @@ func (self *Client) decrementLimit(peer string) {
 	self.log.WithField("peer", peer).Debug("Decreasing limit")
 
 	limiter.SetLimit(limiter.Limit() * 0.999)
+}
+
+func (self *Client) onForcePeer(c *resty.Client, req *resty.Request) (err error) {
+	url, ok := req.Context().Value(ContextForcePeer).(string)
+	if !ok {
+		url = self.config.ArNodeUrl
+	}
+
+	if req.URL[0:1] != "/" {
+		req.URL = "/" + req.URL
+	}
+	req.URL = url + req.URL
+
+	// self.log.WithField("url", req.URL).Debug("Force peer callback")
+
+	return nil
 }
 
 func (self *Client) onRateLimit(c *resty.Client, req *resty.Request) (err error) {
@@ -200,13 +217,6 @@ func (self *Client) onRetryRequest(c *resty.Client, resp *resty.Response) (err e
 	return err
 }
 
-func (self *Client) url(endpoint string) (out string) {
-	if endpoint[0:1] != "/" {
-		endpoint = "/" + endpoint
-	}
-	return self.config.ArNodeUrl + endpoint
-}
-
 // Set the list of potential peers in order they should be used
 // Uses only peers that are proper urls
 func (self *Client) SetPeers(peers []string) {
@@ -232,7 +242,7 @@ func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err e
 		SetContext(ctx).
 		ForceContentType("application/json").
 		SetResult(&NetworkInfo{}).
-		Get(self.url("info"))
+		Get("info")
 	if err != nil {
 		return
 	}
@@ -252,7 +262,7 @@ func (self *Client) GetPeerList(ctx context.Context) (out []string, err error) {
 		SetContext(ctx).
 		ForceContentType("application/json").
 		SetResult([]string{}).
-		Get(self.url("peers"))
+		Get("peers")
 	if err != nil {
 		return
 	}
@@ -269,6 +279,7 @@ func (self *Client) GetPeerList(ctx context.Context) (out []string, err error) {
 func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *NetworkInfo, duration time.Duration, err error) {
 	// Disable retrying request with different peer
 	ctx = context.WithValue(ctx, ContextDisablePeers, true)
+	ctx = context.WithValue(ctx, ContextForcePeer, peer)
 
 	// Set timeout
 	ctx, cancel := context.WithTimeout(ctx, self.config.ArCheckPeerTimeout)
@@ -278,7 +289,7 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 		SetContext(ctx).
 		ForceContentType("application/json").
 		SetResult(&NetworkInfo{}).
-		Get(peer + "/info")
+		Get("/info")
 	if err != nil {
 		return
 	}
@@ -301,7 +312,7 @@ func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Bl
 		ForceContentType("application/json").
 		SetResult(&Block{}).
 		SetPathParam("height", strconv.FormatInt(height, 10)).
-		Get(self.url("block/height/{height}"))
+		Get("block/height/{height}")
 	if err != nil {
 		return
 	}
@@ -322,7 +333,7 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 		ForceContentType("application/json").
 		SetResult(&Transaction{}).
 		SetPathParam("id", id).
-		Get(self.url("tx/{id}"))
+		Get("tx/{id}")
 	if err != nil {
 		return
 	}
