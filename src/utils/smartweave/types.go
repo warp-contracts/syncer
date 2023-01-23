@@ -17,11 +17,11 @@ type Amount struct {
 }
 
 type Interaction struct {
-	Id        string        `json:"id"`
-	Owner     Owner         `json:"owner"`
-	Recipient string        `json:"recipient"`
-	Tags      []arweave.Tag `json:"tags"`
-	Block     Block         `json:"block"`
-	Fee       Amount        `json:"fee"`
-	Quantity  Amount        `json:"quantity"`
+	Id        string               `json:"id"`
+	Owner     Owner                `json:"owner"`
+	Recipient arweave.Base64String `json:"recipient"`
+	Tags      []arweave.Tag        `json:"tags"`
+	Block     Block                `json:"block"`
+	Fee       Amount               `json:"fee"`
+	Quantity  Amount               `json:"quantity"`
 }

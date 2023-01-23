@@ -23,3 +23,8 @@ func (self *Base64String) UnmarshalJSON(data []byte) error {
 	*self = []byte(b)
 	return nil
 }
+
+func (self *Base64String) MarshalJSON() (out []byte, err error) {
+	s := base64.RawURLEncoding.EncodeToString([]byte(*self))
+	return json.Marshal(s)
+}

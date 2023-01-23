@@ -28,8 +28,8 @@ type Transaction struct {
 }
 
 type Tag struct {
-	Name  Base64String `json:"name" avro:"name"`
-	Value Base64String `json:"value" avro:"value"`
+	Name  Base64String `json:"name"`
+	Value Base64String `json:"value"`
 }
 
 // https://docs.arweave.org/developers/server/http-api#transaction-signing

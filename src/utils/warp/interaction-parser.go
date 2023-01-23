@@ -63,7 +63,7 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 			// TODO: CHeck if this is the address or N
 			Address: out.Owner,
 		},
-		Recipient: string(tx.Target),
+		Recipient: tx.Target,
 		Tags:      tx.Tags,
 		Block: smartweave.Block{
 			Height:    blockHeight,

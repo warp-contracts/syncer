@@ -31,7 +31,7 @@ type Interaction struct {
 	// Hardcoded arsyncer
 	Source string
 
-	// TODO: This should be wallet address (there's a function in goar to do this), 44char
+	// Wallet address, 44 characters
 	Owner string
 
 	// Those fields aren't used anymore, currenct version waits 10 blocks with the synchronization
