@@ -25,7 +25,6 @@ type Config struct {
 
 	// Logging
 	LogLevel string
-	LogPath  string
 
 	// FIXME: Use this value in listener
 	ArNodeUrl          string
@@ -51,6 +50,9 @@ type Config struct {
 	// It's the Warp's Gateway URL to avoid race conditions
 	ListenerNetworkInfoNodeUrl string
 
+	// Time between requests to the Warp's Gateway for network info
+	ListenerPeriod time.Duration
+
 	// Maximum time a peer is blacklisted.
 	// Even after this duration is over it may take some time for the peer to be re-checked
 	PeerMonitorMaxTimeBlacklisted time.Duration
@@ -59,6 +61,10 @@ type Config struct {
 	// Peers that are blacklisted longer than `PeerMonitorMaxTimeBlacklisted` will get eventually re-used
 	// To avoid spikes we can only remove at most this many peers from the blacklist in one try
 	PeerMonitorMaxPeersRemovedFromBlacklist int
+
+	// Time between sending monitoring requests to peers
+	// Peers are downloaded from the arweave API and checked in parallel by couple of workers
+	PeerMonitorPeriod time.Duration
 
 	// Num of Interactions that are stored in the Store
 	// before being inserted into the database in one db transaction and batch.
@@ -79,15 +85,16 @@ func setDefaults() {
 	viper.SetDefault("DBPingTimeout", "15s")
 	viper.SetDefault("RESTListenAddress", ":3333")
 	viper.SetDefault("LogLevel", "DEBUG")
-	viper.SetDefault("LogPath", "")
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")
 	viper.SetDefault("ListenerRequiredConfirmationBlocks", "15")
 	viper.SetDefault("ArRequestTimeout", "30s")
 	viper.SetDefault("ArCheckPeerTimeout", "2s")
 	viper.SetDefault("ListenerQueueSize", "50")
 	viper.SetDefault("ListenerNetworkInfoNodeUrl", "https://gateway.warp.cc/gateway/arweave")
+	viper.SetDefault("ListenerPeriod", "2s")
 	viper.SetDefault("PeerMonitorMaxTimeBlacklisted", "30m")
 	viper.SetDefault("PeerMonitorMaxPeersRemovedFromBlacklist", "5")
+	viper.SetDefault("PeerMonitorPeriod", "100s")
 	viper.SetDefault("PollerNetworkInfoTimeout", "2s")
 	viper.SetDefault("PollerWorkerPoolSize", "10")
 	viper.SetDefault("StoreBatchSize", "50")

@@ -105,10 +105,12 @@ func (self *PeerMonitor) Start() {
 
 // Periodically checks Arweave network info for updated height
 func (self *PeerMonitor) run() (err error) {
-	ticker := time.NewTicker(30 * time.Second)
+	var timer *time.Timer
 
 	f := func() {
-		defer ticker.Reset(30 * time.Second)
+		// Setup waiting before the next check
+		defer func() { timer = time.NewTimer(self.config.PeerMonitorPeriod) }()
+
 		peers, err := self.getPeers()
 		if err != nil {
 			self.log.WithError(err).Error("Failed to get peers")
@@ -122,6 +124,7 @@ func (self *PeerMonitor) run() (err error) {
 		self.log.WithField("numBlacklisted", self.numBlacklisted.Load()).Info("Set new peers")
 
 		self.cleanupBlacklist()
+
 	}
 
 	for {
@@ -130,7 +133,7 @@ func (self *PeerMonitor) run() (err error) {
 		select {
 		case <-self.stopChannel:
 			return nil
-		case <-ticker.C:
+		case <-timer.C:
 			f()
 		}
 	}

@@ -129,45 +129,54 @@ func (self *Listener) Start() {
 
 // Periodically checks Arweave network info for updated height
 func (self *Listener) monitorNetwork() {
-	// TODO: Fix timeout
-	ticker := time.NewTicker(self.config.StoreMaxTimeInQueue)
+	var (
+		timer      *time.Timer
+		lastHeight int64
+	)
 
 	// Use a specific URL as the source of truth, to avoid race conditions with SDK
 	ctx := context.WithValue(self.Ctx, arweave.ContextForcePeer, self.config.ListenerNetworkInfoNodeUrl)
 	ctx = context.WithValue(ctx, arweave.ContextDisablePeers, true)
 
-	var lastHeight int64
+	f := func() {
+		// Setup waiting before the next check
+		defer func() { timer = time.NewTimer(self.config.ListenerPeriod) }()
+
+		networkInfo, err := self.client.GetNetworkInfo(ctx)
+		if err != nil {
+			self.log.WithError(err).Error("Failed to get Arweave network info")
+			return
+		}
+
+		// This is the last block height we consider stable
+		stableHeight := networkInfo.Height - self.config.ListenerRequiredConfirmationBlocks
+
+		if stableHeight <= lastHeight {
+			// Nothing changed, retry later
+			return
+		}
+
+		// There are new blocks, broadcast
+		lastHeight = stableHeight
+
+		// Writing is a blocking operation
+		// There needs to be a goroutine ready (@see monitorBlocks) to download the blocks
+		// This can't timeout, but can be stopped
+		select {
+		case <-self.stopChannel:
+		case self.heightChannel <- lastHeight:
+		}
+	}
+
 	for {
+		f()
 		select {
 		case <-self.stopChannel:
 			self.log.Debug("Closing heightChannel")
 			close(self.heightChannel)
 			return
-		case <-ticker.C:
-			networkInfo, err := self.client.GetNetworkInfo(ctx)
-			if err != nil {
-				self.log.WithError(err).Error("Failed to get Arweave network info")
-				continue
-			}
-
-			// This is the last block height we consider stable
-			stableHeight := networkInfo.Height - self.config.ListenerRequiredConfirmationBlocks
-
-			if stableHeight <= lastHeight {
-				// Nothing changed, retry later
-				continue
-			}
-
-			// There are new blocks, broadcast
-			lastHeight = stableHeight
-
-			// Writing is a blocking operation
-			// There needs to be a goroutine ready (@see monitorBlocks) to download the blocks
-			// This can't timeout, but can be stopped
-			select {
-			case <-self.stopChannel:
-			case self.heightChannel <- lastHeight:
-			}
+		case <-timer.C:
+			f()
 		}
 	}
 }

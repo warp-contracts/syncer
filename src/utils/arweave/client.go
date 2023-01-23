@@ -55,6 +55,9 @@ func NewClient(config *config.Config) (self *Client) {
 				if resp.IsSuccess() {
 					return nil
 				}
+				if resp.StatusCode() > 399 && resp.StatusCode() < 500 {
+					self.log.WithField("body", resp.Request.Body).WithField("url", resp.Request.URL).Debug("Bad request")
+				}
 				return fmt.Errorf("unexpected status: %s", resp.Status())
 			})
 
