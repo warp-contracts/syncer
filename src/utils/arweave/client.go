@@ -109,18 +109,32 @@ func (self *Client) decrementLimit(peer string) {
 	limiter.SetLimit(limiter.Limit() * 0.999)
 }
 
+// Properly handles the cases:
+// - req.URL only contains the endpoint
+// - req.URL contains the full URL
 func (self *Client) onForcePeer(c *resty.Client, req *resty.Request) (err error) {
-	url, ok := req.Context().Value(ContextForcePeer).(string)
+	reqUrl, err := url.Parse(req.URL)
+	if err != nil {
+		return
+	}
+
+	peer, ok := req.Context().Value(ContextForcePeer).(string)
 	if !ok {
-		url = self.config.ArNodeUrl
+		peer = self.config.ArNodeUrl
 	}
 
-	if req.URL[0:1] != "/" {
-		req.URL = "/" + req.URL
+	forcedUrl, err := url.Parse(peer)
+	if err != nil {
+		return
 	}
-	req.URL = url + req.URL
 
-	// self.log.WithField("url", req.URL).Debug("Force peer callback")
+	reqUrl.Host = forcedUrl.Host
+	reqUrl.Scheme = forcedUrl.Scheme
+	reqUrl.Path = forcedUrl.Path + reqUrl.Path
+
+	// Path contains placeholder arguments in {} brackets
+	// Using reqUrl.String() breaks the encoding
+	req.URL = fmt.Sprintf("%s://%s%s", reqUrl.Scheme, reqUrl.Host, reqUrl.Path)
 
 	return nil
 }
