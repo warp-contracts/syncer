@@ -15,7 +15,7 @@ type Block struct {
 	Timestamp                int64          `json:"timestamp"`
 	LastRetarget             int64          `json:"last_retarget"`
 	Height                   int64          `json:"height"`
-	Diff                     string         `json:"diff"`
+	Diff                     BigInt         `json:"diff"`
 	Hash                     Base64String   `json:"hash"`
 	IndepHash                Base64String   `json:"indep_hash"`
 	Txs                      []Base64String `json:"txs"`
@@ -26,10 +26,10 @@ type Block struct {
 	WalletList               Base64String   `json:"wallet_list"`
 	RewardAddr               RewardAddr     `json:"reward_addr"`
 	Tags                     []interface{}  `json:"tags"`
-	RewardPool               string         `json:"reward_pool"`
+	RewardPool               BigInt         `json:"reward_pool"`
 	WeaveSize                string         `json:"weave_size"`
 	BlockSize                string         `json:"block_size"`
-	CumulativeDiff           string         `json:"cumulative_diff"`
+	CumulativeDiff           BigInt         `json:"cumulative_diff"`
 	SizeTaggedTxs            interface{}    `json:"size_tagged_txs"`
 	Poa                      POA            `json:"poa"`
 	UsdToArRate              []string       `json:"usd_to_ar_rate"`
@@ -74,12 +74,9 @@ func generateBlockDataSegment(b *Block) []byte {
 		bdsBase,
 		fmt.Sprintf("%d", b.Timestamp),
 		fmt.Sprintf("%d", b.LastRetarget),
-
-		// TODO: those 3 params are int64 in string form
-		b.Diff,
-		b.CumulativeDiff,
-		b.RewardPool,
-
+		b.Diff.String(),
+		b.CumulativeDiff.String(),
+		b.RewardPool.String(),
 		b.WalletList,
 		b.HashListMerkle,
 	}
