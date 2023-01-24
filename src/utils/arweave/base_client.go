@@ -79,9 +79,9 @@ func (self *BaseClient) createTransport() *http.Transport {
 		// This is important. arweave.net may sometimes stop responding on idle connections,
 		// resulting in error: context deadline exceeded (Client.Timeout exceeded while awaiting headers)
 		IdleConnTimeout:     self.config.ArIdleConnTimeout,
-		MaxIdleConns:        1,
-		MaxIdleConnsPerHost: 1,
-		MaxConnsPerHost:     1,
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 100,
+		MaxConnsPerHost:     100,
 	}
 }
 

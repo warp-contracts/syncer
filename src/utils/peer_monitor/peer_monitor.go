@@ -1,4 +1,4 @@
-package listener
+package peer_monitor
 
 import (
 	"context"
@@ -267,6 +267,7 @@ func (self *PeerMonitor) cleanupBlacklist() {
 			// Peer has been blacklisted long enough
 			self.blacklisted.Delete(peer)
 			self.numBlacklisted.Add(-1)
+			numRemoved += 1
 			self.log.WithField("peer", peer).Debug("Removed peer from blacklist")
 		}
 
