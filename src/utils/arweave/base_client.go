@@ -3,6 +3,7 @@ package arweave
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -38,29 +39,66 @@ func newBaseClient(config *config.Config) (self *BaseClient) {
 	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
-			// SetDebug(true).
-			// DisableTrace().
 			SetTimeout(self.config.ArRequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
 			SetRetryCount(1).
-			SetLogger(NewLogger()).
+			SetLogger(NewLogger(true /*force all logs to trace*/)).
+			SetTransport(self.createTransport()).
 			AddRetryCondition(self.onRetryCondition).
 			AddRetryAfterErrorCondition().
 			OnBeforeRequest(self.onForcePeer).
 			OnBeforeRequest(self.onRateLimit).
+			// // NOTE: Trace logs, used only when debugging. Needs to be before other OnAfterResponse callbacks
+			// EnableTrace().
+			// OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
+			// 	t, _ := json.Marshal(resp.Request.TraceInfo())
+			// 	self.log.WithField("trace", string(t)).WithField("url", resp.Request.URL).Info("Trace")
+			// 	return nil
+			// }).
 			OnAfterResponse(self.onRetryRequest).
-			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
-				// Non-success status code turns into an error
-				if resp.IsSuccess() {
-					return nil
-				}
-				if resp.StatusCode() > 399 && resp.StatusCode() < 500 {
-					self.log.WithField("status", resp.StatusCode()).WithField("resp", resp.Body()).WithField("body", resp.Request.Body).WithField("url", resp.Request.URL).Debug("Bad request")
-				}
-				return fmt.Errorf("unexpected status: %s", resp.Status())
-			})
+			OnAfterResponse(self.onStatusToError)
 
 	return
+}
+
+func (self *BaseClient) createTransport() *http.Transport {
+	dialer := &net.Dialer{
+		Timeout:   self.config.ArDialerTimeout,
+		KeepAlive: self.config.ArDialerKeepAlive,
+		DualStack: true,
+	}
+
+	return &http.Transport{
+		// Some config options disable http2, try it anyway
+		ForceAttemptHTTP2: true,
+
+		DialContext:           dialer.DialContext,
+		TLSHandshakeTimeout:   self.config.ArTLSHandshakeTimeout,
+		ExpectContinueTimeout: 1 * time.Second,
+
+		// This is important. arweave.net may sometimes stop responding on idle connections,
+		// resulting in error: context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+		IdleConnTimeout:     self.config.ArIdleConnTimeout,
+		MaxIdleConns:        20,
+		MaxIdleConnsPerHost: 1,
+
+		MaxConnsPerHost: 10,
+	}
+}
+
+func (self *BaseClient) onStatusToError(c *resty.Client, resp *resty.Response) error {
+	// Non-success status code turns into an error
+	if resp.IsSuccess() {
+		return nil
+	}
+	if resp.StatusCode() > 399 && resp.StatusCode() < 500 {
+		self.log.WithField("status", resp.StatusCode()).
+			WithField("resp", string(resp.Body())).
+			WithField("body", resp.Request.Body).
+			WithField("url", resp.Request.URL).
+			Debug("Bad request")
+	}
+	return fmt.Errorf("unexpected status: %s", resp.Status())
 }
 
 // Returns true if request should be retried
@@ -245,6 +283,9 @@ func (self *BaseClient) SetPeers(peers []string) {
 			filtered = append(filtered, peer)
 		}
 	}
+
+	// Cleanup idle connections
+	// self.client.GetClient().CloseIdleConnections()
 
 	self.mtx.Lock()
 	defer self.mtx.Unlock()
