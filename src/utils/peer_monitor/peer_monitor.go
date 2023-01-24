@@ -33,8 +33,7 @@ type PeerMonitor struct {
 	cancel        context.CancelFunc
 
 	// State
-	blacklisted    sync.Map
-	numBlacklisted atomic.Int64
+	blacklist Blacklist
 
 	// Worker pool for checking peers in parallel
 	workers *workerpool.WorkerPool
@@ -121,10 +120,9 @@ func (self *PeerMonitor) run() (err error) {
 
 		self.client.SetPeers(peers[:self.config.PeerMonitorMaxPeers])
 
-		self.log.WithField("numBlacklisted", self.numBlacklisted.Load()).Info("Set new peers")
+		self.log.WithField("numBlacklisted", self.blacklist.Size.Load()).Info("Set new peers")
 
-		self.cleanupBlacklist()
-
+		self.blacklist.RemoveOldest(self.config.PeerMonitorMaxPeersRemovedFromBlacklist)
 	}
 
 	for {
@@ -192,7 +190,7 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 			)
 
 			// Neglect blacklisted peers
-			if _, ok := self.blacklisted.Load(peer); ok {
+			if self.blacklist.Contains(peer) {
 				goto end
 			}
 
@@ -202,8 +200,7 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 				self.log.WithField("peer", peer).Trace("Black list peer")
 
 				// Put the peer on the blacklist
-				self.blacklisted.Store(peer, time.Now())
-				self.numBlacklisted.Add(1)
+				self.blacklist.Add(peer)
 
 				// Neglect peers that returned and error
 				goto end
@@ -250,34 +247,6 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 	}
 
 	return
-}
-
-func (self *PeerMonitor) cleanupBlacklist() {
-	now := time.Now()
-	numRemoved := 0
-
-	self.blacklisted.Range(func(peer, timeWhenAdded any) bool {
-		t, ok := timeWhenAdded.(time.Time)
-		if !ok {
-			self.log.Error("Bad value stored in the blacklist")
-			return false
-		}
-
-		if now.Sub(t) >= self.config.PeerMonitorMaxTimeBlacklisted {
-			// Peer has been blacklisted long enough
-			self.blacklisted.Delete(peer)
-			self.numBlacklisted.Add(-1)
-			numRemoved += 1
-			self.log.WithField("peer", peer).Debug("Removed peer from blacklist")
-		}
-
-		if numRemoved >= self.config.PeerMonitorMaxPeersRemovedFromBlacklist {
-			// Maximum of blacklisted peers got removed, rest will be removed later
-			return false
-		}
-
-		return true
-	})
 }
 
 func (self *PeerMonitor) Stop() {
