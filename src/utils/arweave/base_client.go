@@ -36,6 +36,20 @@ func newBaseClient(config *config.Config) (self *BaseClient) {
 
 	self.limiters = make(map[string]*rate.Limiter)
 
+	// Sets up HTTP client
+	self.Reset()
+
+	return
+}
+
+func (self *BaseClient) Reset() {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
+	if self.client != nil {
+		self.log.Warn("Resetting HTTP client")
+	}
+
 	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
@@ -57,8 +71,6 @@ func newBaseClient(config *config.Config) (self *BaseClient) {
 			// }).
 			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(self.onStatusToError)
-
-	return
 }
 
 func (self *BaseClient) createTransport() *http.Transport {
@@ -192,7 +204,7 @@ func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err er
 	self.mtx.Lock()
 	limiter, ok = self.limiters[url.Host]
 	if !ok {
-		limiter = rate.NewLimiter(rate.Every(1000*time.Millisecond), 1)
+		limiter = rate.NewLimiter(rate.Every(1000*time.Millisecond), 10)
 		self.limiters[url.Host] = limiter
 	}
 	self.mtx.Unlock()

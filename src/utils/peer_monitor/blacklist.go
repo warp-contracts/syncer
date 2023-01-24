@@ -50,5 +50,4 @@ func (self *Blacklist) RemoveOldest(n int) {
 	}
 
 	self.Size.Add(int64(-1 * n))
-
 }

@@ -273,6 +273,9 @@ func (self *Listener) downloadTransactions(block *arweave.Block) (out []*arweave
 				if err != nil {
 					self.log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, retrying after timeout")
 
+					// This will completly reset the HTTP client and possibly help in solving the problem
+					self.client.Reset()
+
 					time.Sleep(self.config.ListenerRetryFailedTransactionDownloadInterval)
 					if self.isStopping.Load() {
 						// Neglect this block and close the goroutine
