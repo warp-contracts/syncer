@@ -8,21 +8,37 @@ import (
 
 // Transforms all logs to debug
 type Logger struct {
-	log *logrus.Entry
+	log          *logrus.Entry
+	isForceTrace bool
 }
 
-func NewLogger() (self *Logger) {
+func NewLogger(isForceTrace bool) (self *Logger) {
 	self = new(Logger)
 	self.log = logger.NewSublogger("arweave-resty")
+	self.isForceTrace = isForceTrace
 	return
 }
 
 func (self *Logger) Errorf(format string, v ...interface{}) {
-	self.log.Errorf(format, v...)
+	if self.isForceTrace {
+		self.log.Tracef(format, v...)
+	} else {
+		self.log.Errorf(format, v...)
+	}
 }
+
 func (self *Logger) Warnf(format string, v ...interface{}) {
-	self.log.Warnf(format, v...)
+	if self.isForceTrace {
+		self.log.Tracef(format, v...)
+	} else {
+		self.log.Warnf(format, v...)
+	}
 }
+
 func (self *Logger) Debugf(format string, v ...interface{}) {
-	self.log.Debugf(format, v...)
+	if self.isForceTrace {
+		self.log.Tracef(format, v...)
+	} else {
+		self.log.Debugf(format, v...)
+	}
 }

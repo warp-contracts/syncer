@@ -31,6 +31,18 @@ type Config struct {
 	ArRequestTimeout   time.Duration
 	ArCheckPeerTimeout time.Duration
 
+	// Maximum amount of time a dial will wait for a connect to complete.
+	ArDialerTimeout time.Duration
+
+	// Interval between keep-alive probes for an active network connection.
+	ArDialerKeepAlive time.Duration
+
+	// Maximum amount of time an idle (keep-alive) connection will remain idle before closing itself.
+	ArIdleConnTimeout time.Duration
+
+	// Maximum amount of time waiting to wait for a TLS handshake
+	ArTLSHandshakeTimeout time.Duration
+
 	// How often should Arweave network info be downloaded
 	PollerNetworkInfoTimeout time.Duration
 
@@ -89,6 +101,10 @@ func setDefaults() {
 	viper.SetDefault("ListenerRequiredConfirmationBlocks", "15")
 	viper.SetDefault("ArRequestTimeout", "30s")
 	viper.SetDefault("ArCheckPeerTimeout", "5s")
+	viper.SetDefault("ArDialerTimeout", "30s")
+	viper.SetDefault("ArDialerKeepAlive", "15s")
+	viper.SetDefault("ArIdleConnTimeout", "31s")
+	viper.SetDefault("ArTLSHandshakeTimeout", "10s")
 	viper.SetDefault("ListenerQueueSize", "50")
 	viper.SetDefault("ListenerNetworkInfoNodeUrl", "https://gateway.warp.cc/gateway/arweave")
 	viper.SetDefault("ListenerPeriod", "2s")
