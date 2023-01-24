@@ -79,10 +79,9 @@ func (self *BaseClient) createTransport() *http.Transport {
 		// This is important. arweave.net may sometimes stop responding on idle connections,
 		// resulting in error: context deadline exceeded (Client.Timeout exceeded while awaiting headers)
 		IdleConnTimeout:     self.config.ArIdleConnTimeout,
-		MaxIdleConns:        20,
+		MaxIdleConns:        1,
 		MaxIdleConnsPerHost: 1,
-
-		MaxConnsPerHost: 10,
+		MaxConnsPerHost:     1,
 	}
 }
 
@@ -285,7 +284,7 @@ func (self *BaseClient) SetPeers(peers []string) {
 	}
 
 	// Cleanup idle connections
-	// self.client.GetClient().CloseIdleConnections()
+	self.client.GetClient().CloseIdleConnections()
 
 	self.mtx.Lock()
 	defer self.mtx.Unlock()

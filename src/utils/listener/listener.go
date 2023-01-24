@@ -273,7 +273,7 @@ func (self *Listener) downloadTransactions(block *arweave.Block) (out []*arweave
 				if err != nil {
 					self.log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, retrying after timeout")
 
-					time.Sleep(2 * time.Second)
+					time.Sleep(self.config.ListenerRetryFailedTransactionDownloadInterval)
 					if self.isStopping.Load() {
 						// Neglect this block and close the goroutine
 						self.log.WithError(err).WithField("txId", txId).Error("Neglect downloading transaction, listener is stopping anyway")
@@ -382,7 +382,7 @@ func (self *Listener) verifyTransactions(transactions []*arweave.Transaction) (e
 
 func (self *Listener) StopWait() {
 	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), self.config.StopTimeout)
 	defer cancel()
 
 	self.Stop()

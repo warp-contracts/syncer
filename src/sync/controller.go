@@ -8,7 +8,6 @@ import (
 
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -136,7 +135,7 @@ func (self *Controller) StopWait() {
 	self.log.Info("Stopping Controller...")
 
 	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(self.Ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(self.Ctx, self.config.ArCheckPeerTimeout)
 	defer cancel()
 
 	// Trigger stopping

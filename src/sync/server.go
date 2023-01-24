@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -81,7 +80,7 @@ func (self *Server) StopWait() {
 	self.log.Info("Stopping server")
 
 	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), self.config.StopTimeout)
 	defer cancel()
 
 	err := self.httpServer.Shutdown(ctx)

@@ -145,7 +145,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 	// Wait at most 30s between retries
 	b := backoff.NewExponentialBackOff()
 	b.MaxElapsedTime = 0
-	b.MaxInterval = 30 * time.Second
+	b.MaxInterval = self.config.StoreMaxBackoffInterval
 
 	return backoff.Retry(operation, b)
 
@@ -234,7 +234,7 @@ func (self *Store) Stop() {
 
 func (self *Store) StopWait() {
 	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), self.config.StopTimeout)
 	defer cancel()
 
 	self.Stop()
