@@ -2,6 +2,7 @@ package arweave
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -41,6 +42,7 @@ func NewClient(config *config.Config) (self *Client) {
 		resty.New().
 			// SetDebug(true).
 			// DisableTrace().
+			EnableTrace().
 			SetTimeout(self.config.ArRequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
 			SetRetryCount(1).
@@ -49,6 +51,11 @@ func NewClient(config *config.Config) (self *Client) {
 			AddRetryAfterErrorCondition().
 			OnBeforeRequest(self.onForcePeer).
 			OnBeforeRequest(self.onRateLimit).
+			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
+				t, _ := json.Marshal(resp.Request.TraceInfo())
+				self.log.WithField("trace", string(t)).WithField("url", resp.Request.URL).Info("Trace")
+				return nil
+			}).
 			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
 				// Non-success status code turns into an error
@@ -56,7 +63,11 @@ func NewClient(config *config.Config) (self *Client) {
 					return nil
 				}
 				if resp.StatusCode() > 399 && resp.StatusCode() < 500 {
-					self.log.WithField("status", resp.StatusCode()).WithField("resp", resp.Body()).WithField("body", resp.Request.Body).WithField("url", resp.Request.URL).Debug("Bad request")
+					self.log.WithField("status", resp.StatusCode()).
+						WithField("resp", string(resp.Body())).
+						WithField("body", resp.Request.Body).
+						WithField("url", resp.Request.URL).
+						Debug("Bad request")
 				}
 				return fmt.Errorf("unexpected status: %s", resp.Status())
 			})
@@ -212,8 +223,10 @@ func (self *Client) onRetryRequest(c *resty.Client, resp *resty.Response) (err e
 
 		self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying request with different peer")
 
-		//	Make the same request, but change the URL
-		resp.Request.URL = peer + endpoint
+		//	Use forcing peer to change the node address
+		ctx := context.WithValue(resp.Request.Context(), ContextForcePeer, peer)
+		resp.Request.SetContext(ctx)
+
 		secondResponse, err = resp.Request.Send()
 		if err == nil {
 			// Success
@@ -246,6 +259,10 @@ func (self *Client) SetPeers(peers []string) {
 			filtered = append(filtered, peer)
 		}
 	}
+
+	// Cleanup idle connections,
+	// otherwise there's an occassional hanging connection to the arweave.net
+	self.client.GetClient().CloseIdleConnections()
 
 	self.mtx.Lock()
 	defer self.mtx.Unlock()

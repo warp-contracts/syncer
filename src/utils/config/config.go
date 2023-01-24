@@ -88,7 +88,7 @@ func setDefaults() {
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")
 	viper.SetDefault("ListenerRequiredConfirmationBlocks", "15")
 	viper.SetDefault("ArRequestTimeout", "30s")
-	viper.SetDefault("ArCheckPeerTimeout", "2s")
+	viper.SetDefault("ArCheckPeerTimeout", "5s")
 	viper.SetDefault("ListenerQueueSize", "50")
 	viper.SetDefault("ListenerNetworkInfoNodeUrl", "https://gateway.warp.cc/gateway/arweave")
 	viper.SetDefault("ListenerPeriod", "2s")
