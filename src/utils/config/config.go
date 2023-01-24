@@ -78,6 +78,9 @@ type Config struct {
 	// Peers are downloaded from the arweave API and checked in parallel by couple of workers
 	PeerMonitorPeriod time.Duration
 
+	// Max number of peers that can be used for retrying requests
+	PeerMonitorMaxPeers int
+
 	// Num of Interactions that are stored in the Store
 	// before being inserted into the database in one db transaction and batch.
 	StoreBatchSize int

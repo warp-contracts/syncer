@@ -119,7 +119,7 @@ func (self *PeerMonitor) run() (err error) {
 
 		peers = self.sortPeersByMetrics(peers)
 
-		self.client.SetPeers(peers[:15])
+		self.client.SetPeers(peers[:self.config.PeerMonitorMaxPeers])
 
 		self.log.WithField("numBlacklisted", self.numBlacklisted.Load()).Info("Set new peers")
 
