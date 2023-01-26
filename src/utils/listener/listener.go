@@ -11,6 +11,7 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
 	"syncer/src/utils/model"
+	"syncer/src/utils/monitor"
 	"syncer/src/utils/warp"
 	"time"
 
@@ -23,6 +24,7 @@ type Listener struct {
 	config            *config.Config
 	log               *logrus.Entry
 	interactionParser *warp.InteractionParser
+	monitor           *monitor.Monitor
 
 	// Stopping
 	isStopping    *atomic.Bool
@@ -85,6 +87,11 @@ func NewListener(config *config.Config) (self *Listener) {
 	return
 }
 
+func (self *Listener) WithMonitor(monitor *monitor.Monitor) *Listener {
+	self.monitor = monitor
+	return self
+}
+
 func (self *Listener) WithClient(client *arweave.Client) *Listener {
 	self.client = client
 	return self
@@ -145,6 +152,7 @@ func (self *Listener) monitorNetwork() {
 		networkInfo, err := self.client.GetNetworkInfo(ctx)
 		if err != nil {
 			self.log.WithError(err).Error("Failed to get Arweave network info")
+			self.monitor.Increment(monitor.Kind(monitor.NetworkInfoDownloadErrors))
 			return
 		}
 
@@ -207,6 +215,8 @@ func (self *Listener) monitorBlocks() {
 				// This will completly reset the HTTP client and possibly help in solving the problem
 				self.client.Reset()
 
+				self.monitor.Increment(monitor.Kind(monitor.BlockDownloadErrors))
+
 				time.Sleep(self.config.ListenerRetryFailedTransactionDownloadInterval)
 				if self.isStopping.Load() {
 					// Neglect this block and close the goroutine
@@ -220,7 +230,7 @@ func (self *Listener) monitorBlocks() {
 			if !block.IsValid() {
 				self.log.WithField("height", height).Panic("Block hash isn't valid")
 				// self.log.WithField("height", height).Error("Block hash isn't valid, blacklisting peer for ever and retrying")
-
+				self.monitor.Increment(monitor.Kind(monitor.BlockValidationErrors))
 				goto retry
 				// FIXME: Inform downstream something's wrong
 				// FIXME: Blacklist peer, retry downloading block
@@ -281,6 +291,8 @@ func (self *Listener) downloadTransactions(block *arweave.Block) (out []*arweave
 
 					// This will completly reset the HTTP client and possibly help in solving the problem
 					self.client.Reset()
+
+					self.monitor.Increment(monitor.Kind(monitor.TxDownloadErrors))
 
 					time.Sleep(self.config.ListenerRetryFailedTransactionDownloadInterval)
 					if self.isStopping.Load() {
@@ -382,6 +394,7 @@ func (self *Listener) verifyTransactions(transactions []*arweave.Transaction) (e
 	for _, tx := range transactions {
 		err = tx.Verify()
 		if err != nil {
+			self.monitor.Increment(monitor.Kind(monitor.TxValidationErrors))
 			self.log.Error("Transaction failed to verify")
 			return
 		}

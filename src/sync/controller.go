@@ -106,6 +106,7 @@ func (self *Controller) run() (err error) {
 
 	// Listening for arweave transactions
 	listener := listener.NewListener(self.config).
+		WithMonitor(self.monitor).
 		WithStartHeight(startHeight).
 		WithClient(client)
 
