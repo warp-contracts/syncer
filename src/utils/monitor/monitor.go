@@ -14,24 +14,34 @@ type Monitor struct {
 	log *logrus.Entry
 	mtx sync.Mutex
 
-	report Report
+	report map[Kind]int
+
+	previousReport map[Kind]int
 }
 
 type Report struct {
-	DbErrors int `json:"db"`
+	DbErrors                  int `json:"db"`
+	TxValidationErrors        int `json:"tx_validation"`
+	TxDownloadErrors          int `json:"tx_download"`
+	BlockValidationErrors     int `json:"block_validation"`
+	BlockDownloadErrors       int `json:"block_download"`
+	PeerDownloadErrors        int `json:"peer_download"`
+	NetworkInfoDownloadErrors int `json:"network_info_download"`
 }
 
 func NewMonitor() (self *Monitor) {
 	self = new(Monitor)
 	self.log = logger.NewSublogger("monitor")
+	self.report = make(map[Kind]int)
+	self.previousReport = make(map[Kind]int)
 	return
 }
 
-func (self *Monitor) ReportDBError() {
+func (self *Monitor) Increment(kind Kind) {
 	self.mtx.Lock()
 	defer self.mtx.Unlock()
 
-	self.report.DbErrors += 1
+	self.report[kind] = self.report[kind] + 1
 }
 
 func (self *Monitor) OnGet(c *gin.Context) {
@@ -41,11 +51,17 @@ func (self *Monitor) OnGet(c *gin.Context) {
 	self.log.WithField("report", self.report).Info("Getting monitor stats")
 
 	status := http.StatusOK
-	if self.report.DbErrors != 0 {
-		status = http.StatusInternalServerError
+	for k, v := range self.report {
+		if self.previousReport[k] != v {
+			status = http.StatusInternalServerError
+			break
+		}
 	}
+
 	c.JSON(status, &self.report)
 
-	// Reset counters
-	self.report.DbErrors = 0
+	// Copy the report
+	for k, v := range self.report {
+		self.previousReport[k] = v
+	}
 }
