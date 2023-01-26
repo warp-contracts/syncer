@@ -1,4 +1,4 @@
-package sync
+package monitor
 
 import (
 	"net/http"

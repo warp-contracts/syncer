@@ -5,6 +5,7 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
 	"syncer/src/utils/logger"
+	"syncer/src/utils/monitor"
 	"syncer/src/utils/peer_monitor"
 
 	"context"
@@ -24,7 +25,7 @@ type Controller struct {
 	// stopOnce    sync.Once
 
 	server  *Server
-	monitor *Monitor
+	monitor *monitor.Monitor
 }
 
 // Main class that orchestrates main syncer functionalities
@@ -40,7 +41,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Internal channel for closing the underlying goroutine
 	self.stopChannel = make(chan bool, 1)
 
-	self.monitor = NewMonitor()
+	self.monitor = monitor.NewMonitor()
 
 	// REST server API, healthchecks
 	self.server, err = NewServer(config, self.monitor)
