@@ -7,6 +7,7 @@ import (
 	"syncer/src/utils/listener"
 	"syncer/src/utils/logger"
 	"syncer/src/utils/model"
+	"syncer/src/utils/monitor"
 
 	"context"
 	"fmt"
@@ -29,13 +30,13 @@ type Store struct {
 	input  chan *listener.Payload
 	DB     *gorm.DB
 
-	monitor *Monitor
+	monitor *monitor.Monitor
 
 	stopChannel chan bool
 	isStopping  *atomic.Bool
 }
 
-func NewStore(config *config.Config, monitor *Monitor) (self *Store) {
+func NewStore(config *config.Config, monitor *monitor.Monitor) (self *Store) {
 	self = new(Store)
 	self.log = logger.NewSublogger("store")
 	self.config = config

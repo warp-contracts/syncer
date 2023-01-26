@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
+	"syncer/src/utils/monitor"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -21,10 +22,10 @@ type Server struct {
 	httpServer *http.Server
 	Router     *gin.Engine
 
-	Monitor *Monitor
+	Monitor *monitor.Monitor
 }
 
-func NewServer(config *config.Config, monitor *Monitor) (self *Server, err error) {
+func NewServer(config *config.Config, monitor *monitor.Monitor) (self *Server, err error) {
 	self = new(Server)
 	self.log = logger.NewSublogger("server")
 	self.config = config
