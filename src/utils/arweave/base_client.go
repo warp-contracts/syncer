@@ -98,6 +98,7 @@ func (self *BaseClient) createTransport() *http.Transport {
 	}
 }
 
+// Converts HTTP status to errors
 func (self *BaseClient) onStatusToError(c *resty.Client, resp *resty.Response) error {
 	// Non-success status code turns into an error
 	if resp.IsSuccess() {
@@ -113,6 +114,7 @@ func (self *BaseClient) onStatusToError(c *resty.Client, resp *resty.Response) e
 	return fmt.Errorf("unexpected status: %s", resp.Status())
 }
 
+// Handles HTTP 429 Too Many Requests - decreases limit for this hosts
 func (self *BaseClient) onTooManyRequests(c *resty.Client, resp *resty.Response) error {
 	if resp == nil || resp.StatusCode() != http.StatusTooManyRequests {
 		// This isn't the case
@@ -154,29 +156,13 @@ func (self *BaseClient) onTooManyRequests(c *resty.Client, resp *resty.Response)
 	return nil
 }
 
-// Returns true if request should be retried
+// Retry request only upon server errors
 func (self *BaseClient) onRetryCondition(resp *resty.Response, err error) bool {
-	if err != nil {
-		// There was an error
-		return false
-	}
-
-	// No error
-	if resp.IsSuccess() || !resp.IsError() {
-		// OK response or redirect, skip retrying
-		return false
-	}
-
-	if resp.StatusCode() == http.StatusTooManyRequests {
-		// Server's rate limiter kicked in
-		return false
-	}
-
-	// Server side errors may be retried
-	return resp.StatusCode() >= 500
+	return resp != nil && resp.StatusCode() >= 500
 }
 
-// Properly handles the cases:
+// Handles setting HOST url
+// Properly handles cases when:
 // - req.URL only contains the endpoint
 // - req.URL contains the full URL
 func (self *BaseClient) onForcePeer(c *resty.Client, req *resty.Request) (err error) {
@@ -206,6 +192,7 @@ func (self *BaseClient) onForcePeer(c *resty.Client, req *resty.Request) (err er
 	return nil
 }
 
+// Handles rate limiting. There's one limiter per peer/hostname
 func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err error) {
 	self.log.Trace("Start rate limiter")
 	defer self.log.Trace("Finish rate limiter")
@@ -238,7 +225,7 @@ func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err er
 	return
 }
 
-// Called upon error in the "main" client. Retries
+// Handles retrying requests with alternative peers
 func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (err error) {
 	if resp.IsSuccess() {
 		return nil
