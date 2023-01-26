@@ -55,7 +55,7 @@ func (self *BaseClient) Reset() {
 			SetTimeout(self.config.ArRequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
 			SetRetryCount(1).
-			SetLogger(NewLogger(false /*force all logs to trace*/)).
+			SetLogger(NewLogger(true /*force all logs to trace*/)).
 			SetTransport(self.createTransport()).
 			AddRetryCondition(self.onRetryCondition).
 			// AddRetryAfterErrorCondition().
