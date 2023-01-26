@@ -119,7 +119,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 				err = self.setLastTransactionBlockHeight(self.Ctx, tx, lastTransactionBlockHeight)
 				if err != nil {
 					self.log.WithError(err).Error("Failed to update last transaction block height")
-					self.monitor.ReportDBError()
+					self.monitor.Increment(monitor.Kind(monitor.DbLastTransactionBlockHeightError))
 					return err
 				}
 
@@ -134,7 +134,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 				if err != nil {
 					self.log.WithError(err).Error("Failed to insert Interactions")
 					self.log.WithField("interactions", pendingInteractions).Debug("Failed interactions")
-					self.monitor.ReportDBError()
+					self.monitor.Increment(monitor.Kind(monitor.DbInteraction))
 					return err
 				}
 				return nil
