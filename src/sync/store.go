@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"errors"
 	"sync/atomic"
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
@@ -257,6 +258,10 @@ func (self *Store) GetLastTransactionBlockHeight(ctx context.Context) (out int64
 }
 
 func (self *Store) setLastTransactionBlockHeight(ctx context.Context, tx *gorm.DB, value int64) (err error) {
+	if value <= 0 {
+		err = errors.New("block height too small")
+		return
+	}
 	state := model.State{Id: 1}
 	return self.DB.WithContext(ctx).Model(&state).Update("last_transaction_block_height", value).Error
 }
