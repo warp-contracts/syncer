@@ -52,6 +52,20 @@ type Config struct {
 	// Maximum amount of time waiting to wait for a TLS handshake
 	ArTLSHandshakeTimeout time.Duration
 
+	// https://ar-io.zendesk.com/hc/en-us/articles/7595655106971-arweave-net-Rate-Limits
+	// Time in which max num of requests is enforced
+	ArLimiterInterval time.Duration
+
+	// Max num requests to particular peer per interval
+	ArLimiterBurstSize int
+
+	// Limit is a float numbef = max frequency per second. Whenever a HTTP 429 Too Many Requests is received we multiply limit by this factor.
+	// This way even if the limit is set too high eventually it'll get small enough.
+	ArLimiterDecreaseFactor float64
+
+	// How often limiters get decreased. This timeout won't allow sudden burst to decrease the limit too much
+	ArLimiterDecreaseInterval time.Duration
+
 	// Received Arweave transactions converted to interactions and temporarily stored in the channel
 	// Normally interactions are passed to the Store right away, but if Store is in the middle of transaction it's not receiving data.
 	// So this capacity should account for interactions that may appear during a few second window when the previous batch is inserted to the database.
@@ -70,6 +84,9 @@ type Config struct {
 
 	// Time between failed retries to download transaction
 	ListenerRetryFailedTransactionDownloadInterval time.Duration
+
+	// Number of workers that download the transactions
+	ListenerNumWorkers int
 
 	// Maximum time a peer is blacklisted.
 	// Even after this duration is over it may take some time for the peer to be re-checked
@@ -118,17 +135,22 @@ func setDefaults() {
 
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")
 	viper.SetDefault("ArRequestTimeout", "30s")
-	viper.SetDefault("ArCheckPeerTimeout", "5s")
+	viper.SetDefault("ArCheckPeerTimeout", "1s")
 	viper.SetDefault("ArDialerTimeout", "30s")
 	viper.SetDefault("ArDialerKeepAlive", "15s")
 	viper.SetDefault("ArIdleConnTimeout", "31s")
 	viper.SetDefault("ArTLSHandshakeTimeout", "10s")
+	viper.SetDefault("ArLimiterInterval", "500ms")
+	viper.SetDefault("ArLimiterBurstSize", "7")
+	viper.SetDefault("ArLimiterDecreaseFactor", "0.99")
+	viper.SetDefault("ArLimiterDecreaseInterval", "5s")
 
 	viper.SetDefault("ListenerQueueSize", "50")
 	viper.SetDefault("ListenerNetworkInfoNodeUrl", "https://gateway.warp.cc/gateway/arweave")
-	viper.SetDefault("ListenerPeriod", "2s")
+	viper.SetDefault("ListenerPeriod", "30s")
 	viper.SetDefault("ListenerRetryFailedTransactionDownloadInterval", "2s")
 	viper.SetDefault("ListenerRequiredConfirmationBlocks", "15")
+	viper.SetDefault("ListenerNumWorkers", "50")
 
 	viper.SetDefault("PeerMonitorMaxTimeBlacklisted", "5m")
 	viper.SetDefault("PeerMonitorMaxPeersRemovedFromBlacklist", "5")

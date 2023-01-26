@@ -74,7 +74,7 @@ func NewListener(config *config.Config) (self *Listener) {
 	self.PayloadChannel = make(chan *Payload, config.ListenerQueueSize)
 
 	// Worker pool for downloading transactions in parallel
-	self.workers = workerpool.New(1)
+	self.workers = workerpool.New(config.ListenerNumWorkers)
 
 	// Converting Arweave transactions to interactions
 	var err error
@@ -203,10 +203,16 @@ func (self *Listener) monitorBlocks() {
 			block, err := self.client.GetBlockByHeight(self.Ctx, height)
 			if err != nil {
 				self.log.WithError(err).WithField("height", height).Error("Failed to download block")
+
+				// This will completly reset the HTTP client and possibly help in solving the problem
+				self.client.Reset()
+
+				time.Sleep(self.config.ListenerRetryFailedTransactionDownloadInterval)
 				if self.isStopping.Load() {
 					// Neglect this block and close the goroutine
 					goto end
 				}
+
 				continue
 				// FIXME: Inform downstream something's wrong
 			}

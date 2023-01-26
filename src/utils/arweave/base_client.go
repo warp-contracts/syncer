@@ -2,6 +2,7 @@ package arweave
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -24,9 +25,10 @@ type BaseClient struct {
 	log    *logrus.Entry
 
 	// State
-	mtx      sync.RWMutex
-	peers    []string
-	limiters map[string]*rate.Limiter
+	mtx               sync.RWMutex
+	peers             []string
+	limiters          map[string]*rate.Limiter
+	lastLimitDecrease time.Time
 }
 
 func newBaseClient(config *config.Config) (self *BaseClient) {
@@ -43,34 +45,34 @@ func newBaseClient(config *config.Config) (self *BaseClient) {
 }
 
 func (self *BaseClient) Reset() {
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
-
 	if self.client != nil {
 		self.log.Warn("Resetting HTTP client")
 	}
-
+	self.mtx.Lock()
 	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
 			SetTimeout(self.config.ArRequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
 			SetRetryCount(1).
-			SetLogger(NewLogger(true /*force all logs to trace*/)).
+			SetLogger(NewLogger(false /*force all logs to trace*/)).
 			SetTransport(self.createTransport()).
 			AddRetryCondition(self.onRetryCondition).
-			AddRetryAfterErrorCondition().
+			// AddRetryAfterErrorCondition().
 			OnBeforeRequest(self.onForcePeer).
 			OnBeforeRequest(self.onRateLimit).
-			// // NOTE: Trace logs, used only when debugging. Needs to be before other OnAfterResponse callbacks
+			// NOTE: Trace logs, used only when debugging. Needs to be before other OnAfterResponse callbacks
 			// EnableTrace().
 			// OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
 			// 	t, _ := json.Marshal(resp.Request.TraceInfo())
 			// 	self.log.WithField("trace", string(t)).WithField("url", resp.Request.URL).Info("Trace")
 			// 	return nil
 			// }).
+			OnAfterResponse(self.onTooManyRequests).
 			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(self.onStatusToError)
+
+	self.mtx.Unlock()
 }
 
 func (self *BaseClient) createTransport() *http.Transport {
@@ -112,6 +114,48 @@ func (self *BaseClient) onStatusToError(c *resty.Client, resp *resty.Response) e
 	return fmt.Errorf("unexpected status: %s", resp.Status())
 }
 
+func (self *BaseClient) onTooManyRequests(c *resty.Client, resp *resty.Response) error {
+	if resp == nil || resp.StatusCode() != http.StatusTooManyRequests {
+		// This isn't the case
+		return nil
+	}
+
+	// Remote host receives too much requests, adjust rate limit
+	url, err := url.ParseRequestURI(resp.Request.URL)
+	if err != nil {
+		self.log.WithError(err).Error("Failed to parse url")
+		return err
+	}
+
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
+	if time.Since(self.lastLimitDecrease) < self.config.ArLimiterDecreaseInterval {
+		// Limit was just decreased
+		return nil
+	}
+
+	self.lastLimitDecrease = time.Now()
+
+	limiter, ok := self.limiters[url.Host]
+	if !ok {
+
+		err = errors.New("limiter not initialized")
+		self.log.WithError(err).Error("Failed to parse url")
+		return err
+	}
+
+	newLimit := limiter.Limit() * rate.Limit(self.config.ArLimiterDecreaseFactor)
+	limiter.SetLimit(newLimit)
+
+	self.log.WithField("peer", url.Host).
+		WithField("oldLimit", limiter.Limit()).
+		WithField("newLimit", newLimit).
+		Warn("Decreasing limit")
+
+	return nil
+}
+
 // Returns true if request should be retried
 func (self *BaseClient) onRetryCondition(resp *resty.Response, err error) bool {
 	if err != nil {
@@ -125,36 +169,13 @@ func (self *BaseClient) onRetryCondition(resp *resty.Response, err error) bool {
 		return false
 	}
 
-	// Error status code
 	if resp.StatusCode() == http.StatusTooManyRequests {
-		// Remote host receives too much requests, adjust rate limit
-		url, err := url.ParseRequestURI(resp.Request.URL)
-		if err == nil {
-			self.decrementLimit(url.Host)
-		}
+		// Server's rate limiter kicked in
 		return false
 	}
 
 	// Server side errors may be retried
 	return resp.StatusCode() >= 500
-}
-
-func (self *BaseClient) decrementLimit(peer string) {
-	var (
-		limiter *rate.Limiter
-		ok      bool
-	)
-
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
-	limiter, ok = self.limiters[peer]
-	if !ok {
-		return
-	}
-
-	self.log.WithField("peer", peer).Debug("Decreasing limit")
-
-	limiter.SetLimit(limiter.Limit() * 0.999)
 }
 
 // Properly handles the cases:
@@ -204,7 +225,7 @@ func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err er
 	self.mtx.Lock()
 	limiter, ok = self.limiters[url.Host]
 	if !ok {
-		limiter = rate.NewLimiter(rate.Every(1000*time.Millisecond), 10)
+		limiter = rate.NewLimiter(rate.Every(self.config.ArLimiterInterval), self.config.ArLimiterBurstSize)
 		self.limiters[url.Host] = limiter
 	}
 	self.mtx.Unlock()
