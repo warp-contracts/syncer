@@ -71,7 +71,6 @@ func (self *BaseClient) Reset() {
 			OnAfterResponse(self.onTooManyRequests).
 			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(self.onStatusToError)
-
 	self.mtx.Unlock()
 }
 
@@ -146,12 +145,11 @@ func (self *BaseClient) onTooManyRequests(c *resty.Client, resp *resty.Response)
 	}
 
 	newLimit := limiter.Limit() * rate.Limit(self.config.ArLimiterDecreaseFactor)
-	limiter.SetLimit(newLimit)
-
 	self.log.WithField("peer", url.Host).
 		WithField("oldLimit", limiter.Limit()).
 		WithField("newLimit", newLimit).
 		Warn("Decreasing limit")
+	limiter.SetLimit(newLimit)
 
 	return nil
 }
