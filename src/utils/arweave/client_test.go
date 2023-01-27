@@ -31,7 +31,7 @@ func (s *ClientTestSuite) SetupSuite() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.config = config.Default()
 	s.log = logger.NewSublogger("arweave-test")
-	s.client = NewClient(s.config)
+	s.client = NewClient(s.ctx, s.config)
 	require.NotNil(s.T(), s.client)
 }
 

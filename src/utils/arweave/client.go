@@ -5,23 +5,23 @@ import (
 	"strconv"
 	"syncer/src/utils/config"
 	"time"
+
+	"github.com/teivah/onecontext"
 )
 
 type Client struct {
 	*BaseClient
 }
 
-func NewClient(config *config.Config) (self *Client) {
+func NewClient(ctx context.Context, config *config.Config) (self *Client) {
 	self = new(Client)
-	self.BaseClient = newBaseClient(config)
+	self.BaseClient = newBaseClient(ctx, config)
 	return
 }
 
 // https://docs.arweave.org/developers/server/http-api#network-info
 func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err error) {
-	resp, err := self.client.R().
-		SetContext(ctx).
-		ForceContentType("application/json").
+	resp, err := self.Request(ctx).
 		SetResult(&NetworkInfo{}).
 		Get("/info")
 	if err != nil {
@@ -39,9 +39,7 @@ func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err e
 
 // https://docs.arweave.org/developers/server/http-api#peer-list
 func (self *Client) GetPeerList(ctx context.Context) (out []string, err error) {
-	resp, err := self.client.R().
-		SetContext(ctx).
-		ForceContentType("application/json").
+	resp, err := self.Request(ctx).
 		SetResult([]string{}).
 		Get("/peers")
 	if err != nil {
@@ -66,6 +64,10 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 	ctx, cancel := context.WithTimeout(ctx, self.config.ArCheckPeerTimeout)
 	defer cancel()
 
+	self.mtx.RLock()
+	ctx, _ = onecontext.Merge(self.ctx, ctx)
+	self.mtx.RUnlock()
+
 	resp, err := self.client.R().
 		SetContext(ctx).
 		ForceContentType("application/json").
@@ -88,9 +90,7 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 
 // https://docs.arweave.org/developers/server/http-api#get-block-by-height
 func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Block, err error) {
-	resp, err := self.client.R().
-		SetContext(ctx).
-		ForceContentType("application/json").
+	resp, err := self.Request(ctx).
 		SetResult(&Block{}).
 		SetPathParam("height", strconv.FormatInt(height, 10)).
 		Get("/block/height/{height}")
@@ -111,9 +111,7 @@ func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Bl
 
 // https://docs.arweave.org/developers/server/http-api#get-transaction-by-id
 func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Transaction, err error) {
-	resp, err := self.client.R().
-		SetContext(ctx).
-		ForceContentType("application/json").
+	resp, err := self.Request(ctx).
 		SetResult(&Transaction{}).
 		SetPathParam("id", id).
 		Get("/tx/{id}")

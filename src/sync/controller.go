@@ -87,6 +87,7 @@ func (self *Controller) run() (err error) {
 	store := NewStore(self.config, self.monitor)
 	err = store.Start()
 	if err != nil {
+		self.log.WithError(err).Error("Failed to start Store")
 		return
 	}
 	defer store.StopWait()
@@ -94,10 +95,11 @@ func (self *Controller) run() (err error) {
 	// Get the last stored block height
 	startHeight, err := store.GetLastTransactionBlockHeight(self.Ctx)
 	if err != nil {
+		self.log.WithError(err).Error("Failed to get last transaction block height")
 		return
 	}
 
-	client := arweave.NewClient(self.config)
+	client := arweave.NewClient(self.Ctx, self.config)
 	// Monitoring peers reported from the "main" node
 	peerMonitor := peer_monitor.NewPeerMonitor(self.config).
 		WithClient(client)
@@ -122,6 +124,7 @@ func (self *Controller) run() (err error) {
 		case payload, ok := <-listener.PayloadChannel:
 			if !ok {
 				// Listener stopped
+				self.log.Error("Listener stopped")
 				return
 			}
 

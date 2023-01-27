@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
+	"github.com/teivah/onecontext"
 	"golang.org/x/time/rate"
 )
 
@@ -24,17 +25,23 @@ type BaseClient struct {
 	config *config.Config
 	log    *logrus.Entry
 
+	parentCtx context.Context
+
 	// State
 	mtx               sync.RWMutex
 	peers             []string
 	limiters          map[string]*rate.Limiter
 	lastLimitDecrease time.Time
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-func newBaseClient(config *config.Config) (self *BaseClient) {
+func newBaseClient(ctx context.Context, config *config.Config) (self *BaseClient) {
 	self = new(BaseClient)
 	self.config = config
 	self.log = logger.NewSublogger("arweave-client")
+	self.parentCtx = ctx
 
 	self.limiters = make(map[string]*rate.Limiter)
 
@@ -49,6 +56,12 @@ func (self *BaseClient) Reset() {
 		self.log.Warn("Resetting HTTP client")
 	}
 	self.mtx.Lock()
+	if self.cancel != nil {
+		self.cancel()
+	}
+
+	self.ctx, self.cancel = context.WithCancel(self.parentCtx)
+
 	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
@@ -71,6 +84,7 @@ func (self *BaseClient) Reset() {
 			OnAfterResponse(self.onTooManyRequests).
 			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(self.onStatusToError)
+
 	self.mtx.Unlock()
 }
 
@@ -140,7 +154,6 @@ func (self *BaseClient) onTooManyRequests(c *resty.Client, resp *resty.Response)
 
 	limiter, ok := self.limiters[url.Host]
 	if !ok {
-
 		err = errors.New("limiter not initialized")
 		self.log.WithError(err).Error("Failed to parse url")
 		return err
@@ -254,7 +267,7 @@ func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (e
 	self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying begin")
 
 	for {
-		self.mtx.Lock()
+		self.mtx.RLock()
 		if idx >= len(self.peers) {
 			// No more peers, report the first failure
 			self.log.WithField("idx", idx).Info("No more peers to check")
@@ -262,7 +275,7 @@ func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (e
 			return
 		}
 		peer = self.peers[idx]
-		self.mtx.Unlock()
+		self.mtx.RUnlock()
 
 		self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying request with different peer")
 
@@ -305,15 +318,18 @@ func (self *BaseClient) SetPeers(peers []string) {
 	self.client.GetClient().CloseIdleConnections()
 
 	self.mtx.Lock()
-	defer self.mtx.Unlock()
-
 	self.peers = filtered
+	self.mtx.Unlock()
 }
 
-func (self *BaseClient) Request() *resty.Request {
+func (self *BaseClient) Request(ctx context.Context) *resty.Request {
 	self.mtx.RLock()
-	defer self.mtx.RLock()
-	return self.client.R().SetContext(self.Ctx).
-	ForceContentType("application/json").
+	defer self.mtx.RUnlock()
+
+	ctx, _ = onecontext.Merge(self.ctx, ctx)
+
+	return self.client.R().
+		SetContext(ctx).
+		ForceContentType("application/json")
 
 }

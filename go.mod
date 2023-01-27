@@ -13,6 +13,7 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
+	github.com/teivah/onecontext v1.3.0
 	golang.org/x/exp v0.0.0-20230124195608-d38c7dcee874
 	golang.org/x/time v0.3.0
 	gorm.io/driver/postgres v1.4.5
