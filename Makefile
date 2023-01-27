@@ -72,6 +72,10 @@ version:
 clean:
 	rm -rf bin/$(PACKAGE) .gopath~
 
+.PHONY: health
+health:
+	curl -s http://localhost:3333/v1/health | jq 
+
 .PHONY: docker-build
 docker-build: all | ; $(info $(M) building docker container) @ 
 	$(GO) mod vendor

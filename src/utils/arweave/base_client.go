@@ -309,3 +309,11 @@ func (self *BaseClient) SetPeers(peers []string) {
 
 	self.peers = filtered
 }
+
+func (self *BaseClient) Request() *resty.Request {
+	self.mtx.RLock()
+	defer self.mtx.RLock()
+	return self.client.R().SetContext(self.Ctx).
+	ForceContentType("application/json").
+
+}
