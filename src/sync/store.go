@@ -142,6 +142,10 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 			})
 	}
 
+	if self.isStopping.Load() {
+		return
+	}
+
 	// Expotentially increase the interval between retries
 	// Never stop retrying
 	// Wait at most 30s between retries
@@ -184,6 +188,8 @@ func (self *Store) run() (err error) {
 		case <-self.stopChannel:
 			// Stop was requested, close the input channel
 			// Won't accept new data, but will process pending
+			self.log.Debug("0")
+
 			ticker.Stop()
 			close(self.input)
 
@@ -230,11 +236,14 @@ func (self *Store) Save(ctx context.Context, payload *listener.Payload) (err err
 
 func (self *Store) Stop() {
 	if self.isStopping.CompareAndSwap(false, true) {
+		self.log.Info("Stopping Store")
 		self.stopChannel <- true
 	}
 }
 
 func (self *Store) StopWait() {
+	self.log.Info("Stopping Store and wait")
+
 	// Wait for at most 30s before force-closing
 	ctx, cancel := context.WithTimeout(context.Background(), self.config.StopTimeout)
 	defer cancel()
