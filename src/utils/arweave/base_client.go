@@ -33,8 +33,9 @@ type BaseClient struct {
 	limiters          map[string]*rate.Limiter
 	lastLimitDecrease time.Time
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx       context.Context
+	cancel    context.CancelFunc
+	lastReset time.Time
 }
 
 func newBaseClient(ctx context.Context, config *config.Config) (self *BaseClient) {
@@ -52,10 +53,20 @@ func newBaseClient(ctx context.Context, config *config.Config) (self *BaseClient
 }
 
 func (self *BaseClient) Reset() {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
+	// Ensure client isn't reset too often
+	if time.Since(self.lastReset) < self.config.ArLimiterDecreaseInterval {
+		// Limit was just decreased
+		return
+	}
+	self.lastReset = time.Now()
+
 	if self.client != nil {
 		self.log.Warn("Resetting HTTP client")
 	}
-	self.mtx.Lock()
+
 	if self.cancel != nil {
 		self.cancel()
 	}
@@ -85,7 +96,6 @@ func (self *BaseClient) Reset() {
 			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(self.onStatusToError)
 
-	self.mtx.Unlock()
 }
 
 func (self *BaseClient) createTransport() *http.Transport {
@@ -331,5 +341,4 @@ func (self *BaseClient) Request(ctx context.Context) *resty.Request {
 	return self.client.R().
 		SetContext(ctx).
 		ForceContentType("application/json")
-
 }
