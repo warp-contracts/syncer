@@ -188,8 +188,6 @@ func (self *Store) run() (err error) {
 		case <-self.stopChannel:
 			// Stop was requested, close the input channel
 			// Won't accept new data, but will process pending
-			self.log.Debug("0")
-
 			ticker.Stop()
 			close(self.input)
 
