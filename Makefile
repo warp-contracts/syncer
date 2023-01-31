@@ -59,6 +59,10 @@ build-race:  | $(BASE); $(info $(M) building executable…) @
 run: build-race | ; $(info $(M) starting app with default params…)
 	bin/$(PACKAGE) sync
 
+.PHONY: bundle
+bundle: all | ; $(info $(M) starting bundling with default params…)
+	bin/$(PACKAGE) bundle
+
 .PHONY: lint
 lint: $(GOLANGCILINT) | $(BASE) ; $(info $(M) running golangci-lint) @
 	$Q $(GOLANGCILINT) run 

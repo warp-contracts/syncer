@@ -1,39 +1,42 @@
 package cmd
 
 import (
-	"syncer/src/sync"
+	"syncer/src/bundle"
 	"syncer/src/utils/logger"
 
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	RootCmd.AddCommand(syncCmd)
+	RootCmd.AddCommand(bundleCmd)
 }
 
-var syncCmd = &cobra.Command{
-	Use:   "sync",
-	Short: "Listen for changes from Arweave nodes and save to the database",
+var bundleCmd = &cobra.Command{
+	Use:   "bundle",
+	Short: "Download new interactions and bundle them together in Arweave",
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
-		sync, err := sync.NewController(conf)
+		controller, err := bundle.NewController(conf)
 		if err != nil {
 			return
 		}
 
-		sync.Start()
+		err = controller.Start()
+		if err != nil {
+			return
+		}
 
 		select {
-		case <-sync.Ctx.Done():
+		case <-controller.Ctx.Done():
 		case <-applicationCtx.Done():
 		}
 
-		sync.StopWait()
+		controller.StopWait()
 
 		return
 	},
 	PostRunE: func(cmd *cobra.Command, args []string) (err error) {
 		log := logger.NewSublogger("root-cmd")
-		log.Debug("Finished sync command")
+		log.Debug("Finished bundle command")
 		applicationCtxCancel()
 		return
 	},
