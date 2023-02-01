@@ -142,15 +142,15 @@ func setDefaults() {
 	viper.SetDefault("ArTLSHandshakeTimeout", "10s")
 	viper.SetDefault("ArLimiterInterval", "500ms")
 	viper.SetDefault("ArLimiterBurstSize", "7")
-	viper.SetDefault("ArLimiterDecreaseFactor", "0.995")
+	viper.SetDefault("ArLimiterDecreaseFactor", "1.0")
 	viper.SetDefault("ArLimiterDecreaseInterval", "2m")
 
-	viper.SetDefault("ListenerQueueSize", "50")
+	viper.SetDefault("ListenerQueueSize", "1")
 	viper.SetDefault("ListenerNetworkInfoNodeUrl", "https://gateway.warp.cc/gateway/arweave")
 	viper.SetDefault("ListenerPeriod", "30s")
 	viper.SetDefault("ListenerRetryFailedTransactionDownloadInterval", "2s")
 	viper.SetDefault("ListenerRequiredConfirmationBlocks", "15")
-	viper.SetDefault("ListenerNumWorkers", "50")
+	viper.SetDefault("ListenerNumWorkers", "2")
 
 	viper.SetDefault("PeerMonitorMaxTimeBlacklisted", "5m")
 	viper.SetDefault("PeerMonitorMaxPeersRemovedFromBlacklist", "5")

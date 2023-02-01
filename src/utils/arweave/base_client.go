@@ -92,10 +92,12 @@ func (self *BaseClient) Reset() {
 			// 	self.log.WithField("trace", string(t)).WithField("url", resp.Request.URL).Info("Trace")
 			// 	return nil
 			// }).
-			OnAfterResponse(self.onTooManyRequests).
 			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(self.onStatusToError)
 
+	if config.Default().ArLimiterDecreaseFactor < 1 {
+		self.client = self.client.OnAfterResponse(self.onTooManyRequests)
+	}
 }
 
 func (self *BaseClient) createTransport() *http.Transport {
