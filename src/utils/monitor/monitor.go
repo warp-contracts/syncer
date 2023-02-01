@@ -48,11 +48,10 @@ func (self *Monitor) OnGet(c *gin.Context) {
 	self.mtx.Lock()
 	defer self.mtx.Unlock()
 
-	self.log.WithField("report", self.report).Info("Getting monitor stats")
-
 	status := http.StatusOK
 	for k, v := range self.report {
 		if self.previousReport[k] != v {
+			self.log.WithField("report", self.report).Error("Error returned from monitor")
 			status = http.StatusInternalServerError
 			break
 		}
