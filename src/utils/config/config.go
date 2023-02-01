@@ -117,6 +117,15 @@ type Config struct {
 
 	// Max time between failed retries to save data.
 	StoreMaxBackoffInterval time.Duration
+
+	// How often is IM pooling the database
+	InteractionManagerInterval time.Duration
+
+	// How long does it wait for the query response
+	InteractionManagerTimeout time.Duration
+
+	// Maksimum number of requests run in parallel
+	InteractionManagerMaxParallelQueries int
 }
 
 func setDefaults() {
@@ -161,6 +170,10 @@ func setDefaults() {
 	viper.SetDefault("StoreBatchSize", "500")
 	viper.SetDefault("StoreMaxTimeInQueue", "10s")
 	viper.SetDefault("StoreMaxBackoffInterval", "30s")
+
+	viper.SetDefault("InteractionManagerInterval", "10s")
+	viper.SetDefault("InteractionManagerTimeout", "90s")
+	viper.SetDefault("InteractionManagerMaxParallelQueries", "5")
 }
 
 func Default() (config *Config) {

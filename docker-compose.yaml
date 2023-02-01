@@ -55,6 +55,7 @@ services:
       - PGADMIN_LISTEN_PORT=5151
       - PGADMIN_DEFAULT_EMAIL=admin@warp.cc
       - PGADMIN_DEFAULT_PASSWORD=password
+      - MAX_LOGIN_ATTEMPTS=10000
 
 volumes:
   syncer_db_volume: null

@@ -2,6 +2,7 @@ package bundle
 
 import (
 	"syncer/src/utils/config"
+	"syncer/src/utils/model"
 	"syncer/src/utils/task"
 )
 
@@ -12,12 +13,18 @@ type Controller struct {
 // Main class that orchestrates main syncer functionalities
 func NewController(config *config.Config) (self *Controller, err error) {
 	self = new(Controller)
+	self.Task = task.NewTask(config, "bundle-controller")
 
-	interactionMonitor, err := NewInteractionMonitor(config)
+	db, err := model.NewConnection(self.Ctx, config)
 	if err != nil {
 		return
 	}
-	self.Task = task.NewTask(config, "bundle-controller").
-		WithSubtask(interactionMonitor.Task)
+
+	interactionMonitor, err := NewInteractionMonitor(config, db)
+	if err != nil {
+		return
+	}
+
+	self.Task.WithSubtask(interactionMonitor.Task)
 	return
 }

@@ -68,7 +68,7 @@ func (self *Store) connect() (err error) {
 
 		self.log.WithError(err).Warn("Ping failed, restarting connection")
 	}
-	self.DB, err = model.NewConnection(self.Ctx)
+	self.DB, err = model.NewConnection(self.Ctx, self.config)
 	if err != nil {
 		return
 	}
