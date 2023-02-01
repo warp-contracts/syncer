@@ -142,8 +142,8 @@ func setDefaults() {
 	viper.SetDefault("ArTLSHandshakeTimeout", "10s")
 	viper.SetDefault("ArLimiterInterval", "500ms")
 	viper.SetDefault("ArLimiterBurstSize", "7")
-	viper.SetDefault("ArLimiterDecreaseFactor", "0.99")
-	viper.SetDefault("ArLimiterDecreaseInterval", "5s")
+	viper.SetDefault("ArLimiterDecreaseFactor", "0.995")
+	viper.SetDefault("ArLimiterDecreaseInterval", "2m")
 
 	viper.SetDefault("ListenerQueueSize", "50")
 	viper.SetDefault("ListenerNetworkInfoNodeUrl", "https://gateway.warp.cc/gateway/arweave")
