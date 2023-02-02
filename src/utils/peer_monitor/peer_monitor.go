@@ -12,6 +12,7 @@ import (
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
+	"syncer/src/utils/slice"
 
 	"time"
 
@@ -110,13 +111,19 @@ func (self *PeerMonitor) run() (err error) {
 		// Setup waiting before the next check
 		defer func() { timer = time.NewTimer(self.config.PeerMonitorPeriod) }()
 
+		height, err := self.getTrustedHeight()
+		if err != nil {
+			self.log.WithError(err).Error("Failed to get trusted height")
+			return
+		}
+
 		peers, err := self.getPeers()
 		if err != nil {
 			self.log.WithError(err).Error("Failed to get peers")
 			return
 		}
 
-		peers = self.sortPeersByMetrics(peers)
+		peers = self.sortPeersByMetrics(height, peers)
 
 		numPeers := len(peers)
 		if numPeers > self.config.PeerMonitorMaxPeers {
@@ -124,7 +131,7 @@ func (self *PeerMonitor) run() (err error) {
 		}
 		self.client.SetPeers(peers[:numPeers])
 
-		self.log.WithField("numBlacklisted", self.blacklist.Size.Load()).Info("Set new peers")
+		self.log.WithField("numBlacklisted", self.blacklist.Size.Load()).Trace("Set new peers")
 
 		self.blacklist.RemoveOldest(self.config.PeerMonitorMaxPeersRemovedFromBlacklist)
 	}
@@ -139,6 +146,20 @@ func (self *PeerMonitor) run() (err error) {
 			f()
 		}
 	}
+}
+
+func (self *PeerMonitor) getTrustedHeight() (out int64, err error) {
+	// Use a specific URL as the source of truth, to avoid race conditions with SDK
+	ctx := context.WithValue(self.Ctx, arweave.ContextForcePeer, self.config.ListenerNetworkInfoNodeUrl)
+	ctx = context.WithValue(ctx, arweave.ContextDisablePeers, true)
+
+	networkInfo, err := self.client.GetNetworkInfo(ctx)
+	if err != nil {
+		return
+	}
+
+	out = networkInfo.Height
+	return
 }
 
 func (self *PeerMonitor) getPeers() (peers []string, err error) {
@@ -169,7 +190,7 @@ func (self *PeerMonitor) getPeers() (peers []string, err error) {
 	return
 }
 
-func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) {
+func (self *PeerMonitor) sortPeersByMetrics(height int64, allPeers []string) (peers []string) {
 	self.log.Debug("Checking peers")
 
 	// Sync between workers
@@ -230,7 +251,10 @@ func (self *PeerMonitor) sortPeersByMetrics(allPeers []string) (peers []string) 
 	// Wait for workers to finish
 	wg.Wait()
 
-	// self.log.WithField("metrics", len(metrics)).WithField("metrics", metrics).Debug("Metrics")
+	// Filter out peers that are too far out
+	metrics = slice.Filter(metrics, func(m *metric) bool {
+		return height-m.Height < self.config.ListenerRequiredConfirmationBlocks
+	})
 
 	// Sort using response times (less is better)
 	sort.Slice(metrics, func(i int, j int) bool {
