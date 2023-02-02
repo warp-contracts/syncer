@@ -8,6 +8,7 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       {{- include "warp-syncer.selectorLabels" . | nindent 6 }}
