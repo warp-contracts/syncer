@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Gets the unbundled interactions and puts them on the output channel
 type InteractionMonitor struct {
 	*task.Task
 	db *gorm.DB
@@ -19,15 +20,25 @@ type InteractionMonitor struct {
 	// It's possible to run multiple requests in parallel.
 	// We're limiting the number of parallel requests with the number of workers.
 	workers *workerpool.WorkerPool
+
+	// Data about the interactions that need to be bundled
+	BundleItems chan []model.BundleItem
 }
 
-// Main class that orchestrates main syncer functionalities
-func NewInteractionMonitor(config *config.Config, db *gorm.DB) (self *InteractionMonitor, err error) {
+func NewInteractionMonitor(config *config.Config, db *gorm.DB) (self *InteractionMonitor) {
 	self = new(InteractionMonitor)
 	self.db = db
 
+	self.BundleItems = make(chan []model.BundleItem)
+
 	self.Task = task.NewTask(config, "interaction-monitor").
-		WithSubtaskFunc(self.monitorInteractions)
+		WithSubtaskFunc(self.run).
+		WithOnStop(func() {
+			self.workers.Stop()
+		}).
+		WithOnAfterStop(func() {
+			close(self.BundleItems)
+		})
 
 	// Worker pool for downloading interactions in parallel
 	self.workers = workerpool.New(self.Config.InteractionManagerMaxParallelQueries)
@@ -35,53 +46,57 @@ func NewInteractionMonitor(config *config.Config, db *gorm.DB) (self *Interactio
 	return
 }
 
-func (self *InteractionMonitor) monitorInteractions() error {
-	ticker := time.NewTicker(10 * time.Second)
+func (self *InteractionMonitor) run() error {
+	var timer *time.Timer
+	f := func() {
+		// Setup waiting before the next check
+		defer func() { timer = time.NewTimer(time.Second * 10) }()
+
+		self.Log.Debug("Tick")
+		if self.workers.WaitingQueueSize() > 1 {
+			self.Log.Debug("Too many pending interaction checks")
+			return
+		}
+
+		self.workers.Submit(self.check)
+	}
+
 	for {
+		f()
 		select {
 		case <-self.StopChannel:
 			self.Log.Debug("Stop monitoring interactions")
-
 			return nil
-		case <-ticker.C:
-			self.Log.Debug("Tick")
-			if self.workers.WaitingQueueSize() > 1 {
-				self.Log.Debug("Too many pending interaction checks")
-				continue
-			}
-			// self.workers.Submit(self.check)
+		case <-timer.C:
+			// pass through
 		}
 	}
 }
 
-// ALTER TABLE interactions ADD COLUMN state interaction_state NOT NULL DEFAULT 'PENDING'::interaction_state;
 func (self *InteractionMonitor) check() {
-	self.Log.Debug("Getting interactions to bundle")
-
 	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.InteractionManagerTimeout)
 	defer cancel()
 
-	var interactions []model.Interaction
-
-	err := self.db.Model(interactions).
-		WithContext(ctx).
-		Raw(`WITH rows AS (
-			SELECT id
-			FROM interactions
-			WHERE state = 'PENDING'::interaction_state
-			ORDER BY id
-			LIMIT ?
-		  )
-		  UPDATE interactions
-		  SET state = 'UPLOADING'::interaction_state
-		  WHERE id IN (SELECT id FROM rows)
-		  RETURNING *`, 10).
-		Scan(&interactions).
-		Error
+	// Inserts interactions that weren't yet bundled into bundle_items table
+	var bundleItems []model.BundleItem
+	err := self.db.WithContext(ctx).
+		Raw(`INSERT INTO bundle_items
+	SELECT interactions.id as interaction_id, 'UPLOADING' as state, NULL as block_height, CURRENT_TIMESTAMP as updated_at
+	FROM interactions
+	LEFT JOIN bundle_items ON interactions.id = bundle_items.interaction_id
+	WHERE bundle_items.interaction_id IS NULL 
+	AND interactions.source='redstone-sequencer'
+	AND interactions.id > 400 
+	ORDER BY interactions.id
+	LIMIT ?
+	RETURNING *	`, 10).
+		Scan(&bundleItems).Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get interactions")
 	}
 
-	self.Log.WithField("length", len(interactions)).Debug("Out")
-
+	select {
+	case <-self.StopChannel:
+	case self.BundleItems <- bundleItems:
+	}
 }

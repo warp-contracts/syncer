@@ -126,6 +126,12 @@ type Config struct {
 
 	// Maksimum number of requests run in parallel
 	InteractionManagerMaxParallelQueries int
+
+	// Maksimum number of interactions selected from the database in one transaction
+	BundlerMaxInteractions int
+
+	// Number of workers that send bundles in parallel
+	BundlerManagerNudWorkers int
 }
 
 func setDefaults() {
@@ -174,6 +180,9 @@ func setDefaults() {
 	viper.SetDefault("InteractionManagerInterval", "10s")
 	viper.SetDefault("InteractionManagerTimeout", "90s")
 	viper.SetDefault("InteractionManagerMaxParallelQueries", "5")
+
+	viper.SetDefault("BundlerMaxInteractions", "100")
+	viper.SetDefault("BundlerManagerNudWorkers", "2")
 }
 
 func Default() (config *Config) {

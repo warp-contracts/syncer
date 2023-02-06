@@ -27,6 +27,7 @@ type Task struct {
 
 	// Callbacks
 	onBeforeStart []func() error
+	onStop        []func()
 	onAfterStop   []func()
 	subtasksFunc  []func() error
 	subtasks      []*Task
@@ -60,6 +61,11 @@ func (self *Task) WithOnAfterStop(f func()) *Task {
 	return self
 }
 
+func (self *Task) WithOnStop(f func()) *Task {
+	self.onStop = append(self.onStop, f)
+	return self
+}
+
 func (self *Task) WithSubtask(t *Task) *Task {
 	// Ensure context will be cancelled after all kinds of subtasks finish
 	t = t.WithOnBeforeStart(func() error {
@@ -81,9 +87,6 @@ func (self *Task) run(subtask func() error) {
 	self.stopWaitGroup.Add(1)
 	go func() {
 		defer func() {
-			// run() finished, so it's time to cancel Listener's context
-			// NOTE: This is the only place self.Ctx is cancelled
-			// self.cancel()
 			self.stopWaitGroup.Done()
 
 			var err error
@@ -159,6 +162,10 @@ func (self *Task) Stop() {
 		// Mark that we're stopping
 		self.IsStopping.Store(true)
 
+		// Run hooks
+		for _, cb := range self.onStop {
+			cb()
+		}
 	})
 }
 
@@ -173,6 +180,6 @@ func (self *Task) StopWait() {
 	case <-ctx.Done():
 		self.Log.Error("Timeout reached, failed to stop")
 	case <-self.Ctx.Done():
-		self.Log.Info("Listener finished")
+		self.Log.Info("Task finished")
 	}
 }

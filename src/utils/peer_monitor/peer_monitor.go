@@ -137,8 +137,8 @@ func (self *PeerMonitor) run() (err error) {
 	}
 
 	for {
-		// Start monitoring peers right away
 		f()
+		// Start monitoring peers right away
 		select {
 		case <-self.stopChannel:
 			return nil
