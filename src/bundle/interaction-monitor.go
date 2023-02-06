@@ -9,7 +9,6 @@ import (
 
 	"github.com/gammazero/workerpool"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type InteractionMonitor struct {
@@ -50,12 +49,11 @@ func (self *InteractionMonitor) monitorInteractions() error {
 				self.Log.Debug("Too many pending interaction checks")
 				continue
 			}
-			self.workers.Submit(self.check)
+			// self.workers.Submit(self.check)
 		}
 	}
 }
 
-// CREATE TYPE interaction_state AS ENUM ('PENDING', 'UPLOADING', 'UPLOADED', 'CONFIRMED');
 // ALTER TABLE interactions ADD COLUMN state interaction_state NOT NULL DEFAULT 'PENDING'::interaction_state;
 func (self *InteractionMonitor) check() {
 	self.Log.Debug("Getting interactions to bundle")
@@ -67,16 +65,23 @@ func (self *InteractionMonitor) check() {
 
 	err := self.db.Model(interactions).
 		WithContext(ctx).
-		Clauses(clause.Returning{}).
-		Where("state = ?", model.InteractionStatePending).
-		Limit(100).
-		Update("state", model.InteractionStateUploading).
-		// Debug().
+		Raw(`WITH rows AS (
+			SELECT id
+			FROM interactions
+			WHERE state = 'PENDING'::interaction_state
+			ORDER BY id
+			LIMIT ?
+		  )
+		  UPDATE interactions
+		  SET state = 'UPLOADING'::interaction_state
+		  WHERE id IN (SELECT id FROM rows)
+		  RETURNING *`, 10).
+		Scan(&interactions).
 		Error
 	if err != nil {
-		self.Log.WithError(err).Error("Failed to update/get interactions")
+		self.Log.WithError(err).Error("Failed to get interactions")
 	}
 
-	self.Log.Debug("Out")
+	self.Log.WithField("length", len(interactions)).Debug("Out")
 
 }

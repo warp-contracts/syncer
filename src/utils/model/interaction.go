@@ -11,6 +11,7 @@ const (
 )
 
 type Interaction struct {
+	ID                 int
 	InteractionId      string
 	Interaction        string
 	BlockHeight        int64
@@ -33,8 +34,6 @@ type Interaction struct {
 
 	// Wallet address, 44 characters
 	Owner string
-
-	State InteractionState
 
 	// Those fields aren't used anymore, currenct version waits 10 blocks with the synchronization
 	// ConfirmingPeer    string

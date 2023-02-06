@@ -45,7 +45,7 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 	}
 
 	// Migrate state changes
-	err = self.AutoMigrate(State{})
+	err = self.AutoMigrate(State{}, BundleItem{})
 	if err != nil {
 		return
 	}
