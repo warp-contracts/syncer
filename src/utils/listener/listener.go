@@ -283,7 +283,7 @@ func (self *Listener) downloadTransactions(block *arweave.Block) (out []*arweave
 		self.workers.Submit(func() {
 			// NOTE: Infinite loop, because there's nothing better we can do.
 			for {
-				self.log.WithField("txId", txId).Trace("Downloading transaction")
+				self.log.WithField("txId", txId).Debug("Downloading transaction")
 
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {
