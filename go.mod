@@ -8,6 +8,7 @@ require (
 	github.com/gammazero/workerpool v1.1.3
 	github.com/gin-gonic/gin v1.8.2
 	github.com/go-resty/resty/v2 v2.7.0
+	github.com/hamba/avro v1.8.0
 	github.com/lib/pq v1.10.7
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1

@@ -132,6 +132,8 @@ type Config struct {
 
 	// Number of workers that send bundles in parallel
 	BundlerManagerNudWorkers int
+
+	Bundlr Bundlr
 }
 
 func setDefaults() {
@@ -183,6 +185,8 @@ func setDefaults() {
 
 	viper.SetDefault("BundlerMaxInteractions", "100")
 	viper.SetDefault("BundlerManagerNudWorkers", "2")
+
+	setBundlrDefaults()
 }
 
 func Default() (config *Config) {
