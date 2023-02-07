@@ -143,7 +143,7 @@ func (self *PeerMonitor) run() (err error) {
 		case <-self.stopChannel:
 			return nil
 		case <-timer.C:
-			f()
+			// pass through
 		}
 	}
 }

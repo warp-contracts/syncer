@@ -184,7 +184,7 @@ func (self *Listener) monitorNetwork() {
 			close(self.heightChannel)
 			return
 		case <-timer.C:
-			f()
+			// pass through
 		}
 	}
 }
