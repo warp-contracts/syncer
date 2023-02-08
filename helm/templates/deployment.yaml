@@ -39,18 +39,28 @@ spec:
               value: "15s"
             - name: SYNCER_LOGLEVEL
               value: "DEBUG"
+            - name: SYNCER_STOPTIMEOUT
+              value: "60s"
             - name: SYNCER_ARNODEURL
               value: "https://arweave.net"
-            - name: SYNCER_ARSTABLEDISTANCE
-              value: "10"
+            - name: SYNCER_ARLIMITERINTERVAL
+              value: "100ms"
+            - name: SYNCER_ARLIMITERBURSTSIZE
+              value: "40"
             - name: SYNCER_LISTENERQUEUESIZE
-              value: "20"
+              value: "1"
+            - name: SYNCER_LISTENERPERIOD
+              value: "1s"
+            - name: SYNCER_LISTENERREQUIREDCONFIRMATIONBLOCKS
+              value: "10"
+            - name: SYNCER_LISTENERNUMWORKERS
+              value: "50"
             - name: SYNCER_STOREBATCHSIZE
-              value: "100"
+              value: "400"
             - name: SYNCER_STOREMAXTIMEINQUEUE
-              value: "2s"
+              value: "1s"
             - name: SYNCER_STOREMAXTIMEBETWEENRECONNECTS
-              value: "2s"
+              value: "15s"
             - name: SYNCER_RESTLISTENADDRESS
               value: ":8080"
           envFrom:
