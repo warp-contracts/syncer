@@ -283,7 +283,7 @@ func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (e
 		if idx >= len(self.peers) {
 			// No more peers, report the first failure
 			self.log.WithField("idx", idx).Info("No more peers to check")
-			self.mtx.Unlock()
+			self.mtx.RUnlock()
 			return
 		}
 		peer = self.peers[idx]
