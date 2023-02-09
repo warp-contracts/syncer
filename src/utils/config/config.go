@@ -140,8 +140,8 @@ func setDefaults() {
 	viper.SetDefault("ArDialerKeepAlive", "15s")
 	viper.SetDefault("ArIdleConnTimeout", "31s")
 	viper.SetDefault("ArTLSHandshakeTimeout", "10s")
-	viper.SetDefault("ArLimiterInterval", "50ms")
-	viper.SetDefault("ArLimiterBurstSize", "40")
+	viper.SetDefault("ArLimiterInterval", "1s")
+	viper.SetDefault("ArLimiterBurstSize", "15")
 	viper.SetDefault("ArLimiterDecreaseFactor", "1.0")
 	viper.SetDefault("ArLimiterDecreaseInterval", "2m")
 
