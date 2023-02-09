@@ -60,7 +60,7 @@ run: build-race | ; $(info $(M) starting app with default params…)
 	bin/$(PACKAGE) sync
 
 .PHONY: bundle
-bundle: all | ; $(info $(M) starting bundling with default params…)
+bundle: build-race | ; $(info $(M) starting bundling with default params…)
 	bin/$(PACKAGE) bundle
 
 .PHONY: lint

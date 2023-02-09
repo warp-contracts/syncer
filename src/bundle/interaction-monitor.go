@@ -33,10 +33,8 @@ func NewInteractionMonitor(config *config.Config, db *gorm.DB) (self *Interactio
 
 	self.Task = task.NewTask(config, "interaction-monitor").
 		WithSubtaskFunc(self.run).
-		WithOnStop(func() {
-			self.workers.Stop()
-		}).
 		WithOnAfterStop(func() {
+			self.workers.Stop()
 			close(self.BundleItems)
 		})
 
