@@ -150,7 +150,7 @@ func setDefaults() {
 	viper.SetDefault("ListenerPeriod", "1s")
 	viper.SetDefault("ListenerRetryFailedTransactionDownloadInterval", "5s")
 	viper.SetDefault("ListenerRequiredConfirmationBlocks", "10")
-	viper.SetDefault("ListenerNumWorkers", "100")
+	viper.SetDefault("ListenerNumWorkers", "50")
 
 	viper.SetDefault("PeerMonitorMaxTimeBlacklisted", "30m")
 	viper.SetDefault("PeerMonitorMaxPeersRemovedFromBlacklist", "5")

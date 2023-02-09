@@ -2,7 +2,6 @@ package arweave
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -17,7 +16,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/teivah/onecontext"
-	"golang.org/x/time/rate"
+	"go.uber.org/ratelimit"
 )
 
 type BaseClient struct {
@@ -28,10 +27,10 @@ type BaseClient struct {
 	parentCtx context.Context
 
 	// State
-	mtx               sync.RWMutex
-	peers             []string
-	limiters          map[string]*rate.Limiter
-	lastLimitDecrease time.Time
+	mtx      sync.RWMutex
+	peers    []string
+	limiters map[string]ratelimit.Limiter
+	// lastLimitDecrease time.Time
 
 	ctx       context.Context
 	cancel    context.CancelFunc
@@ -44,7 +43,7 @@ func newBaseClient(ctx context.Context, config *config.Config) (self *BaseClient
 	self.log = logger.NewSublogger("arweave-client")
 	self.parentCtx = ctx
 
-	self.limiters = make(map[string]*rate.Limiter)
+	self.limiters = make(map[string]ratelimit.Limiter)
 
 	// Sets up HTTP client
 	self.Reset()
@@ -95,9 +94,9 @@ func (self *BaseClient) Reset() {
 			OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(self.onStatusToError)
 
-	if config.Default().ArLimiterDecreaseFactor < 1 {
-		self.client = self.client.OnAfterResponse(self.onTooManyRequests)
-	}
+	// if config.Default().ArLimiterDecreaseFactor < 1 {
+	// 	self.client = self.client.OnAfterResponse(self.onTooManyRequests)
+	// }
 }
 
 func (self *BaseClient) createTransport() *http.Transport {
@@ -141,45 +140,45 @@ func (self *BaseClient) onStatusToError(c *resty.Client, resp *resty.Response) e
 }
 
 // Handles HTTP 429 Too Many Requests - decreases limit for this hosts
-func (self *BaseClient) onTooManyRequests(c *resty.Client, resp *resty.Response) error {
-	if resp == nil || resp.StatusCode() != http.StatusTooManyRequests {
-		// This isn't the case
-		return nil
-	}
+// func (self *BaseClient) onTooManyRequests(c *resty.Client, resp *resty.Response) error {
+// 	if resp == nil || resp.StatusCode() != http.StatusTooManyRequests {
+// 		// This isn't the case
+// 		return nil
+// 	}
 
-	// Remote host receives too much requests, adjust rate limit
-	url, err := url.ParseRequestURI(resp.Request.URL)
-	if err != nil {
-		self.log.WithError(err).Error("Failed to parse url")
-		return err
-	}
+// 	// Remote host receives too much requests, adjust rate limit
+// 	url, err := url.ParseRequestURI(resp.Request.URL)
+// 	if err != nil {
+// 		self.log.WithError(err).Error("Failed to parse url")
+// 		return err
+// 	}
 
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
+// 	self.mtx.Lock()
+// 	defer self.mtx.Unlock()
 
-	if time.Since(self.lastLimitDecrease) < self.config.ArLimiterDecreaseInterval {
-		// Limit was just decreased
-		return nil
-	}
+// 	if time.Since(self.lastLimitDecrease) < self.config.ArLimiterDecreaseInterval {
+// 		// Limit was just decreased
+// 		return nil
+// 	}
 
-	self.lastLimitDecrease = time.Now()
+// 	self.lastLimitDecrease = time.Now()
 
-	limiter, ok := self.limiters[url.Host]
-	if !ok {
-		err = errors.New("limiter not initialized")
-		self.log.WithError(err).Error("Failed to parse url")
-		return err
-	}
+// 	limiter, ok := self.limiters[url.Host]
+// 	if !ok {
+// 		err = errors.New("limiter not initialized")
+// 		self.log.WithError(err).Error("Failed to parse url")
+// 		return err
+// 	}
 
-	newLimit := limiter.Limit() * rate.Limit(self.config.ArLimiterDecreaseFactor)
-	self.log.WithField("peer", url.Host).
-		WithField("oldLimit", limiter.Limit()).
-		WithField("newLimit", newLimit).
-		Warn("Decreasing limit")
-	limiter.SetLimit(newLimit)
+// 	newLimit := limiter.Limit() * rate.Limit(self.config.ArLimiterDecreaseFactor)
+// 	self.log.WithField("peer", url.Host).
+// 		WithField("oldLimit", limiter.Limit()).
+// 		WithField("newLimit", newLimit).
+// 		Warn("Decreasing limit")
+// 	limiter.SetLimit(newLimit)
 
-	return nil
-}
+// 	return nil
+// }
 
 // Retry request only upon server errors
 func (self *BaseClient) onRetryCondition(resp *resty.Response, err error) bool {
@@ -224,7 +223,7 @@ func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err er
 
 	// Get the limiter, create it if needed
 	var (
-		limiter *rate.Limiter
+		limiter ratelimit.Limiter
 		ok      bool
 	)
 
@@ -245,7 +244,7 @@ func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err er
 		self.mtx.Lock()
 		limiter, ok = self.limiters[url.Host]
 		if !ok {
-			limiter = rate.NewLimiter(rate.Every(self.config.ArLimiterInterval), self.config.ArLimiterBurstSize)
+			limiter = ratelimit.New(self.config.ArLimiterBurstSize, ratelimit.Per(self.config.ArLimiterInterval))
 			self.limiters[url.Host] = limiter
 		}
 		self.mtx.Unlock()
@@ -253,10 +252,12 @@ func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err er
 
 	// Blocks till the request is possible
 	// Or ctx gets canceled
-	err = limiter.Wait(req.Context())
-	if err != nil {
-		d, _ := req.Context().Deadline()
-		self.log.WithField("peer", url.Host).WithField("deadline", time.Until(d)).WithError(err).Error("Rate limiting failed")
+	limiter.Take()
+	d, ok := req.Context().Deadline()
+	if ok && time.Until(d) < 0 {
+		// After deadline
+		err = context.DeadlineExceeded
+		return
 	}
 	return
 }
