@@ -221,6 +221,7 @@ func (self *BaseClient) onForcePeer(c *resty.Client, req *resty.Request) (err er
 func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err error) {
 	self.log.Trace("Start rate limiter")
 	defer self.log.Trace("Finish rate limiter")
+
 	// Get the limiter, create it if needed
 	var (
 		limiter *rate.Limiter
@@ -232,13 +233,23 @@ func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err er
 		return
 	}
 
-	self.mtx.Lock()
+	// Optimistically only try to use the read lock
+	self.mtx.RLock()
 	limiter, ok = self.limiters[url.Host]
 	if !ok {
-		limiter = rate.NewLimiter(rate.Every(self.config.ArLimiterInterval), self.config.ArLimiterBurstSize)
-		self.limiters[url.Host] = limiter
+		limiter = nil
 	}
-	self.mtx.Unlock()
+	self.mtx.RUnlock()
+
+	if limiter == nil {
+		self.mtx.Lock()
+		limiter, ok = self.limiters[url.Host]
+		if !ok {
+			limiter = rate.NewLimiter(rate.Every(self.config.ArLimiterInterval), self.config.ArLimiterBurstSize)
+			self.limiters[url.Host] = limiter
+		}
+		self.mtx.Unlock()
+	}
 
 	// Blocks till the request is possible
 	// Or ctx gets canceled

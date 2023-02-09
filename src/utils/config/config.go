@@ -140,7 +140,7 @@ func setDefaults() {
 	viper.SetDefault("ArDialerKeepAlive", "15s")
 	viper.SetDefault("ArIdleConnTimeout", "31s")
 	viper.SetDefault("ArTLSHandshakeTimeout", "10s")
-	viper.SetDefault("ArLimiterInterval", "500ms")
+	viper.SetDefault("ArLimiterInterval", "50ms")
 	viper.SetDefault("ArLimiterBurstSize", "40")
 	viper.SetDefault("ArLimiterDecreaseFactor", "1.0")
 	viper.SetDefault("ArLimiterDecreaseInterval", "2m")
@@ -150,7 +150,7 @@ func setDefaults() {
 	viper.SetDefault("ListenerPeriod", "1s")
 	viper.SetDefault("ListenerRetryFailedTransactionDownloadInterval", "5s")
 	viper.SetDefault("ListenerRequiredConfirmationBlocks", "10")
-	viper.SetDefault("ListenerNumWorkers", "10")
+	viper.SetDefault("ListenerNumWorkers", "100")
 
 	viper.SetDefault("PeerMonitorMaxTimeBlacklisted", "30m")
 	viper.SetDefault("PeerMonitorMaxPeersRemovedFromBlacklist", "5")
