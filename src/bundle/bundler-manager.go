@@ -6,7 +6,6 @@ import (
 	"syncer/src/utils/model"
 	"syncer/src/utils/task"
 
-	"github.com/gammazero/workerpool"
 	"gorm.io/gorm"
 )
 
@@ -14,11 +13,6 @@ type BundlerManager struct {
 	*task.Task
 	db          *gorm.DB
 	bundleItems chan []model.BundleItem
-
-	// Pool of workers that perform requests to bundlr.
-	// It's possible to run multiple requests in parallel.
-	// We're limiting the number of parallel requests with the number of workers.
-	workers *workerpool.WorkerPool
 }
 
 // Main class that orchestrates main syncer functionalities
@@ -27,13 +21,11 @@ func NewBundlerManager(config *config.Config, db *gorm.DB) (self *BundlerManager
 	self.db = db
 
 	self.Task = task.NewTask(config, "bundler-manager").
-		WithOnAfterStop(func() {
-			self.workers.Stop()
-		}).
+		// Pool of workers that perform requests to bundlr.
+		// It's possible to run multiple requests in parallel.
+		// We're limiting the number of parallel requests with the number of workers.
+		WithWorkerPool(config.BundlerManagerNudWorkers).
 		WithSubtaskFunc(self.run)
-
-	// Worker pool for downloading interactions in parallel
-	self.workers = workerpool.New(self.Config.BundlerManagerNudWorkers)
 
 	return
 }
@@ -52,7 +44,7 @@ func (self *BundlerManager) run() (err error) {
 		wg.Add(len(items))
 		for _, item := range items {
 			item := item
-			self.workers.Submit(func() {
+			self.Workers.Submit(func() {
 				self.Log.WithField("id", item.InteractionID).Debug("Sending interaction to Bundlr")
 				wg.Done()
 			})
@@ -60,7 +52,6 @@ func (self *BundlerManager) run() (err error) {
 
 		// Wait for all bundles to be sent
 		wg.Wait()
-		self.Log.Debug("Mark")
 
 		// Interaction ids in one slice
 		interactionIds := make([]int, len(items))

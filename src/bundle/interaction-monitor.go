@@ -7,7 +7,6 @@ import (
 	"syncer/src/utils/task"
 	"time"
 
-	"github.com/gammazero/workerpool"
 	"gorm.io/gorm"
 )
 
@@ -15,11 +14,6 @@ import (
 type InteractionMonitor struct {
 	*task.Task
 	db *gorm.DB
-
-	// Pool of workers that actually do the check.
-	// It's possible to run multiple requests in parallel.
-	// We're limiting the number of parallel requests with the number of workers.
-	workers *workerpool.WorkerPool
 
 	// Data about the interactions that need to be bundled
 	BundleItems chan []model.BundleItem
@@ -33,13 +27,14 @@ func NewInteractionMonitor(config *config.Config, db *gorm.DB) (self *Interactio
 
 	self.Task = task.NewTask(config, "interaction-monitor").
 		WithSubtaskFunc(self.run).
+		// Worker pool for downloading interactions in parallel
+		// Pool of workers that actually do the check.
+		// It's possible to run multiple requests in parallel.
+		// We're limiting the number of parallel requests with the number of workers.
+		WithWorkerPool(config.InteractionManagerMaxParallelQueries).
 		WithOnAfterStop(func() {
-			self.workers.Stop()
 			close(self.BundleItems)
 		})
-
-	// Worker pool for downloading interactions in parallel
-	self.workers = workerpool.New(self.Config.InteractionManagerMaxParallelQueries)
 
 	return
 }
@@ -51,12 +46,12 @@ func (self *InteractionMonitor) run() error {
 		defer func() { timer = time.NewTimer(time.Second * 10) }()
 
 		self.Log.Debug("Tick")
-		if self.workers.WaitingQueueSize() > 1 {
+		if self.Workers.WaitingQueueSize() > 1 {
 			self.Log.Debug("Too many pending interaction checks")
 			return
 		}
 
-		self.workers.Submit(self.check)
+		self.Workers.Submit(self.check)
 	}
 
 	for {

@@ -9,6 +9,7 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
 
+	"github.com/gammazero/workerpool"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,6 +25,9 @@ type Task struct {
 	stopWaitGroup sync.WaitGroup
 	Ctx           context.Context
 	cancel        context.CancelFunc
+
+	// Workers that perform the task
+	Workers *workerpool.WorkerPool
 
 	// Callbacks
 	onBeforeStart []func() error
@@ -81,6 +85,13 @@ func (self *Task) WithSubtask(t *Task) *Task {
 func (self *Task) WithSubtaskFunc(f func() error) *Task {
 	self.subtasksFunc = append(self.subtasksFunc, f)
 	return self
+}
+
+func (self *Task) WithWorkerPool(maxWorkers int) *Task {
+	self.Workers = workerpool.New(maxWorkers)
+	return self.WithOnAfterStop(func() {
+		self.Workers.StopWait()
+	})
 }
 
 func (self *Task) run(subtask func() error) {
