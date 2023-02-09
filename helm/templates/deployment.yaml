@@ -44,9 +44,9 @@ spec:
             - name: SYNCER_ARNODEURL
               value: "https://arweave.net"
             - name: SYNCER_ARLIMITERINTERVAL
-              value: "1s"
+              value: "1m"
             - name: SYNCER_ARLIMITERBURSTSIZE
-              value: "15"
+              value: "900"
             - name: SYNCER_LISTENERQUEUESIZE
               value: "1"
             - name: SYNCER_LISTENERPERIOD
