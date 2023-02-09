@@ -24,13 +24,6 @@ var (
 
 			signalChannel = make(chan os.Signal, 1)
 			signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				select {
-				case <-signalChannel:
-					applicationCtxCancel()
-				case <-applicationCtx.Done():
-				}
-			}()
 
 			// Load configuration
 			conf, err = config.Load(cfgFile)
@@ -38,6 +31,14 @@ var (
 				return
 			}
 			applicationCtx = common.SetConfig(applicationCtx, conf)
+
+			go func() {
+				select {
+				case <-signalChannel:
+					applicationCtxCancel()
+				case <-applicationCtx.Done():
+				}
+			}()
 
 			// Setup logging
 			err = logger.Init(conf)

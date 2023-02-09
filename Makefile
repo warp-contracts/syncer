@@ -48,8 +48,15 @@ build:  | $(BASE); $(info $(M) building executable…) @
 		-ldflags="-s -w  -X $(PACKAGE)/src/utils/build_info.Version=$(VERSION) -X $(PACKAGE)/src/utils/build_info.BuildDate=$(DATE)" \
 		-o bin/$(PACKAGE) main.go
 
+.PHONY: build-race
+build-race:  | $(BASE); $(info $(M) building executable…) @
+	$Q cd $(BASE) && $(GO) build -race \
+		-tags release \
+		-ldflags="-s -w  -X $(PACKAGE)/src/utils/build_info.Version=$(VERSION) -X $(PACKAGE)/src/utils/build_info.BuildDate=$(DATE)" \
+		-o bin/$(PACKAGE) main.go
+
 .PHONY: run
-run: all | ; $(info $(M) starting app with default params…)
+run: build-race | ; $(info $(M) starting app with default params…)
 	bin/$(PACKAGE) sync
 
 .PHONY: lint
