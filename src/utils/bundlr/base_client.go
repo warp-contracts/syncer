@@ -2,6 +2,7 @@ package bundlr
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -74,6 +75,8 @@ func (self *BaseClient) Reset() {
 	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
+			SetDebug(true).
+			SetBaseURL(self.config.Urls[0]).
 			SetTimeout(self.config.RequestTimeout).
 			SetHeader("User-Agent", "warp.cc/bundle/"+build_info.Version).
 			SetRetryCount(1).
@@ -81,13 +84,13 @@ func (self *BaseClient) Reset() {
 			AddRetryCondition(self.onRetryCondition).
 			OnBeforeRequest(self.onRateLimit).
 			// NOTE: Trace logs, used only when debugging. Needs to be before other OnAfterResponse callbacks
-			// EnableTrace().
-			// OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
-			// 	t, _ := json.Marshal(resp.Request.TraceInfo())
-			// 	self.log.WithField("trace", string(t)).WithField("url", resp.Request.URL).Info("Trace")
-			// 	return nil
-			// }).
-			OnAfterResponse(self.onRetryRequest).
+			EnableTrace().
+			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
+				t, _ := json.Marshal(resp.Request.TraceInfo())
+				self.log.WithField("trace", string(t)).WithField("url", resp.Request.URL).Info("Trace")
+				return nil
+			}).
+			// OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(self.onStatusToError)
 
 }
@@ -168,69 +171,6 @@ func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err er
 		self.log.WithField("peer", url.Host).WithField("deadline", time.Until(d)).WithError(err).Error("Rate limiting failed")
 	}
 	return
-}
-
-// Handles retrying requests with alternative peers
-func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (err error) {
-	if resp.IsSuccess() {
-		return nil
-	}
-
-	// Check if retrying is disabled through context
-	isDisabled, ok := resp.Request.Context().Value(ContextDisablePeers).(bool)
-	if ok && isDisabled {
-		return nil
-	}
-
-	// Disable retrying request with different peer
-	ctx := context.WithValue(resp.Request.Context(), ContextDisablePeers, true)
-	resp.Request.SetContext(ctx)
-
-	// Retry request for each of the alternate peerRetrying request with different peers.
-	// Peers should already be ordered from the most usefull
-	var (
-		idx            int
-		peer           string
-		secondResponse *resty.Response
-	)
-
-	endpoint := strings.Clone(strings.TrimPrefix(resp.Request.URL, self.config.Urls[0]))
-
-	self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying begin")
-
-	for {
-		self.mtx.RLock()
-		if idx >= len(self.peers) {
-			// No more peers, report the first failure
-			self.log.WithField("idx", idx).Info("No more peers to check")
-			self.mtx.Unlock()
-			return
-		}
-		peer = self.peers[idx]
-		self.mtx.RUnlock()
-
-		self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying request with different peer")
-
-		//	Make the same request, but change the URL
-		resp.Request.URL = peer + endpoint
-		secondResponse, err = resp.Request.Send()
-		if err == nil {
-			// Success
-			break
-		}
-
-		self.log.WithError(err).Debug("Retried request failed")
-
-		// Handle timeout in context
-		if secondResponse.Request.Context().Err() != nil {
-			err = secondResponse.Request.Context().Err()
-			return
-		}
-		idx += 1
-	}
-	// Replace the response returned to the API user
-	(*resp) = (*secondResponse)
-	return err
 }
 
 // Set the list of potential peers in order they should be used

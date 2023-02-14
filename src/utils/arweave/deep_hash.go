@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func deepHash(data []any) [48]byte {
+func DeepHash(data []any) [48]byte {
 	tag := append([]byte("list"), []byte(fmt.Sprintf("%d", len(data)))...)
 	tagHash := sha512.Sum384(tag)
 	return deepHashAcc(data, tagHash)
@@ -45,13 +45,13 @@ func deepHashAcc(data []interface{}, acc [48]byte) [48]byte {
 	case RewardAddr:
 		dHash = deepHashBytes([]byte(x))
 	case []Base64String:
-		dHash = deepHash(convertToSliceOfAny(x))
+		dHash = DeepHash(convertToSliceOfAny(x))
 	case []string:
-		dHash = deepHash(convertToSliceOfAny(x))
+		dHash = DeepHash(convertToSliceOfAny(x))
 	case [][]byte:
-		dHash = deepHash(convertToSliceOfAny(x))
+		dHash = DeepHash(convertToSliceOfAny(x))
 	case []interface{}:
-		dHash = deepHash(x)
+		dHash = DeepHash(x)
 	default:
 		panic("unsupported deep hash type")
 	}

@@ -67,7 +67,7 @@ func (self *Transaction) Verify() (err error) {
 		E: 65537, //"AQAB"
 	}
 
-	deepHash := deepHash(values)
+	deepHash := DeepHash(values)
 	hash := sha256.Sum256(deepHash[:])
 
 	return rsa.VerifyPSS(ownerPublicKey, crypto.SHA256, hash[:], []byte(self.Signature), &rsa.PSSOptions{

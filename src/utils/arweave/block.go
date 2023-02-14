@@ -62,7 +62,7 @@ func (b *Block) IsValid() bool {
 			b.Poa.Chunk,
 		},
 	}
-	hash := deepHash(list)
+	hash := DeepHash(list)
 
 	return bytes.Equal(hash[:], b.IndepHash)
 }
@@ -80,7 +80,7 @@ func generateBlockDataSegment(b *Block) []byte {
 		b.WalletList,
 		b.HashListMerkle,
 	}
-	hash := deepHash(values)
+	hash := DeepHash(values)
 	return hash[:]
 }
 
@@ -102,6 +102,6 @@ func generateBlockDataSegmentBase(b *Block) []byte {
 		b.Tags,
 	}
 
-	hash := deepHash(props)
+	hash := DeepHash(props)
 	return hash[:]
 }
