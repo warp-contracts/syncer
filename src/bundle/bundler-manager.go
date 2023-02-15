@@ -8,6 +8,7 @@ import (
 	"syncer/src/utils/model"
 	"syncer/src/utils/task"
 
+	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
 )
 
@@ -57,22 +58,30 @@ func (self *BundlerManager) run() (err error) {
 		var wg sync.WaitGroup
 		wg.Add(len(items))
 		for _, item := range items {
+			// Copy item so the right value is available in the worker
 			item := item
 			self.Workers.Submit(func() {
 				defer wg.Done()
 
-				self.Log.WithField("id", item.InteractionID).Debug("Sending interaction to Bundlr")
-
+				// Fill bundle item
 				bundleItem := new(bundlr.BundleItem)
-				data, err := item.GetDataItem()
+
+				if item.Transaction.Status != pgtype.Present {
+					// Data neede for creating the bundle isn't present
+					// Mark it as uploaded, so it's not processed again
+					return
+				}
+
+				self.Log.WithField("id", item.InteractionID).Debug("Sending interaction to Bundlr")
+				data, err := item.Transaction.MarshalJSON()
 				if err != nil {
 					self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to get interaction data")
 					return
 				}
 
-				// Fill bundle item
 				bundleItem.Data = arweave.Base64String(data)
 
+				// Send the bundle item to bundlr
 				err = self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
 				if err != nil {
 					self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to upload interaction to Bundlr")

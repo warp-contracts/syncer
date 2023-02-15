@@ -73,16 +73,17 @@ func (self *InteractionMonitor) check() {
 	// Inserts interactions that weren't yet bundled into bundle_items table
 	var bundleItems []model.BundleItem
 	err := self.db.WithContext(ctx).
-		Raw(`INSERT INTO bundle_items
-	SELECT interactions.id as interaction_id, 'UPLOADING' as state, NULL as block_height, CURRENT_TIMESTAMP as updated_at
-	FROM interactions
-	LEFT JOIN bundle_items ON interactions.id = bundle_items.interaction_id
-	WHERE bundle_items.interaction_id IS NULL 
-	AND interactions.source='redstone-sequencer'
-	AND interactions.id > 400 
-	ORDER BY interactions.id
-	LIMIT ?
-	RETURNING *	`, 10).
+		Raw(`WITH rows AS (
+			SELECT interaction_id
+			FROM bundle_items
+			WHERE state = 'PENDING'::bundle_state
+			ORDER BY interaction_id ASC
+			LIMIT ?
+		)
+		UPDATE bundle_items
+		SET state = 'UPLOADING'::bundle_state
+		WHERE interaction_id IN (SELECT interaction_id FROM rows)
+		RETURNING *`, 10).
 		Scan(&bundleItems).Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get interactions")
