@@ -33,6 +33,7 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 	resp, err := self.Request(ctx).
 		SetBody(body).
 		SetHeader("Content-Type", "application/octet-stream").
+		// SetHeader("x-proof-type", "receipt").
 		Post("/tx")
 	if err != nil {
 		return

@@ -27,7 +27,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Sends interactions to bundler
 	bundlerManager := NewBundlerManager(config, db).
 		WithInputChannel(interactionMonitor.BundleItems)
-
+	if err != nil {
+		return
+	}
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
 		WithSubtask(interactionMonitor.Task).

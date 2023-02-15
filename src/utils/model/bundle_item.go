@@ -2,6 +2,9 @@ package model
 
 import (
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
+	"syncer/src/utils/arweave"
 	"time"
 )
 
@@ -17,4 +20,31 @@ type BundleItem struct {
 
 func (BundleItem) TableName() string {
 	return "bundle_items"
+}
+
+func (self *BundleItem) GetDataItem() (out []byte, err error) {
+	owner, err := base64.RawURLEncoding.DecodeString(self.Interaction.Owner)
+	if err != nil {
+		return
+	}
+
+	tx := arweave.Transaction{
+		ID:    self.Interaction.InteractionId,
+		Owner: owner,
+	}
+
+	// Format    int          `json:"format"`
+	// ID        string       `json:"id"`
+	// LastTx    Base64String `json:"last_tx"`
+	// Owner     Base64String `json:"owner"` // utils.Base64Encode(wallet.PubKey.N.Bytes())
+	// Tags      []Tag        `json:"tags"`
+	// Target    Base64String `json:"target"`
+	// Quantity  string       `json:"quantity"`
+	// Data      string       `json:"data"` // base64.encode
+	// DataSize  string       `json:"data_size"`
+	// DataRoot  Base64String `json:"data_root"`
+	// Reward    string       `json:"reward"`
+	// Signature Base64String `json:"signature"`
+
+	return json.Marshal(tx)
 }

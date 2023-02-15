@@ -2,6 +2,8 @@ package bundle
 
 import (
 	"sync"
+	"syncer/src/utils/arweave"
+	"syncer/src/utils/bundlr"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
 	"syncer/src/utils/task"
@@ -13,6 +15,10 @@ type BundlerManager struct {
 	*task.Task
 	db          *gorm.DB
 	bundleItems chan []model.BundleItem
+
+	// Bundling and signing
+	bundlrClient *bundlr.Client
+	signer       *bundlr.Signer
 }
 
 // Main class that orchestrates main syncer functionalities
@@ -26,6 +32,14 @@ func NewBundlerManager(config *config.Config, db *gorm.DB) (self *BundlerManager
 		// We're limiting the number of parallel requests with the number of workers.
 		WithWorkerPool(config.BundlerManagerNudWorkers).
 		WithSubtaskFunc(self.run)
+
+	self.bundlrClient = bundlr.NewClient(self.Ctx, &config.Bundlr)
+
+	var err error
+	self.signer, err = bundlr.NewSigner(config.Bundlr.Wallet)
+	if err != nil {
+		self.Log.WithError(err).Panic("Failed to create bundlr signer")
+	}
 
 	return
 }
@@ -45,8 +59,25 @@ func (self *BundlerManager) run() (err error) {
 		for _, item := range items {
 			item := item
 			self.Workers.Submit(func() {
+				defer wg.Done()
+
 				self.Log.WithField("id", item.InteractionID).Debug("Sending interaction to Bundlr")
-				wg.Done()
+
+				bundleItem := new(bundlr.BundleItem)
+				data, err := item.GetDataItem()
+				if err != nil {
+					self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to get interaction data")
+					return
+				}
+
+				// Fill bundle item
+				bundleItem.Data = arweave.Base64String(data)
+
+				err = self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
+				if err != nil {
+					self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to upload interaction to Bundlr")
+				}
+
 			})
 		}
 
