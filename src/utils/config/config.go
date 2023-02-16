@@ -12,7 +12,7 @@ import (
 // Config stores global configuration
 type Config struct {
 	// SQL Database
-	DBPort        string
+	DBPort        uint16
 	DBHost        string
 	DBUser        string
 	DBPassword    string

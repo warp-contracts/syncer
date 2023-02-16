@@ -8,6 +8,7 @@ import (
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/logger"
+	"time"
 
 	"github.com/gammazero/workerpool"
 	"github.com/sirupsen/logrus"
@@ -23,8 +24,16 @@ type Task struct {
 	StopChannel   chan bool
 	stopOnce      *sync.Once
 	stopWaitGroup sync.WaitGroup
-	Ctx           context.Context
-	cancel        context.CancelFunc
+
+	// Context active as long as there's anything running in the task.
+	// Used outside the task.
+	CtxRunning    context.Context
+	cancelRunning context.CancelFunc
+
+	// Context cancelled when Stop() is called.
+	// Used inside the task
+	Ctx    context.Context
+	cancel context.CancelFunc
 
 	// Workers that perform the task
 	Workers *workerpool.WorkerPool
@@ -42,9 +51,13 @@ func NewTask(config *config.Config, name string) (self *Task) {
 	self.Log = logger.NewSublogger(name)
 	self.Config = config
 
-	// Context active as long as there's anything running in the task
+	// Context cancelled when Stop() is called
 	self.Ctx, self.cancel = context.WithCancel(context.Background())
 	self.Ctx = common.SetConfig(self.Ctx, config)
+
+	// Context active as long as there's anything running in the task
+	self.CtxRunning, self.cancelRunning = context.WithCancel(context.Background())
+	self.CtxRunning = common.SetConfig(self.Ctx, config)
 
 	// Stopping
 	self.stopOnce = &sync.Once{}
@@ -84,6 +97,34 @@ func (self *Task) WithSubtask(t *Task) *Task {
 
 func (self *Task) WithSubtaskFunc(f func() error) *Task {
 	self.subtasksFunc = append(self.subtasksFunc, f)
+	return self
+}
+
+func (self *Task) WithPeriodicSubtaskFunc(period time.Duration, f func() error) *Task {
+	self.subtasksFunc = append(self.subtasksFunc, func() error {
+		var timer *time.Timer
+		run := func() error {
+			// Setup waiting before the next check
+			defer func() { timer = time.NewTimer(period) }()
+			return f()
+		}
+
+		var err error
+		for {
+			err = run()
+			if err != nil {
+				return err
+			}
+
+			select {
+			case <-self.StopChannel:
+				self.Log.Debug("Task stopped")
+				return nil
+			case <-timer.C:
+				// pass through
+			}
+		}
+	})
 	return self
 }
 
@@ -153,7 +194,7 @@ func (self *Task) Start() (err error) {
 		}
 
 		// Inform that task doesn't run anymore
-		self.cancel()
+		self.cancelRunning()
 	}()
 
 	return nil
@@ -169,6 +210,9 @@ func (self *Task) Stop() {
 
 		// Signals that we're stopping
 		close(self.StopChannel)
+
+		// Inform child context that we're stopping
+		self.cancel()
 
 		// Mark that we're stopping
 		self.IsStopping.Store(true)

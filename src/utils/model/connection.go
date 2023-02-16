@@ -26,7 +26,7 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 		},
 	)
 
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		config.DBHost,
 		config.DBPort,
 		config.DBUser,
@@ -43,7 +43,6 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 	if err != nil {
 		return
 	}
-
 	// Migrate state changes
 	err = self.AutoMigrate(State{}, BundleItem{})
 	if err != nil {

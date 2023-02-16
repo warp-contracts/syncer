@@ -1,7 +1,6 @@
 package bundle
 
 import (
-	"sync"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/bundlr"
 	"syncer/src/utils/config"
@@ -15,7 +14,7 @@ import (
 type BundlerManager struct {
 	*task.Task
 	db          *gorm.DB
-	bundleItems chan []model.BundleItem
+	bundleItems chan *model.BundleItem
 
 	// Bundling and signing
 	bundlrClient *bundlr.Client
@@ -45,7 +44,7 @@ func NewBundlerManager(config *config.Config, db *gorm.DB) (self *BundlerManager
 	return
 }
 
-func (self *BundlerManager) WithInputChannel(in chan []model.BundleItem) *BundlerManager {
+func (self *BundlerManager) WithInputChannel(in chan *model.BundleItem) *BundlerManager {
 	self.bundleItems = in
 	return self
 }
@@ -54,62 +53,64 @@ func (self *BundlerManager) run() (err error) {
 	// Waits for new set of interactions to bundle
 	// Finishes when when the source of items is closed
 	// It should be safe to assume all pending items are processed
-	for items := range self.bundleItems {
-		var wg sync.WaitGroup
-		wg.Add(len(items))
-		for _, item := range items {
-			// Copy item so the right value is available in the worker
-			item := item
-			self.Workers.Submit(func() {
-				defer wg.Done()
+	for item := range self.bundleItems {
+		self.Workers.Submit(func() {
+			// Fill bundle item
+			bundleItem := new(bundlr.BundleItem)
 
-				// Fill bundle item
-				bundleItem := new(bundlr.BundleItem)
+			if item.Transaction.Status != pgtype.Present {
+				// Data neede for creating the bundle isn't present
+				// Mark it as uploaded, so it's not processed again
+				return
+			}
 
-				if item.Transaction.Status != pgtype.Present {
-					// Data neede for creating the bundle isn't present
-					// Mark it as uploaded, so it's not processed again
-					return
-				}
+			self.Log.WithField("id", item.InteractionID).Debug("Sending interaction to Bundlr")
+			data, err := item.Transaction.MarshalJSON()
+			if err != nil {
+				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to get interaction data")
+				return
+			}
 
-				self.Log.WithField("id", item.InteractionID).Debug("Sending interaction to Bundlr")
-				data, err := item.Transaction.MarshalJSON()
-				if err != nil {
-					self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to get interaction data")
-					return
-				}
+			bundleItem.Data = arweave.Base64String(data)
 
-				bundleItem.Data = arweave.Base64String(data)
+			// Send the bundle item to bundlr
+			err = self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
+			if err != nil {
+				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to upload interaction to Bundlr")
+			}
 
-				// Send the bundle item to bundlr
-				err = self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
-				if err != nil {
-					self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to upload interaction to Bundlr")
-				}
+			// FIXME: Update state in one transaction every 1s or when 100 iteractions gather
+			// Mark successfuly sent bundles as UPLOADED
+			err = self.db.Model(&model.BundleItem{}).
+				Where("interaction_id = ?", item.InteractionID).
+				Where("state = ?", model.BundleStateUploading).
+				Update("state", model.BundleStateUploaded).
+				Error
+			if err != nil {
+				// TODO: Is there anything else we can do?
+				self.Log.WithError(err).Error("Failed to mark bundle item as uploaded to Bundlr")
+			}
 
-			})
-		}
+		})
 
-		// Wait for all bundles to be sent
-		wg.Wait()
-
-		// Interaction ids in one slice
-		interactionIds := make([]int, len(items))
-		for i, item := range items {
-			interactionIds[i] = item.InteractionID
-		}
-
-		// Mark successfuly sent bundles as UPLOADED
-		err = self.db.Model(&model.BundleItem{}).
-			Where("interaction_id IN ?", interactionIds).
-			Where("state = ?", model.BundleStateUploading).
-			Update("state", model.BundleStateUploaded).
-			Error
-		if err != nil {
-			// TODO: Is there anything else we can do?
-			self.Log.WithError(err).Error("Failed to mark bundle item as uploaded to Bundlr")
-		}
 	}
 
 	return nil
 }
+
+// // Interaction ids in one slice
+// interactionIds := make([]int, len(items))
+// for i, item := range items {
+// 	interactionIds[i] = item.InteractionID
+// }
+
+// // Mark successfuly sent bundles as UPLOADED
+// err = self.db.Model(&model.BundleItem{}).
+// 	Where("interaction_id IN ?", interactionIds).
+// 	Where("state = ?", model.BundleStateUploading).
+// 	Update("state", model.BundleStateUploaded).
+// 	Error
+// if err != nil {
+// 	// TODO: Is there anything else we can do?
+// 	self.Log.WithError(err).Error("Failed to mark bundle item as uploaded to Bundlr")
+// }

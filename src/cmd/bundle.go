@@ -26,7 +26,7 @@ var bundleCmd = &cobra.Command{
 		}
 
 		select {
-		case <-controller.Ctx.Done():
+		case <-controller.CtxRunning.Done():
 		case <-applicationCtx.Done():
 		}
 
