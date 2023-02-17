@@ -5,7 +5,6 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
 	"syncer/src/utils/task"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -25,7 +24,7 @@ func NewPoller(config *config.Config) (self *Poller) {
 	self = new(Poller)
 
 	self.Task = task.NewTask(config, "poller").
-		WithPeriodicSubtaskFunc(10*time.Second, self.runPeriodically).
+		WithPeriodicSubtaskFunc(config.Bundler.PollerInterval, self.runPeriodically).
 		// Worker pool for downloading interactions in parallel
 		// Pool of workers that actually do the check.
 		// It's possible to run multiple requests in parallel.
@@ -58,7 +57,7 @@ func (self *Poller) runPeriodically() error {
 }
 
 func (self *Poller) check() {
-	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.InteractionManagerTimeout)
+	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Bundler.PollerTimeout)
 	defer cancel()
 
 	// Inserts interactions that weren't yet bundled into bundle_items table
@@ -74,7 +73,7 @@ func (self *Poller) check() {
 		UPDATE bundle_items
 		SET state = 'UPLOADING'::bundle_state
 		WHERE interaction_id IN (SELECT interaction_id FROM rows)
-		RETURNING *`, 10).
+		RETURNING *`, self.Config.Bundler.ConfirmerMaxBatchSize).
 		Scan(&bundleItems).Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get interactions")

@@ -19,18 +19,22 @@ type Bundler struct {
 	// Bundling and signing
 	bundlrClient *bundlr.Client
 	signer       *bundlr.Signer
+
+	// Ids of successfully bundled interactions
+	Bundled chan int
 }
 
 // Receives bundle items from the input channel and sends them to bundlr
 func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 	self = new(Bundler)
 	self.db = db
+	self.Bundled = make(chan int)
 
 	self.Task = task.NewTask(config, "bundler").
 		// Pool of workers that perform requests to bundlr.
 		// It's possible to run multiple requests in parallel.
 		// We're limiting the number of parallel requests with the number of workers.
-		WithWorkerPool(config.BundlerNumWorkers).
+		WithWorkerPool(config.Bundler.PollerMaxParallelQueries).
 		WithSubtaskFunc(self.run)
 
 	self.bundlrClient = bundlr.NewClient(self.Ctx, &config.Bundlr)
@@ -81,16 +85,10 @@ func (self *Bundler) run() (err error) {
 				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to upload interaction to Bundlr")
 			}
 
-			// FIXME: Update state in one transaction every 1s or when 100 iteractions gather
-			// Mark successfuly sent bundles as UPLOADED
-			err = self.db.Model(&model.BundleItem{}).
-				Where("interaction_id = ?", item.InteractionID).
-				Where("state = ?", model.BundleStateUploading).
-				Update("state", model.BundleStateUploaded).
-				Error
-			if err != nil {
-				// TODO: Is there anything else we can do?
-				self.Log.WithError(err).Error("Failed to mark bundle item as uploaded to Bundlr")
+			select {
+			case <-self.Ctx.Done():
+				return
+			case self.Bundled <- item.InteractionID:
 			}
 		})
 
@@ -98,20 +96,3 @@ func (self *Bundler) run() (err error) {
 
 	return nil
 }
-
-// // Interaction ids in one slice
-// interactionIds := make([]int, len(items))
-// for i, item := range items {
-// 	interactionIds[i] = item.InteractionID
-// }
-
-// // Mark successfuly sent bundles as UPLOADED
-// err = self.db.Model(&model.BundleItem{}).
-// 	Where("interaction_id IN ?", interactionIds).
-// 	Where("state = ?", model.BundleStateUploading).
-// 	Update("state", model.BundleStateUploaded).
-// 	Error
-// if err != nil {
-// 	// TODO: Is there anything else we can do?
-// 	self.Log.WithError(err).Error("Failed to mark bundle item as uploaded to Bundlr")
-// }
