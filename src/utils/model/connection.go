@@ -3,11 +3,14 @@ package model
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	l "syncer/src/utils/logger"
+	"syncer/src/utils/model/sql_migrations"
 	"time"
 
+	migrate "github.com/rubenv/sql-migrate"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -43,6 +46,29 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 	if err != nil {
 		return
 	}
+
+	// Run migrations
+	migrations := &migrate.HttpFileSystemMigrationSource{
+		FileSystem: http.FS(sql_migrations.FS),
+	}
+
+	db, err := self.DB()
+	if err != nil {
+		return
+	}
+
+	// n, err := migrate.Exec(db, "postgres", migrations, migrate.Down)
+	// if err != nil {
+	// 	return
+	// }
+
+	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
+	if err != nil {
+		return
+	}
+
+	log.WithField("num", n).Info("Applied migrations")
+
 	// Migrate state changes
 	err = self.AutoMigrate(State{}, BundleItem{})
 	if err != nil {
