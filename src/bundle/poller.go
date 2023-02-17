@@ -21,7 +21,7 @@ type Poller struct {
 	bundleItems chan *model.BundleItem
 }
 
-func NewPoller(config *config.Config, db *gorm.DB) (self *Poller) {
+func NewPoller(config *config.Config) (self *Poller) {
 	self = new(Poller)
 
 	self.Task = task.NewTask(config, "interaction-poller").
@@ -80,10 +80,10 @@ func (self *Poller) check() {
 		self.Log.WithError(err).Error("Failed to get interactions")
 	}
 
-	for _, bundleItem := range bundleItems {
+	for i := range bundleItems {
 		select {
 		case <-self.StopChannel:
-		case self.bundleItems <- &bundleItem:
+		case self.bundleItems <- &bundleItems[i]:
 		}
 	}
 }

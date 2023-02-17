@@ -32,7 +32,7 @@ func NewInteractionMonitor(config *config.Config, db *gorm.DB) (self *Interactio
 		WithDB(db).
 		WithOutputChannel(self.BundleItems)
 
-	self.poller = NewPoller(config, db).
+	self.poller = NewPoller(config).
 		WithDB(db).
 		WithOutputChannel(self.BundleItems)
 

@@ -54,6 +54,8 @@ func (self *BundlerManager) run() (err error) {
 	// Finishes when when the source of items is closed
 	// It should be safe to assume all pending items are processed
 	for item := range self.bundleItems {
+		// Copy the pointer so it's not overwritten in the next iteration
+		item := item
 		self.Workers.Submit(func() {
 			// Fill bundle item
 			bundleItem := new(bundlr.BundleItem)
@@ -90,7 +92,6 @@ func (self *BundlerManager) run() (err error) {
 				// TODO: Is there anything else we can do?
 				self.Log.WithError(err).Error("Failed to mark bundle item as uploaded to Bundlr")
 			}
-
 		})
 
 	}
