@@ -131,7 +131,7 @@ type Config struct {
 	BundlerMaxInteractions int
 
 	// Number of workers that send bundles in parallel
-	BundlerManagerNudWorkers int
+	BundlerNumWorkers int
 
 	Bundlr Bundlr
 }

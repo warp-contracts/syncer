@@ -28,7 +28,7 @@ func NewNotifier(config *config.Config) (self *Notifier) {
 		WithNotificationChannelName("interactions_pending_bundle").
 		WithCapacity(10)
 
-	self.Task = task.NewTask(config, "interaction-notifier").
+	self.Task = task.NewTask(config, "notifier").
 		// Live source of interactions that need to be bundled
 		WithSubtask(self.streamer.Task).
 		// Interactions that somehow wasn't sent through the notification channel. Probably because of a restart.

@@ -9,7 +9,7 @@ import (
 )
 
 // Gets the unbundled interactions and puts them on the output channel
-type InteractionMonitor struct {
+type Collector struct {
 	*task.Task
 
 	notifier *Notifier
@@ -23,8 +23,8 @@ type InteractionMonitor struct {
 // Collects it from two sources:
 // 1. Live source of interactions that need to be bundled
 // 2. Interactions that somehow wasn't sent through the notification channel. Probably because of a restart.
-func NewInteractionMonitor(config *config.Config, db *gorm.DB) (self *InteractionMonitor) {
-	self = new(InteractionMonitor)
+func NewCollector(config *config.Config, db *gorm.DB) (self *Collector) {
+	self = new(Collector)
 
 	self.BundleItems = make(chan *model.BundleItem)
 
@@ -36,7 +36,7 @@ func NewInteractionMonitor(config *config.Config, db *gorm.DB) (self *Interactio
 		WithDB(db).
 		WithOutputChannel(self.BundleItems)
 
-	self.Task = task.NewTask(config, "interaction-monitor").
+	self.Task = task.NewTask(config, "collector").
 		// Live source of interactions
 		WithSubtask(self.notifier.Task).
 		// Polled interactions

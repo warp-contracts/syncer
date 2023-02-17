@@ -10,42 +10,36 @@ import (
 	"gorm.io/gorm"
 )
 
-// Periodically gets the unbundled interactions and puts them on the output channel
-// Gets interactions that somehow didn't get sent through the notification channel.
-// Probably because of a restart.
-type Poller struct {
+// Periodically saves the confirmation state of the bundlet interactions
+// This is done to prevent flooding database with bundle_items state updates
+type Confirmer struct {
 	*task.Task
 	db *gorm.DB
 
 	// Data about the interactions that need to be bundled
-	bundleItems chan *model.BundleItem
+	bundled chan *model.BundleItem
 }
 
-func NewPoller(config *config.Config) (self *Poller) {
-	self = new(Poller)
+func NewConfirmer(config *config.Config) (self *Confirmer) {
+	self = new(Confirmer)
 
-	self.Task = task.NewTask(config, "poller").
-		WithPeriodicSubtaskFunc(10*time.Second, self.runPeriodically).
-		// Worker pool for downloading interactions in parallel
-		// Pool of workers that actually do the check.
-		// It's possible to run multiple requests in parallel.
-		// We're limiting the number of parallel requests with the number of workers.
-		WithWorkerPool(config.InteractionManagerMaxParallelQueries)
+	self.Task = task.NewTask(config, "confirmer").
+		WithPeriodicSubtaskFunc(time.Second, self.runPeriodically)
 
 	return
 }
 
-func (self *Poller) WithDB(db *gorm.DB) *Poller {
+func (self *Confirmer) WithDB(db *gorm.DB) *Confirmer {
 	self.db = db
 	return self
 }
 
-func (self *Poller) WithOutputChannel(bundleItems chan *model.BundleItem) *Poller {
-	self.bundleItems = bundleItems
+func (self *Confirmer) WithInputChannel(bundled chan *model.BundleItem) *Confirmer {
+	self.bundled = bundled
 	return self
 }
 
-func (self *Poller) runPeriodically() error {
+func (self *Confirmer) runPeriodically() error {
 	self.Log.Debug("Tick")
 	if self.Workers.WaitingQueueSize() > 1 {
 		self.Log.Debug("Too many pending interaction checks")
@@ -57,7 +51,7 @@ func (self *Poller) runPeriodically() error {
 	return nil
 }
 
-func (self *Poller) check() {
+func (self *Confirmer) check() {
 	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.InteractionManagerTimeout)
 	defer cancel()
 

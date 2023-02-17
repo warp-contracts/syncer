@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type BundlerManager struct {
+type Bundler struct {
 	*task.Task
 	db          *gorm.DB
 	bundleItems chan *model.BundleItem
@@ -21,16 +21,16 @@ type BundlerManager struct {
 	signer       *bundlr.Signer
 }
 
-// Main class that orchestrates main syncer functionalities
-func NewBundlerManager(config *config.Config, db *gorm.DB) (self *BundlerManager) {
-	self = new(BundlerManager)
+// Receives bundle items from the input channel and sends them to bundlr
+func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
+	self = new(Bundler)
 	self.db = db
 
-	self.Task = task.NewTask(config, "bundler-manager").
+	self.Task = task.NewTask(config, "bundler").
 		// Pool of workers that perform requests to bundlr.
 		// It's possible to run multiple requests in parallel.
 		// We're limiting the number of parallel requests with the number of workers.
-		WithWorkerPool(config.BundlerManagerNudWorkers).
+		WithWorkerPool(config.BundlerNumWorkers).
 		WithSubtaskFunc(self.run)
 
 	self.bundlrClient = bundlr.NewClient(self.Ctx, &config.Bundlr)
@@ -44,12 +44,12 @@ func NewBundlerManager(config *config.Config, db *gorm.DB) (self *BundlerManager
 	return
 }
 
-func (self *BundlerManager) WithInputChannel(in chan *model.BundleItem) *BundlerManager {
+func (self *Bundler) WithInputChannel(in chan *model.BundleItem) *Bundler {
 	self.bundleItems = in
 	return self
 }
 
-func (self *BundlerManager) run() (err error) {
+func (self *Bundler) run() (err error) {
 	// Waits for new set of interactions to bundle
 	// Finishes when when the source of items is closed
 	// It should be safe to assume all pending items are processed

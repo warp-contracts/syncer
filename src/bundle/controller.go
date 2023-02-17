@@ -22,10 +22,10 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	}
 
 	// Gets interactions to bundle from the database
-	interactionMonitor := NewInteractionMonitor(config, db)
+	interactionMonitor := NewCollector(config, db)
 
 	// Sends interactions to bundler
-	bundlerManager := NewBundlerManager(config, db).
+	bundlerManager := NewBundler(config, db).
 		WithInputChannel(interactionMonitor.BundleItems)
 	if err != nil {
 		return
