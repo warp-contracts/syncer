@@ -10,6 +10,19 @@ type Controller struct {
 	*task.Task
 }
 
+// +---------------+
+// |   Collector   |
+// |               |
+// |               |
+// | +-----------+ |
+// | |  Poller   | |             +----------+         +-----------+
+// | +-----------+ |     tx      |          |   id    |           |
+// |               +------------>| Bundler  +-------->| Confirmer |
+// | +-----------+ |             |          |         |           |
+// | |  Notifier | |             +----------+         +-----------+
+// | +-----------+ |
+// |               |
+// +---------------+
 // Main class that orchestrates main syncer functionalities
 func NewController(config *config.Config) (self *Controller, err error) {
 	self = new(Controller)

@@ -25,7 +25,7 @@ func NewNotifier(config *config.Config) (self *Notifier) {
 	self = new(Notifier)
 
 	self.streamer = notify.NewStreamer(config).
-		WithNotificationChannelName("interactions_pending_bundle").
+		WithNotificationChannelName("bundle_items_pending").
 		WithCapacity(10)
 
 	self.Task = task.NewTask(config, "notifier").
@@ -59,7 +59,7 @@ func (self *Notifier) run() error {
 			if !ok {
 				self.Log.Error("Streamer channel closed")
 			}
-
+			self.Log.Info("Stuff")
 			self.Workers.Submit(func() {
 				var notification model.BundleItemNotification
 				err := json.Unmarshal([]byte(msg), &notification)
@@ -68,13 +68,20 @@ func (self *Notifier) run() error {
 					return
 				}
 
-				if notification.IsEmpty {
+				bundleItem := model.BundleItem{
+					InteractionID: notification.InteractionID,
+				}
+				if notification.Transaction != nil {
+					// FIXME: This copies a lot of data
+					bundleItem.Transaction = *notification.Transaction
+				} else {
 					// Transaction was too big to fit into the notification channel
 					// Only id is there, we need to fetch the rest of the data from the database
 					err = self.db.WithContext(self.Ctx).
 						Model(&model.BundleItem{}).
-						Where("interaction_id = ?", notification.BundleItem.InteractionID).
-						Scan(&notification.BundleItem).
+						Select("transaction").
+						Where("interaction_id = ?", notification.InteractionID).
+						Scan(&bundleItem).
 						Error
 					if err != nil {
 						self.Log.WithError(err).Error("Failed to get bundle item")
@@ -82,7 +89,7 @@ func (self *Notifier) run() error {
 					}
 				}
 
-				self.bundleItems <- &notification.BundleItem
+				self.bundleItems <- &bundleItem
 			})
 		}
 	}

@@ -11,7 +11,7 @@ DECLARE
 BEGIN
 	UPDATE bundle_items 
 	SET state = 'UPLOADING'::bundle_state 
-	WHERE intearction_id = NEW.intearction_id
+	WHERE interaction_id = NEW.interaction_id
 	AND state = 'PENDING'::bundle_state
 	RETURNING TRUE INTO is_uploading;
 

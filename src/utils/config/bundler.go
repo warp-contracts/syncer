@@ -29,7 +29,7 @@ type Bundler struct {
 func setBundlerDefaults() {
 	viper.SetDefault("Bundler.PollerInterval", "10s")
 	viper.SetDefault("Bundler.PollerTimeout", "90s")
-	viper.SetDefault("Bundler.PollerMaxParallelQueries", "5")
+	viper.SetDefault("Bundler.PollerMaxParallelQueries", "50")
 	viper.SetDefault("Bundler.PollerMaxDownloadedBatchSize", "100")
 	viper.SetDefault("Bundler.ConfirmerMaxBatchSize", "1000")
 	viper.SetDefault("Bundler.BundlerNumBundlingWorkers", "2")

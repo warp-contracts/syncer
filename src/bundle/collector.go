@@ -26,7 +26,7 @@ type Collector struct {
 func NewCollector(config *config.Config, db *gorm.DB) (self *Collector) {
 	self = new(Collector)
 
-	self.BundleItems = make(chan *model.BundleItem)
+	self.BundleItems = make(chan *model.BundleItem, 100)
 
 	self.notifier = NewNotifier(config).
 		WithDB(db).
