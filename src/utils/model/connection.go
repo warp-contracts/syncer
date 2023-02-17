@@ -57,11 +57,6 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 		return
 	}
 
-	// n, err := migrate.Exec(db, "postgres", migrations, migrate.Down)
-	// if err != nil {
-	// 	return
-	// }
-
 	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
 	if err != nil {
 		return
