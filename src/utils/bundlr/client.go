@@ -17,7 +17,7 @@ func NewClient(ctx context.Context, config *config.Bundlr) (self *Client) {
 	return
 }
 
-func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem) (err error) {
+func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem) (out *UploadResponse, err error) {
 	reader, err := item.Reader(signer)
 	if err != nil {
 		return
@@ -27,15 +27,23 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 	if err != nil {
 		return
 	}
+
 	fmt.Println(body)
 	// self.log.WithField("body", string(body)).Info("Item")
 
 	resp, err := self.Request(ctx).
 		SetBody(body).
+		SetResult(&UploadResponse{}).
 		SetHeader("Content-Type", "application/octet-stream").
 		// SetHeader("x-proof-type", "receipt").
 		Post("/tx")
 	if err != nil {
+		return
+	}
+
+	out, ok := resp.Result().(*UploadResponse)
+	if !ok {
+		err = ErrFailedToParse
 		return
 	}
 

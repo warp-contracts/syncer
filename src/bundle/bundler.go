@@ -21,14 +21,14 @@ type Bundler struct {
 	signer       *bundlr.Signer
 
 	// Ids of successfully bundled interactions
-	Bundled chan int
+	Bundled chan *Confirmation
 }
 
 // Receives bundle items from the input channel and sends them to bundlr
 func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 	self = new(Bundler)
 	self.db = db
-	self.Bundled = make(chan int)
+	self.Bundled = make(chan *Confirmation)
 
 	self.Task = task.NewTask(config, "bundler").
 		// Pool of workers that perform requests to bundlr.
@@ -80,7 +80,7 @@ func (self *Bundler) run() (err error) {
 			bundleItem.Data = arweave.Base64String(data)
 
 			// Send the bundle item to bundlr
-			err = self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
+			resp, err := self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
 			if err != nil {
 				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to upload interaction to Bundlr")
 			}
@@ -88,7 +88,10 @@ func (self *Bundler) run() (err error) {
 			select {
 			case <-self.Ctx.Done():
 				return
-			case self.Bundled <- item.InteractionID:
+			case self.Bundled <- &Confirmation{
+				InteractionID: item.InteractionID,
+				BundlerTxID:   resp.Id,
+			}:
 			}
 		})
 

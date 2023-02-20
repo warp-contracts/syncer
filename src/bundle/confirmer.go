@@ -18,16 +18,24 @@ type Confirmer struct {
 	db *gorm.DB
 
 	// Data about the interactions that need to be bundled
-	bundled chan int
+	bundled chan *Confirmation
 
 	// Ids of the bundle items that will be confirmed
-	bundledIds deque.Deque[int]
+	confirmations deque.Deque[*Confirmation]
 
 	mtx sync.RWMutex
 }
 
+type Confirmation struct {
+	InteractionID int
+	BundlerTxID   string
+	Signature     string
+}
+
 func NewConfirmer(config *config.Config) (self *Confirmer) {
 	self = new(Confirmer)
+
+	self.confirmations.SetMinCapacity(uint(config.Bundler.ConfirmerMaxBatchSize) * 2)
 
 	self.Task = task.NewTask(config, "confirmer").
 		WithSubtaskFunc(self.receive).
@@ -41,7 +49,7 @@ func (self *Confirmer) WithDB(db *gorm.DB) *Confirmer {
 	return self
 }
 
-func (self *Confirmer) WithInputChannel(bundled chan int) *Confirmer {
+func (self *Confirmer) WithInputChannel(bundled chan *Confirmation) *Confirmer {
 	self.bundled = bundled
 	return self
 }
@@ -49,13 +57,13 @@ func (self *Confirmer) WithInputChannel(bundled chan int) *Confirmer {
 func (self *Confirmer) numPendingConfirmation() int {
 	self.mtx.RLock()
 	defer self.mtx.RUnlock()
-	return self.bundledIds.Len()
+	return self.confirmations.Len()
 }
 
 func (self *Confirmer) receive() error {
 	for id := range self.bundled {
 		self.mtx.Lock()
-		self.bundledIds.PushBack(id)
+		self.confirmations.PushBack(id)
 		self.mtx.Unlock()
 	}
 	return nil
@@ -63,12 +71,13 @@ func (self *Confirmer) receive() error {
 
 func (self *Confirmer) updatePeriodically() error {
 	if self.numPendingConfirmation() > 10000 {
-		self.Log.WithField("len", self.bundledIds.Len()).Warn("Too many interactions to confirm")
+		self.Log.WithField("len", self.confirmations.Len()).Warn("Too many interactions to confirm")
 	}
 
+	// Repeat while there are still confirmations in the queue
 	for {
 		self.mtx.Lock()
-		size := self.bundledIds.Len()
+		size := self.confirmations.Len()
 		if size == 0 {
 			self.mtx.Unlock()
 			break
@@ -78,23 +87,40 @@ func (self *Confirmer) updatePeriodically() error {
 			size = self.Config.Bundler.ConfirmerMaxBatchSize
 		}
 
-		ids := make([]int, 0, size)
-
+		// Copy data to avoid locking for too long
+		confirmations := make([]*Confirmation, 0, size)
 		// Fill batch
 		for i := 0; i < size; i++ {
-			ids = append(ids, self.bundledIds.PopFront())
+			confirmations = append(confirmations, self.confirmations.PopFront())
 		}
 		self.mtx.Unlock()
 
-		// Mark successfuly sent bundles as UPLOADED
-		err := self.db.Model(&model.BundleItem{}).
-			Where("interaction_id IN ?", ids).
-			Where("state = ?", model.BundleStateUploading).
-			Update("state", model.BundleStateUploaded).
-			Error
+		// Uses one transaction to do all the updates
+		// NOTE: It still uses many requests to the database,
+		// it should be possible to combine updates into batches, but it's not a priority for now.
+		err := self.db.Transaction(func(tx *gorm.DB) error {
+			for _, confirmation := range confirmations {
+				err := tx.Model(&model.BundleItem{}).
+					Where("interaction_id = ?", confirmation.InteractionID).
+					Where("state = ?", model.BundleStateUploading).
+					Update("state", model.BundleStateUploaded).
+					Error
+				if err != nil {
+					return err
+				}
+
+				err = tx.Model(&model.Interaction{}).
+					Where("id = ?", confirmation.InteractionID).
+					Update("bundler_tx_id", confirmation.BundlerTxID).
+					Error
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
 		if err != nil {
-			// TODO: Is there anything else we can do?
-			self.Log.WithError(err).Error("Failed to mark bundle item as uploaded to Bundlr")
+			return err
 		}
 	}
 	return nil

@@ -39,6 +39,7 @@ func (s *ClientTestSuite) TestEmptryBundleItem() {
 		Data: []byte("asdf"),
 		Tags: Tags{Tag{Name: "name", Value: "value"}},
 	}
-	err := s.client.Upload(s.ctx, s.signer, item)
+	resp, err := s.client.Upload(s.ctx, s.signer, item)
 	require.Nil(s.T(), err)
+	require.NotNil(s.T(), resp)
 }
