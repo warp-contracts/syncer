@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"syncer/src/utils/bundlr/responses"
 	"syncer/src/utils/config"
 )
 
@@ -17,7 +18,7 @@ func NewClient(ctx context.Context, config *config.Bundlr) (self *Client) {
 	return
 }
 
-func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem) (out *UploadResponse, err error) {
+func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem) (out *responses.Upload, err error) {
 	reader, err := item.Reader(signer)
 	if err != nil {
 		return
@@ -33,7 +34,8 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 
 	resp, err := self.Request(ctx).
 		SetBody(body).
-		SetResult(&UploadResponse{}).
+		SetResult(&responses.Upload{}).
+		ForceContentType("application/json").
 		SetHeader("Content-Type", "application/octet-stream").
 		// SetHeader("x-proof-type", "receipt").
 		Post("/tx")
@@ -41,13 +43,32 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 		return
 	}
 
-	out, ok := resp.Result().(*UploadResponse)
+	out, ok := resp.Result().(*responses.Upload)
 	if !ok {
 		err = ErrFailedToParse
 		return
 	}
 
 	self.log.WithField("resp", resp.Body()).Info("Uploaded to bundler")
+
+	return
+}
+
+func (self *Client) GetStatus(ctx context.Context, id string) (out *responses.Status, err error) {
+	resp, err := self.Request(ctx).
+		SetResult(&responses.Status{}).
+		ForceContentType("application/json").
+		SetPathParam("tx_id", id).
+		Post("/tx/{tx_id}/status")
+	if err != nil {
+		return
+	}
+
+	out, ok := resp.Result().(*responses.Status)
+	if !ok {
+		err = ErrFailedToParse
+		return
+	}
 
 	return
 }

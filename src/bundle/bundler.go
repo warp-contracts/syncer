@@ -37,8 +37,6 @@ func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 		WithWorkerPool(config.Bundler.PollerMaxParallelQueries).
 		WithSubtaskFunc(self.run)
 
-	self.bundlrClient = bundlr.NewClient(self.Ctx, &config.Bundlr)
-
 	var err error
 	self.signer, err = bundlr.NewSigner(config.Bundlr.Wallet)
 	if err != nil {
@@ -46,6 +44,11 @@ func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 	}
 
 	return
+}
+
+func (self *Bundler) WithClient(client *bundlr.Client) *Bundler {
+	self.bundlrClient = client
+	return self
 }
 
 func (self *Bundler) WithInputChannel(in chan *model.BundleItem) *Bundler {

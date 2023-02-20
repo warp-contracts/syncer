@@ -42,7 +42,7 @@ type Interaction struct {
 	// Confirmations     string
 
 	// Not needed:
-	// BundlerTxId       string
+	BundlerTxId string
 	// LastSortKey       string
 }
 

@@ -1,6 +1,6 @@
-package bundlr
+package responses
 
-type UploadResponse struct {
+type Upload struct {
 	Id string `json:"id"`
 	// Signature string `json:"signature"`
 }

@@ -34,7 +34,7 @@ func (s *ClientTestSuite) TearDownSuite() {
 	s.cancel()
 }
 
-func (s *ClientTestSuite) TestEmptryBundleItem() {
+func (s *ClientTestSuite) TestUpload() {
 	item := &BundleItem{
 		Data: []byte("asdf"),
 		Tags: Tags{Tag{Name: "name", Value: "value"}},
@@ -42,4 +42,8 @@ func (s *ClientTestSuite) TestEmptryBundleItem() {
 	resp, err := s.client.Upload(s.ctx, s.signer, item)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), resp)
+
+	status, err := s.client.GetStatus(s.ctx, resp.Id)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), status)
 }
