@@ -13,7 +13,6 @@ import (
 	migrate "github.com/rubenv/sql-migrate"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 )
 
@@ -63,22 +62,6 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 	}
 
 	log.WithField("num", n).Info("Applied migrations")
-
-	// Migrate state changes
-	err = self.AutoMigrate(State{}, BundleItem{})
-	if err != nil {
-		return
-	}
-
-	// Ensure there's syncer_state has one row inserted
-	self.Clauses(clause.OnConflict{
-		// Columns:   cols,
-		// DoUpdates: clause.AssignmentColumns(colsNames),
-		DoNothing: true,
-	}).
-		Create(&State{
-			Id: 1,
-		})
 
 	return
 }
