@@ -13,21 +13,24 @@ func init() {
 
 var syncCmd = &cobra.Command{
 	Use:   "sync",
-	Short: "Listen for changes from Arweave nodes and save to the database",
+	Short: "Save L1 interactions to the database",
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
-		sync, err := sync.NewController(conf)
+		controller, err := sync.NewController(conf)
 		if err != nil {
 			return
 		}
 
-		sync.Start()
+		err = controller.Start()
+		if err != nil {
+			return
+		}
 
 		select {
-		case <-sync.Ctx.Done():
+		case <-controller.CtxRunning.Done():
 		case <-applicationCtx.Done():
 		}
 
-		sync.StopWait()
+		controller.StopWait()
 
 		return
 	},

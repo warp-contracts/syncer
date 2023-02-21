@@ -2,20 +2,16 @@ package sync
 
 import (
 	"errors"
-	"sync/atomic"
-	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
-	"syncer/src/utils/logger"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitor"
+	"syncer/src/utils/task"
 
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -23,103 +19,47 @@ import (
 // - groups incoming Interactions into batches,
 // - ensures data isn't stuck even if a batch isn't big enough
 type Store struct {
-	Ctx    context.Context
-	cancel context.CancelFunc
+	*task.Task
 
-	config *config.Config
-	log    *logrus.Entry
-	input  chan *listener.Payload
-	DB     *gorm.DB
+	input chan *listener.Payload
+
+	DB *gorm.DB
 
 	monitor *monitor.Monitor
-
-	stopChannel chan bool
-	isStopping  *atomic.Bool
 }
 
-func NewStore(config *config.Config, monitor *monitor.Monitor) (self *Store) {
+func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
-	self.log = logger.NewSublogger("store")
-	self.config = config
-	self.monitor = monitor
 
-	// Store's context, active as long as there's anything running in Store
-	self.Ctx, self.cancel = context.WithCancel(context.Background())
-	self.Ctx = common.SetConfig(self.Ctx, config)
+	self.Task = task.NewTask(config, "store").
+		WithSubtaskFunc(self.run)
 
-	// Internal channel for closing the underlying goroutine
-	self.stopChannel = make(chan bool, 1)
-
-	// Incoming interactions channel
-	self.input = make(chan *listener.Payload)
-
-	// Variable used for avoiding stopping Store two times upon panics/errors and saving to stopped Store
-	self.isStopping = &atomic.Bool{}
 	return
 }
 
-func (self *Store) connect() (err error) {
-	if self.DB != nil {
-		// Just check the connection
-		err = model.Ping(self.Ctx, self.DB)
-		if err == nil {
-			return nil
-		}
-
-		self.log.WithError(err).Warn("Ping failed, restarting connection")
-	}
-	self.DB, err = model.NewConnection(self.Ctx, self.config)
-	if err != nil {
-		return
-	}
-	self.log.Info("Connection established")
-	return
+func (self *Store) WithMonitor(v *monitor.Monitor) *Store {
+	self.monitor = v
+	return self
 }
 
-func (self *Store) Start() (err error) {
-	self.log.Info("Starting Store...")
+func (self *Store) WithInputChannel(v chan *listener.Payload) *Store {
+	self.input = v
+	return self
+}
 
-	// Connection to the database
-	err = self.connect()
-	if err != nil {
-		return
-	}
-
-	go func() {
-		defer func() {
-			// run() finished, so it's time to cancel Store's context
-			// NOTE: This should be the only place self.Ctx is cancelled
-			self.cancel()
-
-			var err error
-			if p := recover(); p != nil {
-				switch p := p.(type) {
-				case error:
-					err = p
-				default:
-					err = fmt.Errorf("%s", p)
-				}
-				self.log.WithError(err).Error("Panic in Store. Stopping.")
-				panic(p)
-			}
-		}()
-		err := self.run()
-		if err != nil {
-			self.log.WithError(err).Error("Error in run()")
-		}
-	}()
-
-	return
+func (self *Store) WithDB(v *gorm.DB) *Store {
+	self.DB = v
+	return self
 }
 
 func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransactionBlockHeight int64) (err error) {
 	operation := func() error {
-		self.log.WithField("length", len(pendingInteractions)).Debug("Insert batch of interactions")
+		self.Log.WithField("length", len(pendingInteractions)).Debug("Insert batch of interactions")
 		return self.DB.WithContext(self.Ctx).
 			Transaction(func(tx *gorm.DB) error {
 				err = self.setLastTransactionBlockHeight(self.Ctx, tx, lastTransactionBlockHeight)
 				if err != nil {
-					self.log.WithError(err).Error("Failed to update last transaction block height")
+					self.Log.WithError(err).Error("Failed to update last transaction block height")
 					self.monitor.Increment(monitor.Kind(monitor.DbLastTransactionBlockHeightError))
 					return err
 				}
@@ -133,8 +73,8 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 					CreateInBatches(pendingInteractions, len(pendingInteractions)).
 					Error
 				if err != nil {
-					self.log.WithError(err).Error("Failed to insert Interactions")
-					self.log.WithField("interactions", pendingInteractions).Debug("Failed interactions")
+					self.Log.WithError(err).Error("Failed to insert Interactions")
+					self.Log.WithField("interactions", pendingInteractions).Debug("Failed interactions")
 					self.monitor.Increment(monitor.Kind(monitor.DbInteraction))
 					return err
 				}
@@ -142,7 +82,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 			})
 	}
 
-	if self.isStopping.Load() {
+	if self.IsStopping.Load() {
 		return
 	}
 
@@ -151,7 +91,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 	// Wait at most 30s between retries
 	b := backoff.NewExponentialBackOff()
 	b.MaxElapsedTime = 0
-	b.MaxInterval = self.config.StoreMaxBackoffInterval
+	b.MaxInterval = self.Config.StoreMaxBackoffInterval
 
 	return backoff.Retry(operation, b)
 
@@ -160,7 +100,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 // Receives data from the input channel and saves in the database
 func (self *Store) run() (err error) {
 	// Used to ensure data isn't stuck in Syncer for too long
-	ticker := time.NewTicker(self.config.StoreMaxTimeInQueue)
+	ticker := time.NewTicker(self.Config.StoreMaxTimeInQueue)
 
 	var pendingInteractions []*model.Interaction
 	var lastTransactionBlockHeight int64
@@ -169,7 +109,7 @@ func (self *Store) run() (err error) {
 		err = self.insert(pendingInteractions, lastTransactionBlockHeight)
 		if err != nil {
 			// This is a terminal error, it already tried to retry
-			self.log.WithError(err).Error("Failed to insert data")
+			self.Log.WithError(err).Error("Failed to insert data")
 
 			// Trigger stopping
 			self.Stop()
@@ -180,16 +120,14 @@ func (self *Store) run() (err error) {
 		pendingInteractions = nil
 
 		// Prolong time to forced insert
-		ticker.Reset(self.config.StoreMaxTimeInQueue)
+		ticker.Reset(self.Config.StoreMaxTimeInQueue)
 	}
 
 	for {
 		select {
-		case <-self.stopChannel:
+		case <-self.CtxRunning.Done():
 			// Stop was requested, close the input channel
 			// Won't accept new data, but will process pending
-			ticker.Stop()
-			close(self.input)
 
 		case payload, ok := <-self.input:
 			if !ok {
@@ -197,71 +135,25 @@ func (self *Store) run() (err error) {
 				// There will be no more data, insert everything there is and quit.
 				insert()
 
-				// NOTE: This (and panic()) is the only way to quit run()
 				return
 			}
 
-			self.log.WithField("height", payload.BlockHeight).WithField("num_interactions", len(pendingInteractions)).Info("Got block")
+			self.Log.WithField("height", payload.BlockHeight).WithField("num_interactions", len(pendingInteractions)).Info("Got block")
 			lastTransactionBlockHeight = payload.BlockHeight
 
 			pendingInteractions = append(pendingInteractions, payload.Interactions...)
 
-			if len(pendingInteractions) >= self.config.StoreBatchSize {
+			if len(pendingInteractions) >= self.Config.StoreBatchSize {
 				insert()
 			}
 
 		case <-ticker.C:
 			if len(pendingInteractions) > 0 {
-				self.log.Debug("Batch timed out, trigger insert")
+				self.Log.Debug("Batch timed out, trigger insert")
 				insert()
 			}
 		}
 	}
-}
-
-func (self *Store) Save(ctx context.Context, payload *listener.Payload) (err error) {
-	if self.isStopping.Load() {
-		self.log.Error("Tried to store interaction after Store got stopped. Something's wrong in stopping order.")
-		return
-	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case self.input <- payload:
-	}
-	return
-}
-
-func (self *Store) Stop() {
-	if self.isStopping.CompareAndSwap(false, true) {
-		self.log.Info("Stopping Store")
-		self.stopChannel <- true
-	}
-}
-
-func (self *Store) StopWait() {
-	self.log.Info("Stopping Store and wait")
-
-	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(context.Background(), self.config.StopTimeout)
-	defer cancel()
-
-	self.Stop()
-
-	// Store's context will be cancelled only after processing all pending messages
-	select {
-	case <-ctx.Done():
-		self.log.Error("Timeout reached, some data may have been not stored")
-	case <-self.Ctx.Done():
-		self.log.Info("Store stopped")
-	}
-
-}
-
-func (self *Store) GetLastTransactionBlockHeight(ctx context.Context) (out int64, err error) {
-	var state model.State
-	err = self.DB.WithContext(ctx).First(&state).Error
-	return state.LastTransactionBlockHeight, err
 }
 
 func (self *Store) setLastTransactionBlockHeight(ctx context.Context, tx *gorm.DB, value int64) (err error) {

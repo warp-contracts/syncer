@@ -4,157 +4,73 @@ import (
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
-	"syncer/src/utils/logger"
+	"syncer/src/utils/model"
 	"syncer/src/utils/monitor"
-	"syncer/src/utils/peer_monitor"
-
-	"context"
-	"fmt"
-
-	"github.com/sirupsen/logrus"
+	"syncer/src/utils/task"
 )
 
 type Controller struct {
-	Ctx    context.Context
-	cancel context.CancelFunc
-
-	config *config.Config
-	log    *logrus.Entry
-
-	stopChannel chan bool
-	// stopOnce    sync.Once
-
-	server  *Server
-	monitor *monitor.Monitor
+	*task.Task
 }
 
 // Main class that orchestrates main syncer functionalities
 // Setups listening and storing interactions
 func NewController(config *config.Config) (self *Controller, err error) {
 	self = new(Controller)
-	self.log = logger.NewSublogger("controller")
-	self.config = config
 
-	// Controller's context, it's valid as long the controller is running.
-	self.Ctx, self.cancel = context.WithCancel(context.Background())
+	self.Task = task.NewTask(config, "controller")
 
-	// Internal channel for closing the underlying goroutine
-	self.stopChannel = make(chan bool, 1)
+	client := arweave.NewClient(self.Ctx, config)
 
-	self.monitor = monitor.NewMonitor()
-
-	// REST server API, healthchecks
-	self.server, err = NewServer(config, self.monitor)
+	db, err := model.NewConnection(self.Ctx, self.Config)
 	if err != nil {
 		return
 	}
+
+	monitor := monitor.NewMonitor()
+
+	networkMonitor := listener.NewNetworkMonitor(config).
+		WithClient(client).
+		WithMonitor(monitor).
+		WithInterval(config.ListenerPeriod).
+		WithRequiredConfirmationBlocks(config.ListenerRequiredConfirmationBlocks)
+
+	blockMonitor := listener.NewBlockMonitor(config).
+		WithClient(client).
+		WithInput(networkMonitor.Output).
+		WithMonitor(monitor)
+
+	blockMonitor.Task = blockMonitor.WithOnBeforeStart(func() (err error) {
+		// Get the last storeserverd block height from the database
+		var state model.State
+		err = db.WithContext(self.Ctx).First(&state).Error
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to get last transaction block height")
+			return
+		}
+
+		blockMonitor.SetStartHeight(state.LastTransactionBlockHeight)
+		return
+	})
+
+	transactionMonitor := listener.NewTransactionMonitor(config).
+		WithInput(blockMonitor.Output).
+		WithMonitor(monitor)
+
+	store := NewStore(config).
+		WithInputChannel(transactionMonitor.Output).
+		WithMonitor(monitor).
+		WithDB(db)
+
+		// REST server API, healthchecks
+	server := NewServer(config).WithMonitor(monitor)
+
+	self.Task = self.Task.
+		WithSubtask(store.Task).
+		WithSubtask(networkMonitor.Task).
+		WithSubtask(blockMonitor.Task).
+		WithSubtask(transactionMonitor.Task).
+		WithSubtask(server.Task)
 
 	return
-}
-
-func (self *Controller) Start() {
-	// REST API server
-	self.server.Start()
-
-	go func() {
-		defer func() {
-			// run() finished, so it's time to cancel Controller's context
-			// NOTE: This should be the only place self.Ctx is cancelled
-			self.cancel()
-
-			var err error
-			if p := recover(); p != nil {
-				switch p := p.(type) {
-				case error:
-					err = p
-				default:
-					err = fmt.Errorf("%s", p)
-				}
-				self.log.WithError(err).Error("Panic in sync. Stopping.")
-				panic(p)
-			}
-		}()
-
-		err := self.run()
-		if err != nil {
-			self.log.WithError(err).Error("Controller finished with an error")
-		}
-	}()
-}
-
-func (self *Controller) run() (err error) {
-	// Stores interactions
-	store := NewStore(self.config, self.monitor)
-	err = store.Start()
-	if err != nil {
-		self.log.WithError(err).Error("Failed to start Store")
-		return
-	}
-	defer store.StopWait()
-
-	// Get the last stored block height
-	startHeight, err := store.GetLastTransactionBlockHeight(self.Ctx)
-	if err != nil {
-		self.log.WithError(err).Error("Failed to get last transaction block height")
-		return
-	}
-
-	client := arweave.NewClient(self.Ctx, self.config)
-	// Monitoring peers reported from the "main" node
-	peerMonitor := peer_monitor.NewPeerMonitor(self.config).
-		WithClient(client)
-	peerMonitor.Start()
-	defer peerMonitor.StopWait()
-
-	// Listening for arweave transactions
-	listener := listener.NewListener(self.config).
-		WithMonitor(self.monitor).
-		WithStartHeight(startHeight).
-		WithClient(client)
-
-	listener.Start()
-	defer listener.StopWait()
-
-	for {
-		select {
-		case <-self.stopChannel:
-			self.log.Info("Controller is stopping")
-			listener.Stop()
-			peerMonitor.Stop()
-		case payload, ok := <-listener.PayloadChannel:
-			if !ok {
-				// Listener stopped
-				self.log.Error("Listener stopped")
-				return
-			}
-
-			err = store.Save(self.Ctx, payload)
-			if err != nil {
-				self.log.WithError(err).Error("Failed to store payload")
-				// Log the error, but neglect it
-			}
-		}
-	}
-}
-
-func (self *Controller) StopWait() {
-	self.log.Info("Stopping Controller...")
-
-	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(self.Ctx, self.config.ArCheckPeerTimeout)
-	defer cancel()
-
-	// Trigger stopping
-	self.stopChannel <- true
-
-	// Wait for the pending messages to be sent
-	select {
-	case <-ctx.Done():
-		self.log.Error("Timeout reached, some data may have been not sent")
-	case <-self.Ctx.Done():
-		self.log.Info("Controller stopped")
-	}
-
-	// Stop REST API server
-	self.server.StopWait()
 }

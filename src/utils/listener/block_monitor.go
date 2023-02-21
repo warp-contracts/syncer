@@ -1,7 +1,9 @@
 package listener
 
 import (
+	"context"
 	"encoding/base64"
+	"errors"
 	"sync"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
@@ -26,7 +28,7 @@ type BlockMonitor struct {
 }
 
 // Using Arweave client periodically checks for blocks of transactions
-func NewBlockMonitor(config *config.Config, interval time.Duration) (self *BlockMonitor) {
+func NewBlockMonitor(config *config.Config) (self *BlockMonitor) {
 	self = new(BlockMonitor)
 
 	self.Output = make(chan *Payload)
@@ -51,9 +53,8 @@ func (self *BlockMonitor) WithClient(client *arweave.Client) *BlockMonitor {
 	return self
 }
 
-func (self *BlockMonitor) WithStartHeight(v int64) *BlockMonitor {
+func (self *BlockMonitor) SetStartHeight(v int64) {
 	self.startHeight = v
-	return self
 }
 
 func (self *BlockMonitor) WithInput(v chan *arweave.NetworkInfo) *BlockMonitor {
@@ -155,6 +156,9 @@ func (self *BlockMonitor) downloadTransactions(block *arweave.Block) (out []*arw
 
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {
+					if errors.Is(err, context.Canceled) {
+						return
+					}
 					self.Log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, retrying after timeout")
 
 					// This will completly reset the HTTP client and possibly help in solving the problem

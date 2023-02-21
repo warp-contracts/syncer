@@ -27,13 +27,12 @@ type NetworkMonitor struct {
 }
 
 // Using Arweave client periodically checks for blocks of transactions
-func NewNetworkMonitor(config *config.Config, interval time.Duration) (self *NetworkMonitor) {
+func NewNetworkMonitor(config *config.Config) (self *NetworkMonitor) {
 	self = new(NetworkMonitor)
 
 	self.Output = make(chan *arweave.NetworkInfo, 1)
 
 	self.Task = task.NewTask(config, "network-monitor").
-		WithPeriodicSubtaskFunc(interval, self.runPeriodically).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})
@@ -52,6 +51,11 @@ func (self *NetworkMonitor) WithClient(client *arweave.Client) *NetworkMonitor {
 
 func (self *NetworkMonitor) WithRequiredConfirmationBlocks(requiredConfirmationBlocks int64) *NetworkMonitor {
 	self.requiredConfirmationBlocks = requiredConfirmationBlocks
+	return self
+}
+
+func (self *NetworkMonitor) WithInterval(interval time.Duration) *NetworkMonitor {
+	self.Task = self.Task.WithPeriodicSubtaskFunc(interval, self.runPeriodically)
 	return self
 }
 

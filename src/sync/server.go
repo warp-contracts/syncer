@@ -2,22 +2,17 @@ package sync
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"syncer/src/utils/config"
-	"syncer/src/utils/logger"
 	"syncer/src/utils/monitor"
+	"syncer/src/utils/task"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 // Rest API server
 type Server struct {
-	Ctx    context.Context
-	cancel context.CancelFunc
-	config *config.Config
-	log    *logrus.Entry
+	*task.Task
 
 	httpServer *http.Server
 	Router     *gin.Engine
@@ -25,12 +20,18 @@ type Server struct {
 	Monitor *monitor.Monitor
 }
 
-func NewServer(config *config.Config, monitor *monitor.Monitor) (self *Server, err error) {
+func NewServer(config *config.Config) (self *Server) {
 	self = new(Server)
-	self.log = logger.NewSublogger("server")
-	self.config = config
 
-	self.Ctx, self.cancel = context.WithCancel(context.Background())
+	self.Task = task.NewTask(config, "server").
+		WithSubtaskFunc(self.run).
+		WithOnStop(self.stop)
+
+	return
+}
+
+func (self *Server) WithMonitor(monitor *monitor.Monitor) *Server {
+	self.Monitor = monitor
 
 	// Setup router
 	self.Router = gin.New()
@@ -42,51 +43,29 @@ func NewServer(config *config.Config, monitor *monitor.Monitor) (self *Server, e
 	}
 
 	self.httpServer = &http.Server{
-		Addr:    self.config.RESTListenAddress,
+		Addr:    self.Config.RESTListenAddress,
 		Handler: self.Router,
 	}
-	return
+	return self
 }
 
-func (self *Server) Start() {
-	go func() {
-		defer func() {
-			// run() finished, so it's time to cancel Listener's context
-			// NOTE: This should be the only place self.Ctx is cancelled
-			self.cancel()
-
-			var err error
-			if p := recover(); p != nil {
-				switch p := p.(type) {
-				case error:
-					err = p
-				default:
-					err = fmt.Errorf("%s", p)
-				}
-				self.log.WithError(err).Error("Panic in Server. Stopping.")
-
-				// NOTE: Panics in listener are suppressed
-				// because syncer is using panics for reporting errors...
-				panic(p)
-			}
-		}()
-		self.log.Info("Started REST server")
-		if err := self.httpServer.ListenAndServe(); err != nil {
-			self.log.WithError(err).Info("REST server finished")
-		}
-	}()
+func (self *Server) run() (err error) {
+	self.Log.Info("Started REST server")
+	err = self.httpServer.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		self.Log.WithError(err).Error("Failed to start REST server")
+		return
+	}
+	return nil
 }
 
-func (self *Server) StopWait() {
-	self.log.Info("Stopping server")
-
-	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(context.Background(), self.config.StopTimeout)
+func (self *Server) stop() {
+	ctx, cancel := context.WithTimeout(context.Background(), self.Config.StopTimeout)
 	defer cancel()
 
 	err := self.httpServer.Shutdown(ctx)
 	if err != nil {
-		self.log.WithError(err).Error("Failed to gracefully shutdown REST server")
+		self.Log.WithError(err).Error("Failed to gracefully shutdown REST server")
 		return
 	}
 }

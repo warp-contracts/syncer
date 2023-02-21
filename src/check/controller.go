@@ -6,6 +6,7 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
+	"syncer/src/utils/peer_monitor"
 	"syncer/src/utils/task"
 )
 
@@ -27,12 +28,16 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Arweave client
 	client := arweave.NewClient(self.CtxRunning, config)
 
+	peerMonitor := peer_monitor.NewPeerMonitor(config).
+		WithClient(client)
+
 	// Bundlr client
 	bundlrClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
 
 	// Gets network height from WARP's GW
-	networkMonitor := listener.NewNetworkMonitor(config, config.Bundler.CheckerInterval).
+	networkMonitor := listener.NewNetworkMonitor(config).
 		WithClient(client).
+		WithInterval(config.Bundler.CheckerInterval).
 		WithRequiredConfirmationBlocks(0)
 
 		// Gets interactions that may be finalized from the db
@@ -52,6 +57,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
 		WithSubtask(networkMonitor.Task).
+		WithSubtask(peerMonitor.Task).
 		WithSubtask(poller.Task).
 		WithSubtask(checker.Task).
 		WithSubtask(store.Task)

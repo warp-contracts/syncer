@@ -7,7 +7,6 @@ import (
 	"syncer/src/utils/monitor"
 	"syncer/src/utils/task"
 	"syncer/src/utils/warp"
-	"time"
 )
 
 // Task that periodically checks for new arweave network info.
@@ -23,7 +22,7 @@ type TransactionMonitor struct {
 }
 
 // Using Arweave client periodically checks for blocks of transactions
-func NewTransactionMonitor(config *config.Config, interval time.Duration) (self *TransactionMonitor) {
+func NewTransactionMonitor(config *config.Config) (self *TransactionMonitor) {
 	self = new(TransactionMonitor)
 
 	self.Task = task.NewTask(config, "transaction-monitor").
