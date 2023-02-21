@@ -46,15 +46,6 @@ type Listener struct {
 	startHeight int64
 }
 
-// Using Arweave client periodically checks for blocks of transactions
-// When a new block is found it downloads the transactions and emits them into a channel
-//
-// +-----------+               +-------------+                     +----------------+
-// |           |               |             |                     |                |
-// |  Network  | heightChannel |   Block     | TransactionChannel  |   Transaction  |  PayloadChannel
-// |  Monitor  +--------------->   Monitor   +--------------------->   Monitor      +------------------>...
-// |           |               |             |                     |                |
-// +-----------+               +-------------+                     +----------------+
 func NewListener(config *config.Config) (self *Listener) {
 	self = new(Listener)
 	self.log = logger.NewSublogger("listener")
@@ -372,34 +363,6 @@ func (self *Listener) Stop() {
 		// Stops the pool of workers
 		self.workers.Stop()
 	})
-}
-
-func (self *Listener) filterTransactions(transactions []*arweave.Transaction) (out []*arweave.Transaction) {
-	out = make([]*arweave.Transaction, 0, len(transactions))
-	for _, tx := range transactions {
-		for _, tag := range tx.Tags {
-			// Format needst to be 2 in order for the verification to work
-			if tx.Format == 2 &&
-				string(tag.Value) == "SmartWeaveAction" &&
-				string(tag.Name) == "App-Name" {
-				out = append(out, tx)
-				break
-			}
-		}
-	}
-	return
-}
-
-func (self *Listener) verifyTransactions(transactions []*arweave.Transaction) (err error) {
-	for _, tx := range transactions {
-		err = tx.Verify()
-		if err != nil {
-			self.monitor.Increment(monitor.Kind(monitor.TxValidationErrors))
-			self.log.Error("Transaction failed to verify")
-			return
-		}
-	}
-	return
 }
 
 func (self *Listener) StopWait() {

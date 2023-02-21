@@ -33,8 +33,10 @@ func NewNetworkMonitor(config *config.Config, interval time.Duration) (self *Net
 	self.Output = make(chan *arweave.NetworkInfo, 1)
 
 	self.Task = task.NewTask(config, "network-monitor").
-		WithPeriodicSubtaskFunc(interval, self.runPeriodically)
-
+		WithPeriodicSubtaskFunc(interval, self.runPeriodically).
+		WithOnAfterStop(func() {
+			close(self.Output)
+		})
 	return
 }
 
