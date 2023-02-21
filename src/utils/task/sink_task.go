@@ -36,11 +36,6 @@ func NewSinkTask[T comparable](config *config.Config, name string) (self *SinkTa
 	return
 }
 
-func (self *SinkTask[T]) WithOnFlush(f func([]T) error) *SinkTask[T] {
-	self.onFlush = f
-	return self
-}
-
 func (self *SinkTask[T]) WithBatchSize(batchSize int) *SinkTask[T] {
 	self.queue.SetMinCapacity(2 * uint(batchSize))
 	self.batchSize = batchSize
@@ -52,7 +47,8 @@ func (self *SinkTask[T]) WithInputChannel(input chan T) *SinkTask[T] {
 	return self
 }
 
-func (self *SinkTask[T]) WithInterval(interval time.Duration) *SinkTask[T] {
+func (self *SinkTask[T]) WithOnFlush(interval time.Duration, f func([]T) error) *SinkTask[T] {
+	self.onFlush = f
 	self.Task = self.Task.
 		WithPeriodicSubtaskFunc(interval, self.flush)
 	return self

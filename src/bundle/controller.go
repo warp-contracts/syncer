@@ -38,10 +38,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Bundlr client
 	bundlrClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
 
-	// Checks if bundlr finalized the bundle
-	checker := NewChecker(config).
-		WithDB(db)
-
 	// Gets interactions to bundle from the database
 	collector := NewCollector(config, db)
 
@@ -60,7 +56,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
-		WithSubtask(checker.Task).
 		WithSubtask(confirmer.Task).
 		WithSubtask(bundler.Task).
 		WithSubtask(collector.Task)

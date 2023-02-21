@@ -20,7 +20,7 @@ type NetworkMonitor struct {
 	monitor                    *monitor.Monitor
 
 	// Output channel
-	NetworkInfo chan *arweave.NetworkInfo
+	Output chan *arweave.NetworkInfo
 
 	// Runtime variables
 	lastHeight int64
@@ -30,7 +30,7 @@ type NetworkMonitor struct {
 func NewNetworkMonitor(config *config.Config, interval time.Duration) (self *NetworkMonitor) {
 	self = new(NetworkMonitor)
 
-	self.NetworkInfo = make(chan *arweave.NetworkInfo, 1)
+	self.Output = make(chan *arweave.NetworkInfo, 1)
 
 	self.Task = task.NewTask(config, "network-monitor").
 		WithPeriodicSubtaskFunc(interval, self.runPeriodically)
@@ -81,7 +81,7 @@ func (self *NetworkMonitor) runPeriodically() error {
 
 	select {
 	case <-self.StopChannel:
-	case self.NetworkInfo <- networkInfo:
+	case self.Output <- networkInfo:
 	}
 
 	return nil
