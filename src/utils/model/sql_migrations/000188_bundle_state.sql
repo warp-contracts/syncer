@@ -3,7 +3,7 @@ DROP TYPE IF EXISTS bundle_state;
 
 -- +migrate Up
 -- +migrate StatementBegin
-DO $ $ BEGIN IF NOT EXISTS (
+DO $$ BEGIN IF NOT EXISTS (
     SELECT
         1
     FROM
