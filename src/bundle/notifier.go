@@ -57,9 +57,9 @@ func (self *Notifier) run() error {
 			return nil
 		case msg, ok := <-self.streamer.Output:
 			if !ok {
-				self.Log.Error("Streamer channel closed")
+				self.Log.Info("Notification streamer channel closed")
+				return nil
 			}
-			self.Log.Info("Stuff")
 			self.Workers.Submit(func() {
 				var notification model.BundleItemNotification
 				err := json.Unmarshal([]byte(msg), &notification)
