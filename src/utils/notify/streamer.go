@@ -20,19 +20,19 @@ type Streamer struct {
 
 	channelName string
 
-	Messages chan string
+	Output chan string
 }
 
 func NewStreamer(config *config.Config) (self *Streamer) {
 	self = new(Streamer)
 
-	self.Messages = make(chan string)
+	self.Output = make(chan string)
 
 	self.Task = task.NewTask(config, "streamer").
 		WithSubtaskFunc(self.run).
 		WithOnBeforeStart(self.connect).
 		WithOnStop(func() {
-			close(self.Messages)
+			close(self.Output)
 		}).
 		WithOnAfterStop(self.disconnect)
 
@@ -45,7 +45,7 @@ func (self *Streamer) WithNotificationChannelName(name string) *Streamer {
 }
 
 func (self *Streamer) WithCapacity(size int) *Streamer {
-	self.Messages = make(chan string, size)
+	self.Output = make(chan string, size)
 	return self
 }
 
@@ -110,7 +110,7 @@ func (self *Streamer) run() (err error) {
 			self.Log.WithError(err).Error("Failed to wait for notification")
 		} else {
 			// Send notification to output channel
-			self.Messages <- msg.Payload
+			self.Output <- msg.Payload
 		}
 	}
 }

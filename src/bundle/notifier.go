@@ -55,7 +55,7 @@ func (self *Notifier) run() error {
 		case <-self.StopChannel:
 			self.Log.Debug("Stop passing interactions from notification")
 			return nil
-		case msg, ok := <-self.streamer.Messages:
+		case msg, ok := <-self.streamer.Output:
 			if !ok {
 				self.Log.Error("Streamer channel closed")
 			}
