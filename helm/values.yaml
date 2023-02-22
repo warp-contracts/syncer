@@ -8,7 +8,7 @@ image:
   repository: warpredstone/syncer
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "v0.1.26"
+  tag: "v0.1.27"
 
 imagePullSecrets: []
 nameOverride: ""
