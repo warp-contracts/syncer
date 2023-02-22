@@ -44,18 +44,19 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithInput(networkMonitor.Output).
 		WithMonitor(monitor)
 
-	blockMonitor.Task = blockMonitor.WithOnBeforeStart(func() (err error) {
-		// Get the last storeserverd block height from the database
-		var state model.State
-		err = db.WithContext(self.Ctx).First(&state).Error
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to get last transaction block height")
-			return
-		}
+	blockMonitor.Task = blockMonitor.
+		WithOnBeforeStart(func() (err error) {
+			// Get the last storeserverd block height from the database
+			var state model.State
+			err = db.WithContext(self.Ctx).First(&state).Error
+			if err != nil {
+				self.Log.WithError(err).Error("Failed to get last transaction block height")
+				return
+			}
 
-		blockMonitor.SetStartHeight(state.LastTransactionBlockHeight)
-		return
-	})
+			blockMonitor.SetStartHeight(state.LastTransactionBlockHeight)
+			return
+		})
 
 	transactionMonitor := listener.NewTransactionMonitor(config).
 		WithInput(blockMonitor.Output).

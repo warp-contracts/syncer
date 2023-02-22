@@ -13,6 +13,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Store handles saving data to the database in na robust way.
@@ -70,6 +71,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 
 				err = tx.WithContext(self.Ctx).
 					Table("interactions").
+					Clauses(clause.OnConflict{DoNothing: true}).
 					CreateInBatches(pendingInteractions, len(pendingInteractions)).
 					Error
 				if err != nil {
