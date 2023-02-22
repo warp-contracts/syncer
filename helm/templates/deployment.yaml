@@ -29,39 +29,38 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: syncer
+          command: ["/app/bin/syncer", "sync"] # Docker entrypoint equivalent      
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: SYNCER_DBPINGTIMEOUT
+            - name: SYNCER_DB_PING_TIMEOUT
               value: "15s"
-            - name: SYNCER_LOGLEVEL
+            - name: SYNCER_LOG_LEVEL
               value: "DEBUG"
-            - name: SYNCER_STOPTIMEOUT
+            - name: SYNCER_STOP_TIMEOUT
               value: "60s"
-            - name: SYNCER_ARNODEURL
-              value: "https://arweave.net"
-            - name: SYNCER_ARLIMITERINTERVAL
+            - name: SYNCER_AR_LIMITER_INTERVAL
               value: "1m"
-            - name: SYNCER_ARLIMITERBURSTSIZE
+            - name: SYNCER_AR_LIMITER_BURST_SIZE
               value: "900"
-            - name: SYNCER_LISTENERQUEUESIZE
+            - name: SYNCER_LISTENER_QUEUE_SIZE
               value: "1"
-            - name: SYNCER_LISTENERPERIOD
+            - name: SYNCER_LISTENER_PERIOD
               value: "1s"
-            - name: SYNCER_LISTENERREQUIREDCONFIRMATIONBLOCKS
+            - name: SYNCER_LISTENER_REQUIRED_CONFIRMATION_BLOCKS
               value: "10"
-            - name: SYNCER_LISTENERNUMWORKERS
+            - name: SYNCER_LISTENER_NUM_WORKERS
               value: "50"
-            - name: SYNCER_STOREBATCHSIZE
+            - name: SYNCER_STORE_BATCH_SIZE
               value: "300"
-            - name: SYNCER_STOREMAXTIMEINQUEUE
+            - name: SYNCER_STORE_MAX_TIME_IN_QUEUE
               value: "1s"
-            - name: SYNCER_STOREMAXTIMEBETWEENRECONNECTS
+            - name: SYNCER_STORE_MAX_BACKOFF_INTERVAL
               value: "15s"
-            - name: SYNCER_RESTLISTENADDRESS
+            - name: SYNCER_REST_LISTEN_ADDRESS
               value: ":8080"
           envFrom:
             - secretRef:
@@ -80,6 +79,7 @@ spec:
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
