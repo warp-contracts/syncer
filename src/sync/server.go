@@ -23,7 +23,7 @@ type Server struct {
 func NewServer(config *config.Config) (self *Server) {
 	self = new(Server)
 
-	self.Task = task.NewTask(config, "server").
+	self.Task = task.NewTask(config, "rest-server").
 		WithSubtaskFunc(self.run).
 		WithOnStop(self.stop)
 
@@ -39,7 +39,6 @@ func NewServer(config *config.Config) (self *Server) {
 
 func (self *Server) WithMonitor(monitor *monitor.Monitor) *Server {
 	self.monitor = monitor
-
 	return self
 }
 

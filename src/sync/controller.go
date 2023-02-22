@@ -6,6 +6,7 @@ import (
 	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitor"
+	"syncer/src/utils/peer_monitor"
 	"syncer/src/utils/task"
 )
 
@@ -28,6 +29,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	}
 
 	monitor := monitor.NewMonitor()
+
+	peerMonitor := peer_monitor.NewPeerMonitor(config).
+		WithClient(client)
 
 	networkMonitor := listener.NewNetworkMonitor(config).
 		WithClient(client).
@@ -62,10 +66,11 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor).
 		WithDB(db)
 
-		// REST server API, healthchecks
-	server := NewServer(config).WithMonitor(monitor)
+	server := NewServer(config).
+		WithMonitor(monitor)
 
 	self.Task = self.Task.
+		WithSubtask(peerMonitor.Task).
 		WithSubtask(store.Task).
 		WithSubtask(networkMonitor.Task).
 		WithSubtask(blockMonitor.Task).
