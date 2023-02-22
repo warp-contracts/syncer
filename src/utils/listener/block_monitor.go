@@ -7,9 +7,12 @@ import (
 	"sync"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
+	"syncer/src/utils/model"
 	"syncer/src/utils/monitor"
 	"syncer/src/utils/task"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // Task that periodically checks for new arweave network info.
@@ -53,8 +56,19 @@ func (self *BlockMonitor) WithClient(client *arweave.Client) *BlockMonitor {
 	return self
 }
 
-func (self *BlockMonitor) SetStartHeight(v int64) {
-	self.startHeight = v
+func (self *BlockMonitor) WithInitStartHeight(db *gorm.DB) *BlockMonitor {
+	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
+		// Get the last storeserverd block height from the database
+		var state model.State
+		err = db.WithContext(self.Ctx).First(&state).Error
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to get last transaction block height")
+			return
+		}
+		self.startHeight = state.LastTransactionBlockHeight
+		return nil
+	})
+	return self
 }
 
 func (self *BlockMonitor) WithInput(v chan *arweave.NetworkInfo) *BlockMonitor {
