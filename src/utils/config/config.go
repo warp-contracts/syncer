@@ -19,7 +19,7 @@ type Config struct {
 	DBUser        string
 	DBPassword    string
 	DBName        string
-	DBSSLMode     string
+	DBSslMode     string
 	DBPingTimeout time.Duration
 
 	// REST API address. API used for monitoring etc.
@@ -144,7 +144,7 @@ func setDefaults() {
 	viper.SetDefault("DBUser", "postgres")
 	viper.SetDefault("DBPassword", "postgres")
 	viper.SetDefault("DBName", "warp")
-	viper.SetDefault("DBSSLMode", "disable")
+	viper.SetDefault("DBSslMode", "disable")
 	viper.SetDefault("DBPingTimeout", "15s")
 
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")
@@ -189,7 +189,10 @@ func BindEnv(path []string, val reflect.Value) {
 	if val.Kind() != reflect.Struct {
 		key := strings.ToLower(strings.Join(path, "."))
 		env := "SYNCER_" + strcase.ToScreamingSnake(strings.Join(path, "_"))
-		viper.BindEnv(key, env)
+		err := viper.BindEnv(key, env)
+		if err != nil {
+			panic(err)
+		}
 	} else {
 		for i := 0; i < val.NumField(); i++ {
 			newPath := make([]string, len(path))

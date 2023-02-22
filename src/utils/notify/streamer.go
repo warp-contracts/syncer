@@ -65,7 +65,7 @@ func (self *Streamer) connect() (err error) {
 		self.Config.DBUser,
 		self.Config.DBPassword,
 		self.Config.DBName,
-		self.Config.DBSSLMode)
+		self.Config.DBSslMode)
 
 	config, err := pgx.ParseDSN(dsn)
 	if err != nil {

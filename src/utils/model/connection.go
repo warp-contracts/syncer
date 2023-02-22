@@ -34,7 +34,7 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 		config.DBUser,
 		config.DBPassword,
 		config.DBName,
-		config.DBSSLMode)
+		config.DBSslMode)
 
 	self, err = gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger})
 	if err != nil {
