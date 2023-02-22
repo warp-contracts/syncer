@@ -18,7 +18,7 @@ type Notifier struct {
 	streamer *notify.Streamer
 
 	// Data about the interactions that need to be bundled
-	bundleItems chan *model.BundleItem
+	output chan *model.BundleItem
 }
 
 func NewNotifier(config *config.Config) (self *Notifier) {
@@ -45,7 +45,7 @@ func (self *Notifier) WithDB(db *gorm.DB) *Notifier {
 }
 
 func (self *Notifier) WithOutputChannel(bundleItems chan *model.BundleItem) *Notifier {
-	self.bundleItems = bundleItems
+	self.output = bundleItems
 	return self
 }
 
@@ -89,7 +89,7 @@ func (self *Notifier) run() error {
 					}
 				}
 
-				self.bundleItems <- &bundleItem
+				self.output <- &bundleItem
 			})
 		}
 	}

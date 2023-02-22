@@ -41,12 +41,12 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	blockMonitor := listener.NewBlockMonitor(config).
 		WithClient(client).
-		WithInput(networkMonitor.Output).
+		WithInputChannel(networkMonitor.Output).
 		WithMonitor(monitor).
 		WithInitStartHeight(db)
 
 	transactionMonitor := listener.NewTransactionMonitor(config).
-		WithInput(blockMonitor.Output).
+		WithInputChannel(blockMonitor.Output).
 		WithMonitor(monitor)
 
 	store := NewStore(config).

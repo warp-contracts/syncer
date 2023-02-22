@@ -21,14 +21,14 @@ type Bundler struct {
 	signer       *bundlr.Signer
 
 	// Ids of successfully bundled interactions
-	Bundled chan *Confirmation
+	Output chan *Confirmation
 }
 
 // Receives bundle items from the input channel and sends them to bundlr
 func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 	self = new(Bundler)
 	self.db = db
-	self.Bundled = make(chan *Confirmation)
+	self.Output = make(chan *Confirmation)
 
 	self.Task = task.NewTask(config, "bundler").
 		// Pool of workers that perform requests to bundlr.
@@ -91,7 +91,7 @@ func (self *Bundler) run() (err error) {
 			select {
 			case <-self.Ctx.Done():
 				return
-			case self.Bundled <- &Confirmation{
+			case self.Output <- &Confirmation{
 				InteractionID: item.InteractionID,
 				BundlerTxID:   resp.Id,
 			}:

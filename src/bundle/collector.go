@@ -16,7 +16,7 @@ type Collector struct {
 	poller   *Poller
 
 	// Data about the interactions that need to be bundled
-	BundleItems chan *model.BundleItem
+	Output chan *model.BundleItem
 }
 
 // Sets up the task of fetching interactions to be bundled
@@ -26,15 +26,15 @@ type Collector struct {
 func NewCollector(config *config.Config, db *gorm.DB) (self *Collector) {
 	self = new(Collector)
 
-	self.BundleItems = make(chan *model.BundleItem, 100)
+	self.Output = make(chan *model.BundleItem, 100)
 
 	self.notifier = NewNotifier(config).
 		WithDB(db).
-		WithOutputChannel(self.BundleItems)
+		WithOutputChannel(self.Output)
 
 	self.poller = NewPoller(config).
 		WithDB(db).
-		WithOutputChannel(self.BundleItems)
+		WithOutputChannel(self.Output)
 
 	self.Task = task.NewTask(config, "collector").
 		// Live source of interactions
@@ -42,7 +42,7 @@ func NewCollector(config *config.Config, db *gorm.DB) (self *Collector) {
 		// Polled interactions
 		WithSubtask(self.poller.Task).
 		WithOnAfterStop(func() {
-			close(self.BundleItems)
+			close(self.Output)
 		})
 
 	return

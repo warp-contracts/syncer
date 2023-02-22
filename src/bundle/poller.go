@@ -17,7 +17,7 @@ type Poller struct {
 	db *gorm.DB
 
 	// Data about the interactions that need to be bundled
-	bundleItems chan *model.BundleItem
+	output chan *model.BundleItem
 }
 
 func NewPoller(config *config.Config) (self *Poller) {
@@ -40,7 +40,7 @@ func (self *Poller) WithDB(db *gorm.DB) *Poller {
 }
 
 func (self *Poller) WithOutputChannel(bundleItems chan *model.BundleItem) *Poller {
-	self.bundleItems = bundleItems
+	self.output = bundleItems
 	return self
 }
 
@@ -82,7 +82,7 @@ func (self *Poller) check() {
 	for i := range bundleItems {
 		select {
 		case <-self.StopChannel:
-		case self.bundleItems <- &bundleItems[i]:
+		case self.output <- &bundleItems[i]:
 		}
 	}
 }

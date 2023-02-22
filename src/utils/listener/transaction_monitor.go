@@ -49,7 +49,7 @@ func (self *TransactionMonitor) WithMonitor(monitor *monitor.Monitor) *Transacti
 	return self
 }
 
-func (self *TransactionMonitor) WithInput(v chan *Payload) *TransactionMonitor {
+func (self *TransactionMonitor) WithInputChannel(v chan *Payload) *TransactionMonitor {
 	self.input = v
 	return self
 }

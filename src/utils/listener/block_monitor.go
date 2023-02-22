@@ -71,7 +71,7 @@ func (self *BlockMonitor) WithInitStartHeight(db *gorm.DB) *BlockMonitor {
 	return self
 }
 
-func (self *BlockMonitor) WithInput(v chan *arweave.NetworkInfo) *BlockMonitor {
+func (self *BlockMonitor) WithInputChannel(v chan *arweave.NetworkInfo) *BlockMonitor {
 	self.input = v
 	return self
 }

@@ -43,16 +43,13 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	// Sends interactions to bundlr.network
 	bundler := NewBundler(config, db).
-		WithInputChannel(collector.BundleItems).
+		WithInputChannel(collector.Output).
 		WithClient(bundlrClient)
-	if err != nil {
-		return
-	}
 
 	// Confirmer periodically updates the state of the bundled interactions
 	confirmer := NewConfirmer(config).
 		WithDB(db).
-		WithInputChannel(bundler.Bundled)
+		WithInputChannel(bundler.Output)
 
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.

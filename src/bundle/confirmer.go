@@ -13,6 +13,7 @@ import (
 // This is done to prevent flooding database with bundle_items state updates
 type Confirmer struct {
 	*task.SinkTask[*Confirmation]
+
 	db *gorm.DB
 }
 
