@@ -162,6 +162,7 @@ func (self *Task) run(subtask func() error) {
 }
 
 func (self *Task) Start() (err error) {
+	self.Log.Info("Starting...")
 	// Run callbacks
 	for _, cb := range self.onBeforeStart {
 		err = cb()
@@ -197,6 +198,7 @@ func (self *Task) Start() (err error) {
 		self.cancelRunning()
 	}()
 
+	self.Log.Info("Started!")
 	return nil
 }
 
@@ -237,4 +239,7 @@ func (self *Task) StopWait() {
 	case <-self.Ctx.Done():
 		self.Log.Info("Task finished")
 	}
+
+	self.Log.Info("Stopped")
+
 }
