@@ -3,21 +3,23 @@ package config
 import (
 	"bytes"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
+	"github.com/iancoleman/strcase"
 	"github.com/spf13/viper"
 )
 
 // Config stores global configuration
 type Config struct {
 	// SQL Database
-	DBPort        string
+	DBPort        uint16
 	DBHost        string
 	DBUser        string
 	DBPassword    string
 	DBName        string
-	DBSSLMode     string
+	DBSslMode     string
 	DBPingTimeout time.Duration
 
 	// REST API address. API used for monitoring etc.
@@ -117,6 +119,18 @@ type Config struct {
 
 	// Max time between failed retries to save data.
 	StoreMaxBackoffInterval time.Duration
+
+	// How often is IM pooling the database
+	InteractionManagerInterval time.Duration
+
+	// How long does it wait for the query response
+	InteractionManagerTimeout time.Duration
+
+	// Maksimum number of requests run in parallel
+	InteractionManagerMaxParallelQueries int
+
+	Bundler Bundler
+	Bundlr  Bundlr
 }
 
 func setDefaults() {
@@ -130,7 +144,7 @@ func setDefaults() {
 	viper.SetDefault("DBUser", "postgres")
 	viper.SetDefault("DBPassword", "postgres")
 	viper.SetDefault("DBName", "warp")
-	viper.SetDefault("DBSSLMode", "disable")
+	viper.SetDefault("DBSslMode", "disable")
 	viper.SetDefault("DBPingTimeout", "15s")
 
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")
@@ -161,6 +175,9 @@ func setDefaults() {
 	viper.SetDefault("StoreBatchSize", "500")
 	viper.SetDefault("StoreMaxTimeInQueue", "10s")
 	viper.SetDefault("StoreMaxBackoffInterval", "30s")
+
+	setBundlerDefaults()
+	setBundlrDefaults()
 }
 
 func Default() (config *Config) {
@@ -168,12 +185,31 @@ func Default() (config *Config) {
 	return
 }
 
+func BindEnv(path []string, val reflect.Value) {
+	if val.Kind() != reflect.Struct {
+		key := strings.ToLower(strings.Join(path, "."))
+		env := "SYNCER_" + strcase.ToScreamingSnake(strings.Join(path, "_"))
+		err := viper.BindEnv(key, env)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		for i := 0; i < val.NumField(); i++ {
+			newPath := make([]string, len(path))
+			copy(newPath, path)
+			newPath = append(newPath, val.Type().Field(i).Name)
+			BindEnv(newPath, val.Field(i))
+		}
+	}
+}
+
 // Load configuration from file and env
 func Load(filename string) (config *Config, err error) {
 	viper.SetConfigType("json")
-	viper.AutomaticEnv()         // read in environment variables that match
-	viper.SetEnvPrefix("syncer") // will be uppercased automatically
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	// Visits every field and registers upper snake case ENV name for it
+	// Works with embedded structs
+	BindEnv([]string{}, reflect.ValueOf(Config{}))
 
 	setDefaults()
 

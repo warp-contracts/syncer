@@ -15,22 +15,16 @@ services:
       retries: 1
       start_period: 40s
     environment:
-      SYNCER_DBPORT: 5432
-      SYNCER_DBHOST: db
-      SYNCER_DBUSER: postgres
-      SYNCER_DBPASSWORD: postgres
-      SYNCER_DBNAME: warp
-      SYNCER_DBSSLMODE: disable
-      SYNCER_DBPINGTIMEOUT: 10s
-      SYNCER_RESTLISTENADDRESS: :3333
-      SYNCER_LOGLEVEL: debug
-      SYNCER_ARNODEURL: https://arweave.net
-      SYNCER_ARSTABLEDISTANCE: 10
-      SYNCER_LISTENERQUEUESIZE: 10
-      SYNCER_STOREBATCHSIZE: 1000
-      SYNCER_STOREMAXTIMEINQUEUE: 2m
-      SYNCER_STOREMAXTIMEBETWEENRECONNECTS: 5s
-
+      SYNCER_DB_PORT: 5432
+      SYNCER_DB_HOST: db
+      SYNCER_DB_USER: postgres
+      SYNCER_DB_PASSWORD: postgres
+      SYNCER_DB_NAME: warp
+      SYNCER_DB_SSL_MODE: disable
+      SYNCER_DB_PING_TIMEOUT: 10s
+      SYNCER_REST_LISTEN_ADDRESS: :3333
+      SYNCER_LOG_LEVEL: debug
+   
   db:
     image: postgres:13
     restart: unless-stopped
@@ -55,6 +49,7 @@ services:
       - PGADMIN_LISTEN_PORT=5151
       - PGADMIN_DEFAULT_EMAIL=admin@warp.cc
       - PGADMIN_DEFAULT_PASSWORD=password
+      - MAX_LOGIN_ATTEMPTS=10000
 
 volumes:
   syncer_db_volume: null

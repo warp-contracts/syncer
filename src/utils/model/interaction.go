@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"syncer/src/utils/smartweave"
 
 	"github.com/lib/pq"
 )
@@ -11,6 +12,7 @@ const (
 )
 
 type Interaction struct {
+	ID                 int
 	InteractionId      string
 	Interaction        string
 	BlockHeight        int64
@@ -40,6 +42,12 @@ type Interaction struct {
 	// Confirmations     string
 
 	// Not needed:
-	// BundlerTxId       string
+	BundlerTxId string
 	// LastSortKey       string
+}
+
+func (self *Interaction) GetInteraction() *smartweave.Interaction {
+
+	return &smartweave.Interaction{}
+
 }

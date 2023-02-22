@@ -3,25 +3,40 @@ package model
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"syncer/src/utils/common"
+	"syncer/src/utils/config"
+	l "syncer/src/utils/logger"
+	"syncer/src/utils/model/sql_migrations"
+	"time"
 
+	migrate "github.com/rubenv/sql-migrate"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 )
 
-func NewConnection(ctx context.Context) (self *gorm.DB, err error) {
-	config := common.GetConfig(ctx)
+func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, err error) {
+	log := l.NewSublogger("db")
 
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+	logger := logger.New(log,
+		logger.Config{
+			SlowThreshold:             500 * time.Millisecond, // Slow SQL threshold
+			LogLevel:                  logger.Info,            // Log level
+			IgnoreRecordNotFoundError: true,                   // Ignore ErrRecordNotFound error for logger
+			Colorful:                  false,                  // Disable color
+		},
+	)
+
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		config.DBHost,
 		config.DBPort,
 		config.DBUser,
 		config.DBPassword,
 		config.DBName,
-		config.DBSSLMode)
+		config.DBSslMode)
 
-	self, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	self, err = gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger})
 	if err != nil {
 		return
 	}
@@ -31,21 +46,22 @@ func NewConnection(ctx context.Context) (self *gorm.DB, err error) {
 		return
 	}
 
-	// Migrate state changes
-	err = self.AutoMigrate(State{})
+	// Run migrations
+	migrations := &migrate.HttpFileSystemMigrationSource{
+		FileSystem: http.FS(sql_migrations.FS),
+	}
+
+	db, err := self.DB()
 	if err != nil {
 		return
 	}
 
-	// Ensure there's syncer_state has one row inserted
-	self.Clauses(clause.OnConflict{
-		// Columns:   cols,
-		// DoUpdates: clause.AssignmentColumns(colsNames),
-		DoNothing: true,
-	}).
-		Create(&State{
-			Id: 1,
-		})
+	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
+	if err != nil {
+		return
+	}
+
+	log.WithField("num", n).Info("Applied migrations")
 
 	return
 }

@@ -59,6 +59,14 @@ build-race:  | $(BASE); $(info $(M) building executable…) @
 run: build-race | ; $(info $(M) starting app with default params…)
 	bin/$(PACKAGE) sync
 
+.PHONY: bundle
+bundle: build-race | ; $(info $(M) starting bundling with default params…)
+	bin/$(PACKAGE) bundle
+
+.PHONY: check
+check: build-race | ; $(info $(M) starting checking with default params…)
+	bin/$(PACKAGE) check
+
 .PHONY: lint
 lint: $(GOLANGCILINT) | $(BASE) ; $(info $(M) running golangci-lint) @
 	$Q $(GOLANGCILINT) run 
@@ -94,8 +102,6 @@ docker-build: all | ; $(info $(M) building docker container) @
 docker-push: all | ; $(info $(M) building docker container) @ 
 	$(GO) mod vendor
 	DOCKER_BUILDKIT=0 TAG=$(VERSION) docker buildx bake -f docker-bake.hcl --push
-	# docker push warpredstone/syncer:latest
-	# docker push warpredstone/syncer:$(VERSION)
 	rm -rf vendor
 
 .PHONY: docker-run

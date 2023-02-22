@@ -57,9 +57,9 @@ var (
 				signal.Stop(signalChannel)
 				applicationCtxCancel()
 			}()
-			log := logger.NewSublogger("root-cmd")
+			// log := logger.NewSublogger("root-cmd")
 			<-applicationCtx.Done()
-			log.Debug("Finished")
+			// log.Debug("Finished")
 			return
 		},
 

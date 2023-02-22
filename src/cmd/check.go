@@ -1,21 +1,21 @@
 package cmd
 
 import (
-	"syncer/src/sync"
+	"syncer/src/check"
 	"syncer/src/utils/logger"
 
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	RootCmd.AddCommand(syncCmd)
+	RootCmd.AddCommand(checkCmd)
 }
 
-var syncCmd = &cobra.Command{
-	Use:   "sync",
-	Short: "Save L1 interactions to the database",
+var checkCmd = &cobra.Command{
+	Use:   "check",
+	Short: "Updates bundle status after it's in the FINALIZED state in bundlr.network",
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
-		controller, err := sync.NewController(conf)
+		controller, err := check.NewController(conf)
 		if err != nil {
 			return
 		}
@@ -36,7 +36,7 @@ var syncCmd = &cobra.Command{
 	},
 	PostRunE: func(cmd *cobra.Command, args []string) (err error) {
 		log := logger.NewSublogger("root-cmd")
-		log.Debug("Finished sync command")
+		log.Debug("Finished check command")
 		applicationCtxCancel()
 		return
 	},
