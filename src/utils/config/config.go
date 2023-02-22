@@ -3,9 +3,11 @@ package config
 import (
 	"bytes"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
+	"github.com/iancoleman/strcase"
 	"github.com/spf13/viper"
 )
 
@@ -183,12 +185,28 @@ func Default() (config *Config) {
 	return
 }
 
+func BindEnv(path []string, val reflect.Value) {
+	if val.Kind() != reflect.Struct {
+		key := strings.ToLower(strings.Join(path, "."))
+		env := "SYNCER_" + strcase.ToScreamingSnake(strings.Join(path, "_"))
+		viper.BindEnv(key, env)
+	} else {
+		for i := 0; i < val.NumField(); i++ {
+			newPath := make([]string, len(path))
+			copy(newPath, path)
+			newPath = append(newPath, val.Type().Field(i).Name)
+			BindEnv(newPath, val.Field(i))
+		}
+	}
+}
+
 // Load configuration from file and env
 func Load(filename string) (config *Config, err error) {
 	viper.SetConfigType("json")
-	viper.AutomaticEnv()         // read in environment variables that match
-	viper.SetEnvPrefix("syncer") // will be uppercased automatically
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	// Visits every field and registers upper snake case ENV name for it
+	// Works with embedded structs
+	BindEnv([]string{}, reflect.ValueOf(Config{}))
 
 	setDefaults()
 
