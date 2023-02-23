@@ -67,7 +67,7 @@ spec:
                 name: syncer-prod
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: 8080
               protocol: TCP
           livenessProbe:
             httpGet:

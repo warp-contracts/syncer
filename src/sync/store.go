@@ -56,12 +56,12 @@ func (self *Store) WithDB(v *gorm.DB) *Store {
 func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransactionBlockHeight int64) (err error) {
 	operation := func() error {
 		self.Log.WithField("length", len(pendingInteractions)).Debug("Insert batch of interactions")
-		return self.DB.WithContext(self.Ctx).
+		err = self.DB.WithContext(self.Ctx).
 			Transaction(func(tx *gorm.DB) error {
 				err = self.setLastTransactionBlockHeight(self.Ctx, tx, lastTransactionBlockHeight)
 				if err != nil {
 					self.Log.WithError(err).Error("Failed to update last transaction block height")
-					self.monitor.Increment(monitor.Kind(monitor.DbLastTransactionBlockHeightError))
+					self.monitor.Report.Errors.DbLastTransactionBlockHeightError.Inc()
 					return err
 				}
 
@@ -77,11 +77,16 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 				if err != nil {
 					self.Log.WithError(err).Error("Failed to insert Interactions")
 					self.Log.WithField("interactions", pendingInteractions).Debug("Failed interactions")
-					self.monitor.Increment(monitor.Kind(monitor.DbInteraction))
+					self.monitor.Report.Errors.DbInteractionInsert.Inc()
 					return err
 				}
 				return nil
 			})
+		if err == nil {
+			self.monitor.Report.SyncerFinishedHeight.Store(lastTransactionBlockHeight)
+			self.monitor.Report.InteractionsSaved.Add(uint64(len(pendingInteractions)))
+		}
+		return err
 	}
 
 	if self.IsStopping.Load() {

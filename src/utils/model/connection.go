@@ -22,7 +22,7 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 	logger := logger.New(log,
 		logger.Config{
 			SlowThreshold:             500 * time.Millisecond, // Slow SQL threshold
-			LogLevel:                  logger.Info,            // Log level
+			LogLevel:                  logger.Error,           // Log level
 			IgnoreRecordNotFoundError: true,                   // Ignore ErrRecordNotFound error for logger
 			Colorful:                  false,                  // Disable color
 		},

@@ -1,66 +1,115 @@
 package monitor
 
 import (
+	"math"
 	"net/http"
-	"sync"
-	"syncer/src/utils/logger"
+	"syncer/src/utils/task"
+	"time"
 
+	"github.com/gammazero/deque"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
-// Rest API server
+// Stores and computes monitor counters
 type Monitor struct {
-	log *logrus.Entry
-	mtx sync.Mutex
+	*task.Task
 
-	report map[Kind]int
+	Report Report
 
-	previousReport map[Kind]int
-}
+	historySize int
 
-type Report struct {
-	DbErrors                  int `json:"db"`
-	TxValidationErrors        int `json:"tx_validation"`
-	TxDownloadErrors          int `json:"tx_download"`
-	BlockValidationErrors     int `json:"block_validation"`
-	BlockDownloadErrors       int `json:"block_download"`
-	PeerDownloadErrors        int `json:"peer_download"`
-	NetworkInfoDownloadErrors int `json:"network_info_download"`
+	// Block processing speed
+	BlockHeights      *deque.Deque[int64]
+	TransactionCounts *deque.Deque[uint64]
+	InteractionsSaved *deque.Deque[uint64]
 }
 
 func NewMonitor() (self *Monitor) {
 	self = new(Monitor)
-	self.log = logger.NewSublogger("monitor")
-	self.report = make(map[Kind]int)
-	self.previousReport = make(map[Kind]int)
+
+	self.historySize = 30
+
+	self.Task = task.NewTask(nil, "monitor").
+		WithPeriodicSubtaskFunc(time.Minute, self.monitorBlocks).
+		WithPeriodicSubtaskFunc(time.Minute, self.monitorTransactions).
+		WithPeriodicSubtaskFunc(time.Minute, self.monitorInteractions)
 	return
 }
 
-func (self *Monitor) Increment(kind Kind) {
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
+func (self *Monitor) WithMaxHistorySize(maxHistorySize int) *Monitor {
+	self.historySize = maxHistorySize
 
-	self.report[kind] = self.report[kind] + 1
+	self.BlockHeights = deque.New[int64](self.historySize)
+	self.TransactionCounts = deque.New[uint64](self.historySize)
+	self.InteractionsSaved = deque.New[uint64](self.historySize)
+
+	self.Report.StartTimestamp.Store(time.Now().Unix())
+	return self
+}
+
+func round(f float64) float64 {
+	return math.Round(f*100) / 100
+}
+
+// Measure block processing speed
+func (self *Monitor) monitorBlocks() (err error) {
+	loaded := self.Report.SyncerCurrentHeight.Load()
+	if loaded == 0 {
+		// Neglect the first 0
+		return
+	}
+
+	self.BlockHeights.PushBack(loaded)
+	if self.BlockHeights.Len() > self.historySize {
+		self.BlockHeights.PopFront()
+	}
+	value := float64(self.BlockHeights.Back()-self.BlockHeights.Front()) / float64(self.BlockHeights.Len())
+
+	self.Report.AverageBlocksProcessedPerMinute.Store(round(value))
+	return
+}
+
+// Measure transaction processing speed
+func (self *Monitor) monitorTransactions() (err error) {
+	loaded := self.Report.TransactionsDownloaded.Load()
+	if loaded == 0 {
+		// Neglect the first 0
+		return
+	}
+
+	self.TransactionCounts.PushBack(loaded)
+	if self.TransactionCounts.Len() > self.historySize {
+		self.TransactionCounts.PopFront()
+	}
+	value := float64(self.TransactionCounts.Back()-self.TransactionCounts.Front()) / float64(self.TransactionCounts.Len())
+	self.Report.AverageTransactionDownloadedPerMinute.Store(round(value))
+	return
+}
+
+// Measure Interaction processing speed
+func (self *Monitor) monitorInteractions() (err error) {
+	loaded := self.Report.InteractionsSaved.Load()
+	if loaded == 0 {
+		// Neglect the first 0
+		return
+	}
+
+	self.InteractionsSaved.PushBack(loaded)
+	if self.InteractionsSaved.Len() > self.historySize {
+		self.InteractionsSaved.PopFront()
+	}
+	value := float64(self.InteractionsSaved.Back()-self.InteractionsSaved.Front()) / float64(self.InteractionsSaved.Len())
+	self.Report.AverageInteractionsSavedPerMinute.Store(round(value))
+	return
+}
+
+func (self *Monitor) OnGetState(c *gin.Context) {
+	self.Report.Fill()
+	c.JSON(http.StatusOK, &self.Report)
 }
 
 func (self *Monitor) OnGet(c *gin.Context) {
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
-
 	status := http.StatusOK
-	for k, v := range self.report {
-		if self.previousReport[k] != v {
-			self.log.WithField("report", self.report).Error("Error returned from monitor")
-			status = http.StatusInternalServerError
-			break
-		}
-	}
-
-	c.JSON(status, &self.report)
-
-	// Copy the report
-	for k, v := range self.report {
-		self.previousReport[k] = v
-	}
+	self.Report.Fill()
+	c.JSON(status, &self.Report)
 }

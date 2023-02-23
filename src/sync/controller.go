@@ -28,10 +28,12 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		return
 	}
 
-	monitor := monitor.NewMonitor()
+	monitor := monitor.NewMonitor().
+		WithMaxHistorySize(30)
 
 	peerMonitor := peer_monitor.NewPeerMonitor(config).
-		WithClient(client)
+		WithClient(client).
+		WithMonitor(monitor)
 
 	networkMonitor := listener.NewNetworkMonitor(config).
 		WithClient(client).
@@ -58,6 +60,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor)
 
 	self.Task = self.Task.
+		WithSubtask(monitor.Task).
 		WithSubtask(peerMonitor.Task).
 		WithSubtask(store.Task).
 		WithSubtask(networkMonitor.Task).

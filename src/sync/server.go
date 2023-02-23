@@ -47,6 +47,7 @@ func (self *Server) run() (err error) {
 
 	v1 := self.Router.Group("v1")
 	{
+		v1.GET("state", self.monitor.OnGetState)
 		v1.GET("health", self.monitor.OnGet)
 	}
 

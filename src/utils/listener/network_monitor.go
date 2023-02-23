@@ -69,9 +69,14 @@ func (self *NetworkMonitor) runPeriodically() error {
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get Arweave network info")
 		if self.monitor != nil {
-			self.monitor.Increment(monitor.Kind(monitor.NetworkInfoDownloadErrors))
+			self.monitor.Report.Errors.NetworkInfoDownloadErrors.Inc()
 		}
 		return nil
+	}
+
+	if self.monitor != nil {
+		self.monitor.Report.ArweaveCurrentHeight.Store(networkInfo.Height)
+		self.monitor.Report.ArweaveLastNetworkInfoTimestamp.Store(uint64(time.Now().Unix()))
 	}
 
 	// This is the last block height we consider stable

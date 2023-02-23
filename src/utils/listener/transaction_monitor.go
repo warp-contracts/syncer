@@ -107,7 +107,7 @@ func (self *TransactionMonitor) verifyTransactions(transactions []*arweave.Trans
 	for _, tx := range transactions {
 		err = tx.Verify()
 		if err != nil {
-			self.monitor.Increment(monitor.Kind(monitor.TxValidationErrors))
+			self.monitor.Report.Errors.TxValidationErrors.Inc()
 			self.Log.Error("Transaction failed to verify")
 			return
 		}

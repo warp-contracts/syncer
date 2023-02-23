@@ -92,6 +92,8 @@ func (self *BlockMonitor) run() error {
 
 		// Download transactions from
 		for height := lastSyncedHeight + 1; height <= networkInfo.Height; height++ {
+			self.monitor.Report.SyncerCurrentHeight.Store(height)
+
 		retry:
 			self.Log.WithField("height", height).Debug("Downloading block")
 
@@ -102,7 +104,7 @@ func (self *BlockMonitor) run() error {
 				// This will completly reset the HTTP client and possibly help in solving the problem
 				self.client.Reset()
 
-				self.monitor.Increment(monitor.Kind(monitor.BlockDownloadErrors))
+				self.monitor.Report.Errors.BlockDownloadErrors.Inc()
 
 				time.Sleep(self.Config.ListenerRetryFailedTransactionDownloadInterval)
 				if self.IsStopping.Load() {
@@ -117,7 +119,7 @@ func (self *BlockMonitor) run() error {
 			if !block.IsValid() {
 				self.Log.WithField("height", height).Panic("Block hash isn't valid")
 				// self.Log.WithField("height", height).Error("Block hash isn't valid, blacklisting peer for ever and retrying")
-				self.monitor.Increment(monitor.Kind(monitor.BlockValidationErrors))
+				self.monitor.Report.Errors.BlockValidationErrors.Inc()
 				goto retry
 				// FIXME: Inform downstream something's wrong
 				// FIXME: Blacklist peer, retry downloading block
@@ -137,6 +139,8 @@ func (self *BlockMonitor) run() error {
 				}
 				continue
 			}
+
+			self.monitor.Report.TransactionsDownloaded.Add(uint64(len(transactions)))
 
 			payload := &Payload{
 				BlockHeight:  block.Height,
@@ -166,7 +170,7 @@ func (self *BlockMonitor) downloadTransactions(block *arweave.Block) (out []*arw
 		self.Workers.Submit(func() {
 			// NOTE: Infinite loop, because there's nothing better we can do.
 			for {
-				self.Log.WithField("txId", txId).Debug("Downloading transaction")
+				// self.Log.WithField("txId", txId).Debug("Downloading transaction")
 
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {
@@ -178,7 +182,7 @@ func (self *BlockMonitor) downloadTransactions(block *arweave.Block) (out []*arw
 					// This will completly reset the HTTP client and possibly help in solving the problem
 					self.client.Reset()
 
-					self.monitor.Increment(monitor.Kind(monitor.TxDownloadErrors))
+					self.monitor.Report.Errors.TxDownloadErrors.Inc()
 
 					time.Sleep(self.Config.ListenerRetryFailedTransactionDownloadInterval)
 					if self.IsStopping.Load() {

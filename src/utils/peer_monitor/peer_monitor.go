@@ -8,6 +8,7 @@ import (
 	"sync"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
+	"syncer/src/utils/monitor"
 	"syncer/src/utils/slice"
 	"syncer/src/utils/task"
 
@@ -21,6 +22,8 @@ type PeerMonitor struct {
 
 	// State
 	blacklist Blacklist
+
+	monitor *monitor.Monitor
 }
 
 type metric struct {
@@ -50,6 +53,11 @@ func (self *PeerMonitor) WithClient(client *arweave.Client) *PeerMonitor {
 	return self
 }
 
+func (self *PeerMonitor) WithMonitor(monitor *monitor.Monitor) *PeerMonitor {
+	self.monitor = monitor
+	return self
+}
+
 // Periodically checks Arweave network info for updated height
 func (self *PeerMonitor) runPeriodically() (err error) {
 	height, err := self.getTrustedHeight()
@@ -71,9 +79,12 @@ func (self *PeerMonitor) runPeriodically() (err error) {
 		numPeers = self.Config.PeerMonitorMaxPeers
 	}
 
-	self.Log.WithField("numBlacklisted", self.blacklist.Size.Load()).Trace("Set new peers")
 	self.client.SetPeers(peers[:numPeers])
 
+	self.monitor.Report.NumPeers.Store(uint64(numPeers))
+	self.monitor.Report.PeersBlacklisted.Store(uint64(self.blacklist.Size.Load()))
+
+	self.Log.WithField("numBlacklisted", self.blacklist.Size.Load()).Trace("Set new peers")
 	self.blacklist.RemoveOldest(self.Config.PeerMonitorMaxPeersRemovedFromBlacklist)
 
 	return nil
