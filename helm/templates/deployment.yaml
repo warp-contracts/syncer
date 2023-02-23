@@ -45,7 +45,7 @@ spec:
             - name: SYNCER_AR_LIMITER_INTERVAL
               value: "1m"
             - name: SYNCER_AR_LIMITER_BURST_SIZE
-              value: "90000"
+              value: "900"
             - name: SYNCER_LISTENER_QUEUE_SIZE
               value: "1"
             - name: SYNCER_LISTENER_PERIOD
