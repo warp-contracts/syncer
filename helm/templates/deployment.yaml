@@ -115,6 +115,37 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
 
+        - name: checker
+          command: ["/app/bin/syncer", "check"] # Docker entrypoint equivalent      
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: SYNCER_DB_PING_TIMEOUT
+              value: "15s"
+            - name: SYNCER_LOG_LEVEL
+              value: "DEBUG"
+            - name: SYNCER_STOP_TIMEOUT
+              value: "60s"
+          envFrom:
+            - secretRef:
+                name: syncer-prod
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
