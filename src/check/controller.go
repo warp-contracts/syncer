@@ -33,7 +33,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Gets network height from WARP's GW
 	networkMonitor := listener.NewNetworkMonitor(config).
 		WithClient(client).
-		WithInterval(config.Bundler.CheckerInterval).
+		WithInterval(config.Checker.Interval).
 		WithRequiredConfirmationBlocks(0)
 
 		// Gets interactions that may be finalized from the db

@@ -49,7 +49,7 @@ func (self *Poller) run() error {
 	for networkInfo := range self.input {
 		// Bundlr.network says it may takie 50 blocks for the tx to be finalized,
 		// no need to check it sooner
-		minHeightToCheck := networkInfo.Height - self.Config.Bundler.CheckerMinConfirmationBlocks
+		minHeightToCheck := networkInfo.Height - self.Config.Checker.MinConfirmationBlocks
 
 		// Each iteration handles a batch of bundles
 		for {
@@ -66,7 +66,7 @@ func (self *Poller) run() error {
 				Where("bundle_items.block_height < ?", minHeightToCheck).
 				Where("bundle_items.state = ?", model.BundleStateUploaded).
 				Order("bundle_items.block_height ASC").
-				Limit(self.Config.Bundler.CheckerMaxBundlesPerRun).
+				Limit(self.Config.Checker.MaxBundlesPerRun).
 				Preload("Interaction").
 				Scan(&interactions).Error
 			if err != nil {

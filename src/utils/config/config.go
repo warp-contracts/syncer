@@ -131,6 +131,7 @@ type Config struct {
 
 	Bundler Bundler
 	Bundlr  Bundlr
+	Checker Checker
 }
 
 func setDefaults() {
@@ -178,6 +179,7 @@ func setDefaults() {
 
 	setBundlerDefaults()
 	setBundlrDefaults()
+	setCheckerDefaults()
 }
 
 func Default() (config *Config) {

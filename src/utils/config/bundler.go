@@ -24,15 +24,6 @@ type Bundler struct {
 
 	// Number of workers that send bundles in parallel
 	BundlerNumBundlingWorkers uint16
-
-	// How often to check for new network info
-	CheckerInterval time.Duration
-
-	// Minimal number of blocks to wait before checking the bundle
-	CheckerMinConfirmationBlocks int64
-
-	// Number of bundles to confirm in one run.
-	CheckerMaxBundlesPerRun int
 }
 
 func setBundlerDefaults() {
