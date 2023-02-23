@@ -154,9 +154,17 @@ func (self *Task) run(subtask func() error) {
 				panic(p)
 			}
 		}()
-		err := subtask()
-		if err != nil {
-			self.Log.WithError(err).Error("Subtask failed")
+		for {
+			err := subtask()
+			if err != nil {
+				self.Log.WithError(err).Error("Subtask failed")
+			}
+
+			if self.IsStopping.Load() {
+				break
+			}
+
+			self.Log.Error("Subtask func returned, but task wasn't stopped. Restarting...")
 		}
 	}()
 }

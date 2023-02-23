@@ -294,8 +294,8 @@ func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (e
 		self.mtx.RLock()
 		if idx >= len(self.peers) {
 			// No more peers, report the first failure
-			self.log.WithField("idx", idx).Info("No more peers to check")
 			self.mtx.RUnlock()
+			self.log.WithField("idx", idx).Info("No more peers to check")
 			return
 		}
 		peer = self.peers[idx]
@@ -311,7 +311,7 @@ func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (e
 			break
 		}
 
-		self.log.WithError(err).Debug("Retried request failed")
+		self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).WithError(err).Warn("Retried request failed")
 
 		// Handle timeout in context
 		if secondResponse.Request.Context().Err() != nil {

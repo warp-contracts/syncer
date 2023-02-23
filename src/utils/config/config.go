@@ -163,7 +163,7 @@ func setDefaults() {
 	viper.SetDefault("ListenerQueueSize", "1")
 	viper.SetDefault("ListenerNetworkInfoNodeUrl", "https://gateway.warp.cc/gateway/arweave")
 	viper.SetDefault("ListenerPeriod", "1s")
-	viper.SetDefault("ListenerRetryFailedTransactionDownloadInterval", "5s")
+	viper.SetDefault("ListenerRetryFailedTransactionDownloadInterval", "10s")
 	viper.SetDefault("ListenerRequiredConfirmationBlocks", "10")
 	viper.SetDefault("ListenerNumWorkers", "50")
 

@@ -99,7 +99,11 @@ func (self *BlockMonitor) run() error {
 
 			block, err := self.client.GetBlockByHeight(self.Ctx, height)
 			if err != nil {
-				self.Log.WithError(err).WithField("height", height).Error("Failed to download block")
+				if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
+					return nil
+				}
+
+				self.Log.WithError(err).WithField("height", height).Error("Failed to download block, retrying...")
 
 				// This will completly reset the HTTP client and possibly help in solving the problem
 				self.client.Reset()
@@ -112,7 +116,7 @@ func (self *BlockMonitor) run() error {
 					return nil
 				}
 
-				continue
+				goto retry
 				// FIXME: Inform downstream something's wrong
 			}
 
@@ -170,12 +174,12 @@ func (self *BlockMonitor) downloadTransactions(block *arweave.Block) (out []*arw
 		self.Workers.Submit(func() {
 			// NOTE: Infinite loop, because there's nothing better we can do.
 			for {
-				// self.Log.WithField("txId", txId).Debug("Downloading transaction")
+				self.Log.WithField("txId", txId).Debug("Downloading transaction")
 
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {
-					if errors.Is(err, context.Canceled) {
-						return
+					if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
+						goto end
 					}
 					self.Log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, retrying after timeout")
 

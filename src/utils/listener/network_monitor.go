@@ -30,7 +30,7 @@ type NetworkMonitor struct {
 func NewNetworkMonitor(config *config.Config) (self *NetworkMonitor) {
 	self = new(NetworkMonitor)
 
-	self.Output = make(chan *arweave.NetworkInfo, 1)
+	self.Output = make(chan *arweave.NetworkInfo)
 
 	self.Task = task.NewTask(config, "network-monitor").
 		WithOnAfterStop(func() {
