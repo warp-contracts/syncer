@@ -99,7 +99,7 @@ spec:
             - secretRef:
                 name: syncer-prod
             - secretRef:
-                name: bundle-prod
+                name: bundler-prod
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
