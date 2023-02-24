@@ -34,8 +34,9 @@ type Report struct {
 	PeersBlacklisted atomic.Uint64 `json:"peers_blacklisted"`
 	NumPeers         atomic.Uint64 `json:"num_peers"`
 
-	TransactionsDownloaded atomic.Uint64 `json:"transactions_downloaded"`
-	InteractionsSaved      atomic.Uint64 `json:"interactions_saved"`
+	TransactionsDownloaded   atomic.Uint64 `json:"transactions_downloaded"`
+	InteractionsSaved        atomic.Uint64 `json:"interactions_saved"`
+	FailedInteractionParsing atomic.Uint64 `json:"failed_interaction_parsing"`
 
 	Errors Errors `json:"errors"`
 }

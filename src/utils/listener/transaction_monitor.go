@@ -71,13 +71,15 @@ func (self *TransactionMonitor) run() error {
 		}
 
 		// Parse transactions into interactions
-		payload.Interactions = make([]*model.Interaction, len(payload.Transactions))
-		for i, tx := range payload.Transactions {
-			payload.Interactions[i], err = self.interactionParser.Parse(tx, payload.BlockHeight, payload.BlockId, payload.BlockTimestamp)
+		payload.Interactions = make([]*model.Interaction, 0, len(payload.Transactions))
+		for _, tx := range payload.Transactions {
+			interaction, err := self.interactionParser.Parse(tx, payload.BlockHeight, payload.BlockId, payload.BlockTimestamp)
 			if err != nil {
+				self.monitor.Report.FailedInteractionParsing.Inc()
 				self.Log.WithField("tx_id", tx.ID).Warn("Failed to parse transaction")
 				continue
 			}
+			payload.Interactions = append(payload.Interactions, interaction)
 		}
 
 		// Blocks until a upstream is ready to receive
