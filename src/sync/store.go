@@ -113,8 +113,6 @@ func (self *Store) run() (err error) {
 	var lastTransactionBlockHeight int64
 
 	insert := func() {
-		defer func() { timer = time.NewTimer(self.Config.StoreMaxTimeInQueue) }()
-
 		err = self.insert(pendingInteractions, lastTransactionBlockHeight)
 		if err != nil {
 			// This is a terminal error, it already tried to retry
@@ -158,6 +156,7 @@ func (self *Store) run() (err error) {
 				self.Log.Debug("Batch timed out, trigger insert")
 				insert()
 			}
+			timer = time.NewTimer(self.Config.StoreMaxTimeInQueue)
 		}
 	}
 }
