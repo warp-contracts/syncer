@@ -103,6 +103,16 @@ func (self *Monitor) monitorInteractions() (err error) {
 	return
 }
 
+func (self *Monitor) IsSyncerOK() bool {
+	now := time.Now().Unix()
+	if now-self.Report.StartTimestamp.Load() < 300 {
+		return true
+	}
+
+	// Syncer is operational long enough, check stats
+	return self.Report.AverageBlocksProcessedPerMinute.Load() > 0.1
+}
+
 func (self *Monitor) OnGetState(c *gin.Context) {
 	self.Report.Fill()
 	c.JSON(http.StatusOK, &self.Report)

@@ -131,9 +131,9 @@ func (self *Store) run() (err error) {
 
 	for {
 		select {
-		case <-self.CtxRunning.Done():
-			// Stop was requested, close the input channel
-			// Won't accept new data, but will process pending
+		// case <-self.CtxRunning.Done():
+		// 	// Stop was requested, close the input channel
+		// 	// Won't accept new data, but will process pending
 
 		case payload, ok := <-self.input:
 			if !ok {

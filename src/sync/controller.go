@@ -21,52 +21,67 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	self.Task = task.NewTask(config, "controller")
 
-	client := arweave.NewClient(self.Ctx, config)
-
-	db, err := model.NewConnection(self.Ctx, self.Config)
-	if err != nil {
-		return
-	}
-
 	monitor := monitor.NewMonitor().
 		WithMaxHistorySize(30)
-
-	peerMonitor := peer_monitor.NewPeerMonitor(config).
-		WithClient(client).
-		WithMonitor(monitor)
-
-	networkMonitor := listener.NewNetworkMonitor(config).
-		WithClient(client).
-		WithMonitor(monitor).
-		WithInterval(config.ListenerPeriod).
-		WithRequiredConfirmationBlocks(config.ListenerRequiredConfirmationBlocks)
-
-	blockMonitor := listener.NewBlockMonitor(config).
-		WithClient(client).
-		WithInputChannel(networkMonitor.Output).
-		WithMonitor(monitor).
-		WithInitStartHeight(db)
-
-	transactionMonitor := listener.NewTransactionMonitor(config).
-		WithInputChannel(blockMonitor.Output).
-		WithMonitor(monitor)
-
-	store := NewStore(config).
-		WithInputChannel(transactionMonitor.Output).
-		WithMonitor(monitor).
-		WithDB(db)
 
 	server := NewServer(config).
 		WithMonitor(monitor)
 
+	watched := func() *task.Task {
+		db, err := model.NewConnection(self.Ctx, self.Config)
+		if err != nil {
+			panic(err)
+		}
+
+		client := arweave.NewClient(self.Ctx, config)
+
+		peerMonitor := peer_monitor.NewPeerMonitor(config).
+			WithClient(client).
+			WithMonitor(monitor)
+
+		networkMonitor := listener.NewNetworkMonitor(config).
+			WithClient(client).
+			WithMonitor(monitor).
+			WithInterval(config.ListenerPeriod).
+			WithRequiredConfirmationBlocks(config.ListenerRequiredConfirmationBlocks)
+
+		blockMonitor := listener.NewBlockMonitor(config).
+			WithClient(client).
+			WithInputChannel(networkMonitor.Output).
+			WithMonitor(monitor).
+			WithInitStartHeight(db)
+
+		transactionMonitor := listener.NewTransactionMonitor(config).
+			WithInputChannel(blockMonitor.Output).
+			WithMonitor(monitor)
+
+		store := NewStore(config).
+			WithInputChannel(transactionMonitor.Output).
+			WithMonitor(monitor).
+			WithDB(db)
+
+		return task.NewTask(config, "watched").
+			WithSubtask(peerMonitor.Task).
+			WithSubtask(store.Task).
+			WithSubtask(networkMonitor.Task).
+			WithSubtask(blockMonitor.Task).
+			WithSubtask(transactionMonitor.Task)
+	}
+
+	watchdog := task.NewWatchdog(config).
+		WithTask(watched).
+		WithIsOK(func() bool {
+			isOK := monitor.IsSyncerOK()
+			if !isOK {
+				monitor.Report.NumWatchdogRestarts.Inc()
+			}
+			return isOK
+		})
+
 	self.Task = self.Task.
 		WithSubtask(monitor.Task).
-		WithSubtask(peerMonitor.Task).
-		WithSubtask(store.Task).
-		WithSubtask(networkMonitor.Task).
-		WithSubtask(blockMonitor.Task).
-		WithSubtask(transactionMonitor.Task).
-		WithSubtask(server.Task)
+		WithSubtask(server.Task).
+		WithSubtask(watchdog.Task)
 
 	return
 }

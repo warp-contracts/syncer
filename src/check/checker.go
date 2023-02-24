@@ -51,7 +51,7 @@ func (self *Checker) run() error {
 
 		self.Workers.Submit(func() {
 			// Check if the bundle is finalized
-			status, err := self.bundlrClient.GetStatus(self.CtxRunning, payload.BundlerTxId)
+			status, err := self.bundlrClient.GetStatus(self.Ctx, payload.BundlerTxId)
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to get bundle status")
 			}
@@ -61,7 +61,7 @@ func (self *Checker) run() error {
 			}
 
 			select {
-			case <-self.CtxRunning.Done():
+			case <-self.Ctx.Done():
 				return
 			case self.Output <- payload.InteractionId:
 			}

@@ -30,7 +30,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	self.Task = task.NewTask(config, "bundle-controller")
 
 	// SQL database
-	db, err := model.NewConnection(self.CtxRunning, config)
+	db, err := model.NewConnection(self.Ctx, config)
 	if err != nil {
 		return
 	}

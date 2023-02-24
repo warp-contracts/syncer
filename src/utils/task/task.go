@@ -244,7 +244,7 @@ func (self *Task) StopWait() {
 	select {
 	case <-ctx.Done():
 		self.Log.Error("Timeout reached, failed to stop")
-	case <-self.Ctx.Done():
+	case <-self.CtxRunning.Done():
 		self.Log.Info("Task finished")
 	}
 

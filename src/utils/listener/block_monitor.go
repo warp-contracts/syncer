@@ -135,12 +135,12 @@ func (self *BlockMonitor) run() error {
 				Debug("Downloaded block")
 
 			transactions, err := self.downloadTransactions(block)
+			if self.IsStopping.Load() {
+				// Neglect trhose transactions
+				return nil
+			}
 			if err != nil {
 				self.Log.WithError(err).WithField("height", height).Error("Failed to download transactions in block")
-				if self.IsStopping.Load() {
-					// Neglect this block and close the goroutine
-					return nil
-				}
 				continue
 			}
 
@@ -174,6 +174,10 @@ func (self *BlockMonitor) downloadTransactions(block *arweave.Block) (out []*arw
 		self.Workers.Submit(func() {
 			// NOTE: Infinite loop, because there's nothing better we can do.
 			for {
+				if self.IsStopping.Load() {
+					goto end
+				}
+
 				self.Log.WithField("txId", txId).Debug("Downloading transaction")
 
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)

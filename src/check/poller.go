@@ -82,7 +82,7 @@ func (self *Poller) run() error {
 
 			for _, interaction := range interactions {
 				select {
-				case <-self.CtxRunning.Done():
+				case <-self.Ctx.Done():
 					return nil
 				case self.Output <- &Payload{
 					InteractionId: interaction.ID,

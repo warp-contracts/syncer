@@ -19,13 +19,13 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	self.Task = task.NewTask(config, "bundle-controller")
 
 	// SQL database
-	db, err := model.NewConnection(self.CtxRunning, config)
+	db, err := model.NewConnection(self.Ctx, config)
 	if err != nil {
 		return
 	}
 
 	// Arweave client
-	client := arweave.NewClient(self.CtxRunning, config)
+	client := arweave.NewClient(self.Ctx, config)
 
 	// Bundlr client
 	bundlrClient := bundlr.NewClient(self.Ctx, &config.Bundlr)

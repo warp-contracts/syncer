@@ -37,6 +37,7 @@ type Report struct {
 	TransactionsDownloaded   atomic.Uint64 `json:"transactions_downloaded"`
 	InteractionsSaved        atomic.Uint64 `json:"interactions_saved"`
 	FailedInteractionParsing atomic.Uint64 `json:"failed_interaction_parsing"`
+	NumWatchdogRestarts      atomic.Uint64 `json:"num_watchdog_restarts"`
 
 	Errors Errors `json:"errors"`
 }
