@@ -107,12 +107,14 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 // Receives data from the input channel and saves in the database
 func (self *Store) run() (err error) {
 	// Used to ensure data isn't stuck in Syncer for too long
-	ticker := time.NewTicker(self.Config.StoreMaxTimeInQueue)
+	timer := time.NewTimer(self.Config.StoreMaxTimeInQueue)
 
 	var pendingInteractions []*model.Interaction
 	var lastTransactionBlockHeight int64
 
 	insert := func() {
+		defer func() { timer = time.NewTimer(self.Config.StoreMaxTimeInQueue) }()
+
 		err = self.insert(pendingInteractions, lastTransactionBlockHeight)
 		if err != nil {
 			// This is a terminal error, it already tried to retry
@@ -125,9 +127,6 @@ func (self *Store) run() (err error) {
 
 		// Cleanup buffer
 		pendingInteractions = nil
-
-		// Prolong time to forced insert
-		ticker.Reset(self.Config.StoreMaxTimeInQueue)
 	}
 
 	for {
@@ -154,7 +153,7 @@ func (self *Store) run() (err error) {
 				insert()
 			}
 
-		case <-ticker.C:
+		case <-timer.C:
 			if len(pendingInteractions) > 0 {
 				self.Log.Debug("Batch timed out, trigger insert")
 				insert()
