@@ -74,6 +74,7 @@ func (self *Notifier) run() error {
 				if notification.Transaction != nil {
 					// FIXME: This copies a lot of data
 					bundleItem.Transaction = *notification.Transaction
+					bundleItem.Tags = *notification.Tags
 				} else {
 					// Transaction was too big to fit into the notification channel
 					// Only id is there, we need to fetch the rest of the data from the database

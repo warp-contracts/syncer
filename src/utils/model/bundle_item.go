@@ -16,6 +16,8 @@ type BundleItem struct {
 	Interaction Interaction
 	// Oryginal transaction needed to create the bundle
 	Transaction pgtype.JSONB
+	// Tags created by the sequencer
+	Tags pgtype.JSONB
 	// State of bundle
 	State BundleState
 	// Block height upon which interaction was bundled. Used to trigger verification later

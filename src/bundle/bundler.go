@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"encoding/json"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/bundlr"
 	"syncer/src/utils/config"
@@ -81,6 +82,18 @@ func (self *Bundler) run() (err error) {
 			}
 
 			bundleItem.Data = arweave.Base64String(data)
+
+			tagBytes, err := item.Tags.MarshalJSON()
+			if err != nil {
+				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to get transaction tags")
+				return
+			}
+
+			err = json.Unmarshal(tagBytes, &bundleItem.Tags)
+			if err != nil {
+				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to get transaction tags")
+				return
+			}
 
 			// Send the bundle item to bundlr
 			resp, err := self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
