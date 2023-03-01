@@ -45,7 +45,6 @@ func (self *Poller) WithOutputChannel(bundleItems chan *model.BundleItem) *Polle
 }
 
 func (self *Poller) runPeriodically() error {
-	self.Log.Debug("Tick")
 	if self.Workers.WaitingQueueSize() > 1 {
 		self.Log.Debug("Too many pending interaction checks")
 		return nil
@@ -57,6 +56,8 @@ func (self *Poller) runPeriodically() error {
 }
 
 func (self *Poller) check() {
+	self.Log.Debug("Getting interactions pending bundling")
+
 	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Bundler.PollerTimeout)
 	defer cancel()
 
