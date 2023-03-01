@@ -87,6 +87,18 @@ version:
 clean:
 	rm -rf bin/$(PACKAGE) .gopath~
 
+.PHONY: logs-sync
+logs-sync:
+	kubectl logs -f -n syncer-prod deployment/syncer-prod-warp-syncer -c syncer
+
+.PHONY: logs-bundler
+logs-bundler:
+	kubectl logs -f -n syncer-prod deployment/syncer-prod-warp-syncer -c bundler
+
+.PHONY: logs-check
+logs-check:
+	kubectl logs -f -n syncer-prod deployment/syncer-prod-warp-syncer -c checker
+
 .PHONY: health
 health:
 	curl -s http://localhost:3333/v1/health | jq 
