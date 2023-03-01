@@ -16,10 +16,10 @@ type Controller struct {
 // Main class that orchestrates everything
 func NewController(config *config.Config) (self *Controller, err error) {
 	self = new(Controller)
-	self.Task = task.NewTask(config, "bundle-controller")
+	self.Task = task.NewTask(config, "checker-controller")
 
 	// SQL database
-	db, err := model.NewConnection(self.Ctx, config)
+	db, err := model.NewConnection(self.Ctx, config, "checker")
 	if err != nil {
 		return
 	}

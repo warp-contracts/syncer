@@ -28,7 +28,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor)
 
 	watched := func() *task.Task {
-		db, err := model.NewConnection(self.Ctx, self.Config)
+		db, err := model.NewConnection(self.Ctx, self.Config, "syncer")
 		if err != nil {
 			panic(err)
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"syncer/src/utils/build_info"
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
 	l "syncer/src/utils/logger"
@@ -16,7 +17,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, err error) {
+func NewConnection(ctx context.Context, config *config.Config, applicationName string) (self *gorm.DB, err error) {
 	log := l.NewSublogger("db")
 
 	logger := logger.New(log,
@@ -28,13 +29,16 @@ func NewConnection(ctx context.Context, config *config.Config) (self *gorm.DB, e
 		},
 	)
 
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s application_name=%s/warp.cc/%s",
 		config.DBHost,
 		config.DBPort,
 		config.DBUser,
 		config.DBPassword,
 		config.DBName,
-		config.DBSslMode)
+		config.DBSslMode,
+		applicationName,
+		build_info.Version,
+	)
 
 	self, err = gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger})
 	if err != nil {
