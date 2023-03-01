@@ -7,6 +7,7 @@ import (
 	"syncer/src/utils/build_info"
 	"syncer/src/utils/config"
 	"syncer/src/utils/task"
+	"time"
 
 	"github.com/jackc/pgx"
 )
@@ -31,6 +32,7 @@ func NewStreamer(config *config.Config, name string) (self *Streamer) {
 
 	self.Task = task.NewTask(config, name).
 		WithSubtaskFunc(self.run).
+		// WithPeriodicSubtaskFunc(10*time.Second, self.monitor).
 		WithOnBeforeStart(self.connect).
 		WithOnStop(func() {
 			close(self.Output)
@@ -88,6 +90,24 @@ func (self *Streamer) connect() (err error) {
 	return
 }
 
+func (self *Streamer) reconnect() {
+	var err error
+	for {
+		err = self.connect()
+		if err == nil {
+			// SUCCESS
+			self.Log.Info("Connection established")
+			return
+		}
+
+		self.Log.WithError(err).Error("Failed to connect, retrying in 1s")
+		time.Sleep(time.Second)
+		if self.IsStopping.Load() {
+			return
+		}
+	}
+}
+
 func (self *Streamer) run() (err error) {
 	err = self.connection.Listen(self.channelName)
 	if err != nil {
@@ -110,7 +130,8 @@ func (self *Streamer) run() (err error) {
 		}
 
 		if err != nil {
-			self.Log.WithError(err).Error("Failed to wait for notification")
+			self.Log.WithError(err).Error("Failed to wait for notification, reconnecting")
+			self.reconnect()
 		} else {
 			// Send notification to output channel
 			self.Output <- msg.Payload
