@@ -81,7 +81,7 @@ test:
 
 .PHONY: version
 version:
-	$Q echo $(VERSION)
+	$Q echo -n $(VERSION) > .version
 
 .PHONY: clean
 clean:
