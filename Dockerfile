@@ -14,6 +14,7 @@ RUN make version
 RUN make build
 
 FROM golang:1.19.4-alpine3.17
-COPY --from=0 /app/bin/syncer ./app/bin/syncer
+RUN mkdir -p /app/bin
+COPY --from=0 /app/bin/syncer /app/bin/syncer
 
 CMD ["/app/bin/syncer", "sync"]
