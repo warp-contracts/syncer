@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"syncer/src/utils/build_info"
 	"syncer/src/utils/config"
 	"syncer/src/utils/task"
 
@@ -23,12 +24,12 @@ type Streamer struct {
 	Output chan string
 }
 
-func NewStreamer(config *config.Config) (self *Streamer) {
+func NewStreamer(config *config.Config, name string) (self *Streamer) {
 	self = new(Streamer)
 
 	self.Output = make(chan string)
 
-	self.Task = task.NewTask(config, "streamer").
+	self.Task = task.NewTask(config, name).
 		WithSubtaskFunc(self.run).
 		WithOnBeforeStart(self.connect).
 		WithOnStop(func() {
@@ -59,13 +60,15 @@ func (self *Streamer) disconnect() {
 }
 
 func (self *Streamer) connect() (err error) {
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s application_name=%s/warp.cc/%s",
 		self.Config.DBHost,
 		self.Config.DBPort,
 		self.Config.DBUser,
 		self.Config.DBPassword,
 		self.Config.DBName,
-		self.Config.DBSslMode)
+		self.Config.DBSslMode,
+		self.Name,
+		build_info.Version)
 
 	config, err := pgx.ParseDSN(dsn)
 	if err != nil {

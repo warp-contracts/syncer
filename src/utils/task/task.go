@@ -18,6 +18,7 @@ import (
 type Task struct {
 	Config *config.Config
 	Log    *logrus.Entry
+	Name   string
 
 	// Stopping
 	IsStopping    *atomic.Bool
@@ -49,6 +50,7 @@ type Task struct {
 func NewTask(config *config.Config, name string) (self *Task) {
 	self = new(Task)
 	self.Log = logger.NewSublogger(name)
+	self.Name = name
 	self.Config = config
 
 	// Context cancelled when Stop() is called

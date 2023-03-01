@@ -24,7 +24,7 @@ type Notifier struct {
 func NewNotifier(config *config.Config) (self *Notifier) {
 	self = new(Notifier)
 
-	self.streamer = notify.NewStreamer(config).
+	self.streamer = notify.NewStreamer(config, "bundler-notifier").
 		WithNotificationChannelName("bundle_items_pending").
 		WithCapacity(10)
 
