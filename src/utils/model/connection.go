@@ -90,7 +90,7 @@ func getConnection(ctx context.Context, config *config.Config, username, passwor
 }
 
 func NewConnection(ctx context.Context, config *config.Config, applicationName string) (self *gorm.DB, err error) {
-	err = Migrate(ctx)
+	err = Migrate(ctx, config)
 	if err != nil {
 		return
 	}
@@ -98,8 +98,7 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 	return getConnection(ctx, config, config.Database.User, config.Database.Password, applicationName)
 }
 
-func Migrate(ctx context.Context) (err error) {
-	config := common.GetConfig(ctx)
+func Migrate(ctx context.Context, config *config.Config) (err error) {
 	log := l.NewSublogger("db-migrate")
 
 	// Run migrations
