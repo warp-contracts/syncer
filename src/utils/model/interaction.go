@@ -43,7 +43,9 @@ type Interaction struct {
 
 	// Not needed:
 	BundlerTxId string
+
 	// LastSortKey       string
+	BlockTimestamp int64
 }
 
 func (self *Interaction) GetInteraction() *smartweave.Interaction {

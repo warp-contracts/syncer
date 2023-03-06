@@ -145,8 +145,9 @@ func (self *BlockMonitor) run() error {
 			self.monitor.Report.TransactionsDownloaded.Add(uint64(len(transactions)))
 
 			payload := &Payload{
-				BlockHeight:  block.Height,
-				Transactions: transactions,
+				BlockHeight:    block.Height,
+				BlockTimestamp: block.Timestamp,
+				Transactions:   transactions,
 			}
 
 			// Blocks until a monitorTranactions is ready to receive
