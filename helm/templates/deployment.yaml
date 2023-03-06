@@ -97,8 +97,6 @@ spec:
               value: ":8080"
           envFrom:
             - secretRef:
-                name: syncer-prod
-            - secretRef:
                 name: bundler-prod
           ports:
             - name: http
@@ -130,7 +128,7 @@ spec:
               value: "60s"
           envFrom:
             - secretRef:
-                name: syncer-prod
+                name: checker-prod
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
