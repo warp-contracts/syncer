@@ -91,11 +91,10 @@ func (self *Streamer) connect() (err error) {
 		}
 
 		config.TLSConfig = &tls.Config{
-			InsecureSkipVerify: false,
+			InsecureSkipVerify: true,
 			RootCAs:            caCertPool,
 			ClientCAs:          caCertPool,
 			Certificates:       []tls.Certificate{cert},
-			ServerName:         self.Config.Database.Host,
 		}
 	}
 
