@@ -120,7 +120,7 @@ func (self *BlockMonitor) run() error {
 			}
 
 			if !block.IsValid() {
-				self.Log.WithField("height", height).Error("Block hash isn't valid")
+				self.Log.WithField("height", height).Error("Block hash isn't valid, retrying after sleep")
 				// self.Log.WithField("height", height).Error("Block hash isn't valid, blacklisting peer for ever and retrying")
 				self.monitor.Report.Errors.BlockValidationErrors.Inc()
 				time.Sleep(time.Second * 10)
