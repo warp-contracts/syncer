@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func NewConnection(ctx context.Context, config *config.Config, applicationName string) (self *gorm.DB, err error) {
+func getConnection(ctx context.Context, config *config.Config, username, password, applicationName string) (self *gorm.DB, err error) {
 	log := l.NewSublogger("db")
 
 	logger := logger.New(log,
@@ -33,8 +33,8 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s application_name=%s/warp.cc/%s",
 		config.Database.Host,
 		config.Database.Port,
-		config.Database.User,
-		config.Database.Password,
+		username,
+		password,
 		config.Database.Name,
 		config.Database.SslMode,
 		applicationName,
@@ -86,9 +86,31 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 		return
 	}
 
+	return
+}
+
+func NewConnection(ctx context.Context, config *config.Config, applicationName string) (self *gorm.DB, err error) {
+	err = Migrate(ctx)
+	if err != nil {
+		return
+	}
+
+	return getConnection(ctx, config, config.Database.User, config.Database.Password, applicationName)
+}
+
+func Migrate(ctx context.Context) (err error) {
+	config := common.GetConfig(ctx)
+	log := l.NewSublogger("db-migrate")
+
 	// Run migrations
 	migrations := &migrate.HttpFileSystemMigrationSource{
 		FileSystem: http.FS(sql_migrations.FS),
+	}
+
+	// Use special migration user
+	self, err := getConnection(ctx, config, config.Database.MigrationUser, config.Database.MigrationPassword, "migration")
+	if err != nil {
+		return
 	}
 
 	db, err := self.DB()
@@ -102,6 +124,9 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 	}
 
 	log.WithField("num", n).Info("Applied migrations")
+
+	config.Database.MigrationUser = ""
+	config.Database.MigrationPassword = ""
 
 	return
 }
