@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"syncer/src/utils/build_info"
 	"syncer/src/utils/common"
 	"syncer/src/utils/config"
@@ -39,6 +40,41 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 		applicationName,
 		build_info.Version,
 	)
+
+	if config.DbClientKey != "" && config.DbClientCert != "" && config.DbCaCert != "" {
+		var keyFile, certFile, caFile *os.File
+		keyFile, err = os.CreateTemp("", "key.pem")
+		if err != nil {
+			return
+		}
+		defer os.Remove(keyFile.Name())
+		_, err = keyFile.WriteString(config.DbClientKey)
+		if err != nil {
+			return
+		}
+
+		certFile, err = os.CreateTemp("", "cert.pem")
+		if err != nil {
+			return
+		}
+		defer os.Remove(certFile.Name())
+		_, err = certFile.WriteString(config.DbClientCert)
+		if err != nil {
+			return
+		}
+
+		caFile, err = os.CreateTemp("", "ca.pem")
+		if err != nil {
+			return
+		}
+		defer os.Remove(caFile.Name())
+		_, err = caFile.WriteString(config.DbCaCert)
+		if err != nil {
+			return
+		}
+
+		dsn += fmt.Sprintf(" sslcert=%s sslkey=%s sslrootcert=%s", certFile.Name(), keyFile.Name(), caFile.Name())
+	}
 
 	self, err = gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger})
 	if err != nil {
