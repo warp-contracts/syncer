@@ -117,7 +117,6 @@ func (self *BlockMonitor) run() error {
 				}
 
 				goto retry
-				// FIXME: Inform downstream something's wrong
 			}
 
 			if !block.IsValid() {
@@ -125,8 +124,6 @@ func (self *BlockMonitor) run() error {
 				// self.Log.WithField("height", height).Error("Block hash isn't valid, blacklisting peer for ever and retrying")
 				self.monitor.Report.Errors.BlockValidationErrors.Inc()
 				goto retry
-				// FIXME: Inform downstream something's wrong
-				// FIXME: Blacklist peer, retry downloading block
 			}
 
 			self.Log.

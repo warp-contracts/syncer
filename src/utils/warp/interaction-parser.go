@@ -60,7 +60,6 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 	swInteraction := smartweave.Interaction{
 		Id: tx.ID,
 		Owner: smartweave.Owner{
-			// TODO: CHeck if this is the address or N
 			Address: out.Owner,
 		},
 		Recipient: tx.Target,

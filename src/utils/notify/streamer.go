@@ -2,6 +2,8 @@ package notify
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"syncer/src/utils/build_info"
@@ -75,6 +77,25 @@ func (self *Streamer) connect() (err error) {
 	config, err := pgx.ParseDSN(dsn)
 	if err != nil {
 		return
+	}
+
+	if self.Config.DbClientCert != "" && self.Config.DbClientKey != "" && self.Config.DbCaCert != "" {
+		cert, err := tls.X509KeyPair([]byte(self.Config.DbClientCert), []byte(self.Config.DbClientKey))
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to load client cert")
+		}
+
+		caCertPool := x509.NewCertPool()
+		if !caCertPool.AppendCertsFromPEM([]byte(self.Config.DbCaCert)) {
+			return errors.New("failed to append CA cert to pool")
+		}
+
+		config.TLSConfig = &tls.Config{
+			InsecureSkipVerify: false,
+			RootCAs:            caCertPool,
+			ClientCAs:          caCertPool,
+			Certificates:       []tls.Certificate{cert},
+		}
 	}
 
 	self.pool, err = pgx.NewConnPool(pgx.ConnPoolConfig{ConnConfig: config})

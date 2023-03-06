@@ -21,6 +21,9 @@ type Config struct {
 	DBName        string
 	DBSslMode     string
 	DBPingTimeout time.Duration
+	DbClientKey   string
+	DbClientCert  string
+	DbCaCert      string
 
 	// REST API address. API used for monitoring etc.
 	RESTListenAddress string
@@ -31,7 +34,7 @@ type Config struct {
 	// Logging level
 	LogLevel string
 
-	// FIXME: Use this value in listener
+	// URL to arweave.net
 	ArNodeUrl string
 
 	// Time limit for requests. The timeout includes connection time, any
