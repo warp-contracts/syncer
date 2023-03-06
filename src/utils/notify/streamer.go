@@ -95,6 +95,7 @@ func (self *Streamer) connect() (err error) {
 			RootCAs:            caCertPool,
 			ClientCAs:          caCertPool,
 			Certificates:       []tls.Certificate{cert},
+			ServerName:         self.Config.Database.Host,
 		}
 	}
 

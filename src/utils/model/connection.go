@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func getConnection(ctx context.Context, config *config.Config, username, password, applicationName string) (self *gorm.DB, err error) {
+func Connect(ctx context.Context, config *config.Config, username, password, applicationName string) (self *gorm.DB, err error) {
 	log := l.NewSublogger("db")
 
 	logger := logger.New(log,
@@ -95,7 +95,7 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 		return
 	}
 
-	return getConnection(ctx, config, config.Database.User, config.Database.Password, applicationName)
+	return Connect(ctx, config, config.Database.User, config.Database.Password, applicationName)
 }
 
 func Migrate(ctx context.Context, config *config.Config) (err error) {
@@ -107,7 +107,7 @@ func Migrate(ctx context.Context, config *config.Config) (err error) {
 	}
 
 	// Use special migration user
-	self, err := getConnection(ctx, config, config.Database.MigrationUser, config.Database.MigrationPassword, "migration")
+	self, err := Connect(ctx, config, config.Database.MigrationUser, config.Database.MigrationPassword, "migration")
 	if err != nil {
 		return
 	}
