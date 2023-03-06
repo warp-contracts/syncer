@@ -13,18 +13,6 @@ import (
 
 // Config stores global configuration
 type Config struct {
-	// SQL Database
-	DBPort        uint16
-	DBHost        string
-	DBUser        string
-	DBPassword    string
-	DBName        string
-	DBSslMode     string
-	DBPingTimeout time.Duration
-	DbClientKey   string
-	DbClientCert  string
-	DbCaCert      string
-
 	// REST API address. API used for monitoring etc.
 	RESTListenAddress string
 
@@ -132,9 +120,10 @@ type Config struct {
 	// Maksimum number of requests run in parallel
 	InteractionManagerMaxParallelQueries int
 
-	Bundler Bundler
-	Bundlr  Bundlr
-	Checker Checker
+	Bundler  Bundler
+	Bundlr   Bundlr
+	Checker  Checker
+	Database Database
 }
 
 func setDefaults() {
@@ -142,14 +131,6 @@ func setDefaults() {
 	viper.SetDefault("LogLevel", "DEBUG")
 
 	viper.SetDefault("StopTimeout", "30s")
-
-	viper.SetDefault("DBPort", "7654")
-	viper.SetDefault("DBHost", "127.0.0.1")
-	viper.SetDefault("DBUser", "postgres")
-	viper.SetDefault("DBPassword", "postgres")
-	viper.SetDefault("DBName", "warp")
-	viper.SetDefault("DBSslMode", "disable")
-	viper.SetDefault("DBPingTimeout", "15s")
 
 	viper.SetDefault("ArNodeUrl", "https://arweave.net")
 	viper.SetDefault("ArRequestTimeout", "30s")
@@ -183,6 +164,7 @@ func setDefaults() {
 	setBundlerDefaults()
 	setBundlrDefaults()
 	setCheckerDefaults()
+	setDatabaseDefaults()
 }
 
 func Default() (config *Config) {

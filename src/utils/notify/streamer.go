@@ -65,12 +65,12 @@ func (self *Streamer) disconnect() {
 
 func (self *Streamer) connect() (err error) {
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s application_name=%s/warp.cc/%s",
-		self.Config.DBHost,
-		self.Config.DBPort,
-		self.Config.DBUser,
-		self.Config.DBPassword,
-		self.Config.DBName,
-		self.Config.DBSslMode,
+		self.Config.Database.Host,
+		self.Config.Database.Port,
+		self.Config.Database.User,
+		self.Config.Database.Password,
+		self.Config.Database.Name,
+		self.Config.Database.SslMode,
 		self.Name,
 		build_info.Version)
 
@@ -79,14 +79,14 @@ func (self *Streamer) connect() (err error) {
 		return
 	}
 
-	if self.Config.DbClientCert != "" && self.Config.DbClientKey != "" && self.Config.DbCaCert != "" {
-		cert, err := tls.X509KeyPair([]byte(self.Config.DbClientCert), []byte(self.Config.DbClientKey))
+	if self.Config.Database.ClientCert != "" && self.Config.Database.ClientKey != "" && self.Config.Database.CaCert != "" {
+		cert, err := tls.X509KeyPair([]byte(self.Config.Database.ClientCert), []byte(self.Config.Database.ClientKey))
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to load client cert")
 		}
 
 		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM([]byte(self.Config.DbCaCert)) {
+		if !caCertPool.AppendCertsFromPEM([]byte(self.Config.Database.CaCert)) {
 			return errors.New("failed to append CA cert to pool")
 		}
 

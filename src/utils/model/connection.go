@@ -31,24 +31,24 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 	)
 
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s application_name=%s/warp.cc/%s",
-		config.DBHost,
-		config.DBPort,
-		config.DBUser,
-		config.DBPassword,
-		config.DBName,
-		config.DBSslMode,
+		config.Database.Host,
+		config.Database.Port,
+		config.Database.User,
+		config.Database.Password,
+		config.Database.Name,
+		config.Database.SslMode,
 		applicationName,
 		build_info.Version,
 	)
 
-	if config.DbClientKey != "" && config.DbClientCert != "" && config.DbCaCert != "" {
+	if config.Database.ClientKey != "" && config.Database.ClientCert != "" && config.Database.CaCert != "" {
 		var keyFile, certFile, caFile *os.File
 		keyFile, err = os.CreateTemp("", "key.pem")
 		if err != nil {
 			return
 		}
 		defer os.Remove(keyFile.Name())
-		_, err = keyFile.WriteString(config.DbClientKey)
+		_, err = keyFile.WriteString(config.Database.ClientKey)
 		if err != nil {
 			return
 		}
@@ -58,7 +58,7 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 			return
 		}
 		defer os.Remove(certFile.Name())
-		_, err = certFile.WriteString(config.DbClientCert)
+		_, err = certFile.WriteString(config.Database.ClientCert)
 		if err != nil {
 			return
 		}
@@ -68,7 +68,7 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 			return
 		}
 		defer os.Remove(caFile.Name())
-		_, err = caFile.WriteString(config.DbCaCert)
+		_, err = caFile.WriteString(config.Database.CaCert)
 		if err != nil {
 			return
 		}
@@ -109,7 +109,7 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 func Ping(ctx context.Context, db *gorm.DB) (err error) {
 	config := common.GetConfig(ctx)
 
-	if config.DBPingTimeout < 0 {
+	if config.Database.PingTimeout < 0 {
 		// Ping disabled
 		return nil
 	}
@@ -119,7 +119,7 @@ func Ping(ctx context.Context, db *gorm.DB) (err error) {
 		return
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, config.DBPingTimeout)
+	dbCtx, cancel := context.WithTimeout(ctx, config.Database.PingTimeout)
 	defer cancel()
 
 	err = sqlDB.PingContext(dbCtx)
