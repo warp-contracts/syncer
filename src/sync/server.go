@@ -8,12 +8,15 @@ import (
 	"syncer/src/utils/task"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Rest API server, serves monitor counters
 type Server struct {
 	*task.Task
 
+	registry   *prometheus.Registry
 	httpServer *http.Server
 	Router     *gin.Engine
 
@@ -34,6 +37,9 @@ func NewServer(config *config.Config) (self *Server) {
 		Handler: self.Router,
 	}
 
+	self.registry = prometheus.NewRegistry()
+	self.registry.MustRegister(prometheus.NewGoCollector())
+
 	return
 }
 
@@ -49,6 +55,7 @@ func (self *Server) run() (err error) {
 	{
 		v1.GET("state", self.monitor.OnGetState)
 		v1.GET("health", self.monitor.OnGet)
+		v1.GET("monitor", self.handle())
 	}
 
 	err = self.httpServer.ListenAndServe()
@@ -57,6 +64,14 @@ func (self *Server) run() (err error) {
 		return
 	}
 	return nil
+}
+
+func (self *Server) handle() gin.HandlerFunc {
+	h := promhttp.HandlerFor(self.registry, promhttp.HandlerOpts{})
+
+	return func(c *gin.Context) {
+		h.ServeHTTP(c.Writer, c.Request)
+	}
 }
 
 func (self *Server) stop() {
