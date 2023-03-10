@@ -8,4 +8,7 @@ const (
 
 	// Forces the URL of the peer, otherwise the default one is picked
 	ContextForcePeer = value("forcePeer")
+
+	//
+	CancelFunc = value("cancelFunc")
 )

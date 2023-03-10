@@ -2,7 +2,6 @@ package bundlr
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"syncer/src/utils/bundlr/responses"
 	"syncer/src/utils/config"
@@ -29,10 +28,13 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 		return
 	}
 
-	fmt.Println(body)
+	// fmt.Println(body)
 	// self.log.WithField("body", string(body)).Info("Item")
 
-	resp, err := self.Request(ctx).
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
 		SetBody(body).
 		SetResult(&responses.Upload{}).
 		ForceContentType("application/json").
@@ -55,7 +57,10 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 }
 
 func (self *Client) GetStatus(ctx context.Context, id string) (out *responses.Status, err error) {
-	resp, err := self.Request(ctx).
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
 		SetResult(&responses.Status{}).
 		ForceContentType("application/json").
 		SetPathParam("tx_id", id).

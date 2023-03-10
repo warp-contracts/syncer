@@ -139,6 +139,17 @@ func (self *BaseClient) onStatusToError(c *resty.Client, resp *resty.Response) e
 	return fmt.Errorf("unexpected status: %s", resp.Status())
 }
 
+// Converts HTTP status to errors
+func (self *BaseClient) CleanupContext(ctx context.Context) error {
+	// Non-success status code turns into an error
+	cancel := ctx.Value(CancelFunc).(context.CancelFunc)
+	if cancel != nil {
+		self.log.Debug("Cancelling request")
+		cancel()
+	}
+	return nil
+}
+
 // Handles HTTP 429 Too Many Requests - decreases limit for this hosts
 // func (self *BaseClient) onTooManyRequests(c *resty.Client, resp *resty.Response) error {
 // 	if resp == nil || resp.StatusCode() != http.StatusTooManyRequests {
@@ -346,13 +357,13 @@ func (self *BaseClient) SetPeers(peers []string) {
 	self.mtx.Unlock()
 }
 
-func (self *BaseClient) Request(ctx context.Context) *resty.Request {
+func (self *BaseClient) Request(ctx context.Context) (*resty.Request, context.CancelFunc) {
 	self.mtx.RLock()
 	defer self.mtx.RUnlock()
 
-	ctx, _ = onecontext.Merge(self.ctx, ctx)
+	ctx, cancel := onecontext.Merge(self.ctx, ctx)
 
 	return self.client.R().
 		SetContext(ctx).
-		ForceContentType("application/json")
+		ForceContentType("application/json"), cancel
 }

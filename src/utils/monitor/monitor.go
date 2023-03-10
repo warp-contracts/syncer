@@ -114,6 +114,8 @@ func (self *Monitor) IsSyncerOK() bool {
 }
 
 func (self *Monitor) OnGetState(c *gin.Context) {
+	// pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+
 	self.Report.Fill()
 	c.JSON(http.StatusOK, &self.Report)
 }

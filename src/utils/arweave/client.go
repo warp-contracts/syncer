@@ -21,7 +21,10 @@ func NewClient(ctx context.Context, config *config.Config) (self *Client) {
 
 // https://docs.arweave.org/developers/server/http-api#network-info
 func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err error) {
-	resp, err := self.Request(ctx).
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
 		SetResult(&NetworkInfo{}).
 		Get("/info")
 	if err != nil {
@@ -39,7 +42,10 @@ func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err e
 
 // https://docs.arweave.org/developers/server/http-api#peer-list
 func (self *Client) GetPeerList(ctx context.Context) (out []string, err error) {
-	resp, err := self.Request(ctx).
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
 		SetResult([]string{}).
 		Get("/peers")
 	if err != nil {
@@ -90,7 +96,10 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 
 // https://docs.arweave.org/developers/server/http-api#get-block-by-height
 func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Block, err error) {
-	resp, err := self.Request(ctx).
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
 		SetResult(&Block{}).
 		SetPathParam("height", strconv.FormatInt(height, 10)).
 		Get("/block/height/{height}")
@@ -111,7 +120,10 @@ func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Bl
 
 // https://docs.arweave.org/developers/server/http-api#get-transaction-by-id
 func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Transaction, err error) {
-	resp, err := self.Request(ctx).
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
 		SetResult(&Transaction{}).
 		SetPathParam("id", id).
 		Get("/tx/{id}")
