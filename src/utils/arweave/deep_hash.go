@@ -40,6 +40,8 @@ func deepHashAcc(data []interface{}, acc [48]byte) [48]byte {
 		dHash = deepHashBytes(x)
 	case string:
 		dHash = deepHashBytes([]byte(x))
+	case BigInt:
+		dHash = deepHashBytes([]byte(x.String()))
 	case Base64String:
 		dHash = deepHashBytes([]byte(x))
 	case RewardAddr:

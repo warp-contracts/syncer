@@ -28,3 +28,14 @@ func (self *Base64String) MarshalJSON() (out []byte, err error) {
 	s := base64.RawURLEncoding.EncodeToString([]byte(*self))
 	return json.Marshal(s)
 }
+
+func (self Base64String) Bytes() []byte {
+	return []byte(self)
+}
+
+func (self Base64String) Head(i int) []byte {
+	if i > len(self) {
+		i = len(self)
+	}
+	return []byte(self)[:i]
+}

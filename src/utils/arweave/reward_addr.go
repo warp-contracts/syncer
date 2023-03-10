@@ -28,3 +28,14 @@ func (self *RewardAddr) UnmarshalJSON(data []byte) error {
 	*self = []byte(b)
 	return nil
 }
+
+func (self *RewardAddr) IsUnclaimed() bool {
+	return string(*self) == "unclaimed"
+}
+
+func (self RewardAddr) Bytes() []byte {
+	if self.IsUnclaimed() {
+		return []byte{}
+	}
+	return []byte(self)
+}
