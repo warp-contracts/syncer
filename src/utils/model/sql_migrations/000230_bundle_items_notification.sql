@@ -1,5 +1,5 @@
 -- +migrate Down
-DROP FUNCTION IF EXISTS notify_pending_bundle_item;
+-- DROP FUNCTION IF EXISTS notify_pending_bundle_item;
 -- +migrate Up
 
 -- +migrate StatementBegin
