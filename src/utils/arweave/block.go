@@ -61,8 +61,8 @@ type Block struct {
 	PreviousBlock            Base64String   `json:"previous_block"`
 	Timestamp                int64          `json:"timestamp"`
 	LastRetarget             int64          `json:"last_retarget"`
-	Height                   int64          `json:"height"`
 	Diff                     BigInt         `json:"diff"`
+	Height                   int64          `json:"height"`
 	Hash                     Base64String   `json:"hash"`
 	IndepHash                Base64String   `json:"indep_hash"`
 	Txs                      []Base64String `json:"txs"`
@@ -175,7 +175,7 @@ func (b *Block) IsValid_2_6() bool {
 
 	buf.Write(b.PreviousBlock, 1)
 	buf.Write(b.Timestamp, 1)
-	buf.Write(b.Nonce, 1) // Here it may be different
+	buf.Write(b.Nonce, 2) // Here it may be different
 	buf.Write(b.Height, 1)
 	buf.Write(b.Diff, 2)
 	buf.Write(b.CumulativeDiff, 2)
@@ -183,7 +183,7 @@ func (b *Block) IsValid_2_6() bool {
 	buf.Write(b.Hash, 1)
 	buf.Write(b.BlockSize, 2)
 	buf.Write(b.WeaveSize, 2)
-	buf.Write(b.RewardAddr, 2)
+	buf.Write(b.RewardAddr, 1)
 	buf.Write(b.TxRoot, 1)
 	buf.Write(b.WalletList, 1)
 	buf.Write(b.HashListMerkle, 1)
@@ -202,16 +202,16 @@ func (b *Block) IsValid_2_6() bool {
 	buf.Write(b.RecallByte2, 2)
 	buf.Write(b.RewardKey, 2)
 	buf.Write(b.PartitionNumber, 1)
-	buf.RawWrite(b.NonceLimiterInfo.Output.Head(4))
-	buf.RawWrite(b.NonceLimiterInfo.GlobalStepNumber)
-	buf.RawWrite(b.NonceLimiterInfo.Seed.Head(6))
-	buf.RawWrite(b.NonceLimiterInfo.NextSeed.Head(6))
-	buf.RawWrite(b.NonceLimiterInfo.ZoneUpperBound)
-	buf.RawWrite(b.NonceLimiterInfo.NextZoneUpperBound)
+	buf.RawWrite(b.NonceLimiterInfo.Output.Head(32))
+	buf.RawWriteSize(b.NonceLimiterInfo.GlobalStepNumber, 8) // moze tu
+	buf.RawWrite(b.NonceLimiterInfo.Seed.Head(48))
+	buf.RawWrite(b.NonceLimiterInfo.NextSeed.Head(48))
+	buf.RawWriteSize(b.NonceLimiterInfo.ZoneUpperBound, 32)
+	buf.RawWriteSize(b.NonceLimiterInfo.NextZoneUpperBound, 32)
 	buf.Write(b.NonceLimiterInfo.PrevOutput, 1)
-	buf.RawWrite(uint16(len(b.NonceLimiterInfo.Checkpoints)))
+	buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.Checkpoints)), 2)
 	buf.RawWrite(b.NonceLimiterInfo.Checkpoints)
-	buf.RawWrite(uint16(len(b.NonceLimiterInfo.LastStepCheckpoints)))
+	buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.LastStepCheckpoints)), 2)
 	buf.RawWrite(b.NonceLimiterInfo.LastStepCheckpoints)
 	buf.Write(b.PreviousSolutionHash, 1)
 	buf.Write(b.PricePerGibMinute, 1)
@@ -220,7 +220,7 @@ func (b *Block) IsValid_2_6() bool {
 	buf.Write(b.DebtSupply, 1)
 	buf.RawWriteBigInt(b.KryderPlusRateMultiplier, 3)
 	buf.RawWriteBigInt(b.KryderPlusRateMultiplierLatch, 1)
-	buf.RawWriteBigInt(b.Denomination, 24)
+	buf.RawWriteBigInt(b.Denomination, 3)
 	buf.Write(b.RedenominationHeight, 1)
 	buf.RawWrite(b.DoubleSigningProof.Bytes())
 	buf.Write(b.PreviousCumulativeDiff, 2)
@@ -231,6 +231,8 @@ func (b *Block) IsValid_2_6() bool {
 
 	// indep_hash2
 	hash := sha512.Sum384(append(signedHash[:], b.Signature.Bytes()[:]...))
+
+	fmt.Println(b.Signature.Bytes()[:])
 
 	return bytes.Equal(hash[:], b.IndepHash)
 }

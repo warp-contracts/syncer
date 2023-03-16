@@ -34,8 +34,11 @@ func (self Base64String) Bytes() []byte {
 }
 
 func (self Base64String) Head(i int) []byte {
-	if i > len(self) {
-		i = len(self)
+	if i <= len(self) {
+		return []byte(self)[:i]
 	}
+
+	// Pad with zeros
+	i = len(self)
 	return []byte(self)[:i]
 }

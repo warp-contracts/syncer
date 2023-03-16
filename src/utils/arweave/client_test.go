@@ -76,11 +76,12 @@ func (s *ClientTestSuite) TestGetTransactionById() {
 }
 
 func (s *ClientTestSuite) TestSetPeers() {
+	tmp := strings.Clone(s.config.ArNodeUrl)
+
 	// Working peer only in tmp list
-	s.client.SetPeers([]string{s.config.ArNodeUrl})
+	s.client.SetPeers([]string{tmp})
 
 	// Tmp break the main URL
-	tmp := strings.Clone(s.config.ArNodeUrl)
 	s.config.ArNodeUrl = "https://google.com"
 	defer func() {
 		s.config.ArNodeUrl = tmp

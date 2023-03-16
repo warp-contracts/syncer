@@ -11,6 +11,10 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+
+# Erlang
+*.beam
+
 # Dependency directories (remove the comment below to include it)
 /bin/
 /.gopath~/
