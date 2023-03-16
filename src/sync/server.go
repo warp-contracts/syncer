@@ -43,8 +43,12 @@ func NewServer(config *config.Config) (self *Server) {
 	return
 }
 
-func (self *Server) WithMonitor(monitor *monitor.Monitor) *Server {
-	self.monitor = monitor
+func (self *Server) WithMonitor(m *monitor.Monitor) *Server {
+	self.monitor = m
+
+	collector := monitor.NewCollector().WithMonitor(m)
+	self.registry.MustRegister(collector)
+
 	return self
 }
 
