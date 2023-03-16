@@ -103,7 +103,6 @@ type Block struct {
 	KryderPlusRateMultiplierLatch BigInt             `json:"kryder_plus_rate_multiplier_latch"`
 	Denomination                  BigInt             `json:"denomination"`
 	RedenominationHeight          uint64             `json:"redenomination_height"`
-	StrictChunkThreshold          BigInt             `json:"strict_chunk_threshold"`
 	DoubleSigningProof            DoubleSigningProof `json:"double_signing_proof"`
 	PreviousCumulativeDiff        BigInt             `json:"previous_cumulative_diff"`
 }
@@ -173,58 +172,260 @@ func (b *Block) IsValid() bool {
 func (b *Block) IsValid_2_6() bool {
 	buf := Encoder{Buffer: bytes.NewBuffer(nil)}
 
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.PreviousBlock, 1)")
 	buf.Write(b.PreviousBlock, 1)
-	buf.Write(b.Timestamp, 1)
-	buf.Write(b.Nonce, 2) // Here it may be different
-	buf.Write(b.Height, 1)
-	buf.Write(b.Diff, 2)
-	buf.Write(b.CumulativeDiff, 2)
-	buf.Write(b.LastRetarget, 1)
-	buf.Write(b.Hash, 1)
-	buf.Write(b.BlockSize, 2)
-	buf.Write(b.WeaveSize, 2)
-	buf.Write(b.RewardAddr, 1)
-	buf.Write(b.TxRoot, 1)
-	buf.Write(b.WalletList, 1)
-	buf.Write(b.HashListMerkle, 1)
-	buf.Write(b.RewardPool, 1)
-	buf.Write(b.Packing25Threshold, 1)
-	buf.Write(b.StrictChunkThreshold, 1)
-	buf.Write(b.UsdToArRate[0], 1)
-	buf.Write(b.UsdToArRate[1], 1)
-	buf.Write(b.ScheduledUsdToArRate[0], 1)
-	buf.Write(b.ScheduledUsdToArRate[1], 1)
-	buf.WriteSlice(b.Tags, 2, 2)
-	buf.WriteBase64StringSlice(b.Txs, 2, 1)
-	buf.Write(b.Reward, 1)
-	buf.Write(b.RecallByte, 2)
-	buf.Write(b.HashPreimage, 1)
-	buf.Write(b.RecallByte2, 2)
-	buf.Write(b.RewardKey, 2)
-	buf.Write(b.PartitionNumber, 1)
-	buf.RawWrite(b.NonceLimiterInfo.Output.Head(32))
-	buf.RawWriteSize(b.NonceLimiterInfo.GlobalStepNumber, 8) // moze tu
-	buf.RawWrite(b.NonceLimiterInfo.Seed.Head(48))
-	buf.RawWrite(b.NonceLimiterInfo.NextSeed.Head(48))
-	buf.RawWriteSize(b.NonceLimiterInfo.ZoneUpperBound, 32)
-	buf.RawWriteSize(b.NonceLimiterInfo.NextZoneUpperBound, 32)
-	buf.Write(b.NonceLimiterInfo.PrevOutput, 1)
-	buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.Checkpoints)), 2)
-	buf.RawWrite(b.NonceLimiterInfo.Checkpoints)
-	buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.LastStepCheckpoints)), 2)
-	buf.RawWrite(b.NonceLimiterInfo.LastStepCheckpoints)
-	buf.Write(b.PreviousSolutionHash, 1)
-	buf.Write(b.PricePerGibMinute, 1)
-	buf.Write(b.ScheduledPricePerGibMinute, 1)
-	buf.RawWrite(b.RewardHistoryHash.Head(32))
-	buf.Write(b.DebtSupply, 1)
-	buf.RawWriteBigInt(b.KryderPlusRateMultiplier, 3)
-	buf.RawWriteBigInt(b.KryderPlusRateMultiplierLatch, 1)
-	buf.RawWriteBigInt(b.Denomination, 3)
-	buf.Write(b.RedenominationHeight, 1)
-	buf.RawWrite(b.DoubleSigningProof.Bytes())
-	buf.Write(b.PreviousCumulativeDiff, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
 
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.Timestamp, 1)")
+	buf.Write(b.Timestamp, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.Nonce, 2) // Here it may be different")
+	buf.Write(b.Nonce, 2) // Here it may be different
+	fmt.Printf("%v    %v\n", buf.Bytes(), b.Nonce.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.Height, 1)")
+	buf.Write(b.Height, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.Diff, 2)")
+	buf.Write(b.Diff, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.CumulativeDiff, 2)")
+	buf.Write(b.CumulativeDiff, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.LastRetarget, 1)")
+	buf.Write(b.LastRetarget, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.Hash, 1)")
+	buf.Write(b.Hash, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.BlockSize, 2)")
+	buf.Write(b.BlockSize, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.WeaveSize, 2)")
+	buf.Write(b.WeaveSize, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.RewardAddr, 1)")
+	buf.Write(b.RewardAddr, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.TxRoot, 1)")
+	buf.Write(b.TxRoot, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.WalletList, 1)")
+	buf.Write(b.WalletList, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.HashListMerkle, 1)")
+	buf.Write(b.HashListMerkle, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.RewardPool, 1)")
+	buf.Write(b.RewardPool, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.Packing25Threshold, 1)")
+	buf.Write(b.Packing25Threshold, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.UsdToArRate[0], 1)")
+	buf.Write(b.UsdToArRate[0], 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.UsdToArRate[1], 1)")
+	buf.Write(b.UsdToArRate[1], 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.ScheduledUsdToArRate[0], 1)")
+	buf.Write(b.ScheduledUsdToArRate[0], 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.ScheduledUsdToArRate[1], 1)")
+	buf.Write(b.ScheduledUsdToArRate[1], 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.WriteSliceAny(b.Tags, 2, 2)")
+	buf.WriteSliceAny(b.Tags, 2, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.WriteBase64StringSlice(b.Txs, 2, 1)")
+	buf.WriteBase64StringSlice(b.Txs, 2, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.Reward, 1)")
+	buf.Write(b.Reward, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.RecallByte, 2)")
+	buf.Write(b.RecallByte, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.HashPreimage, 1)")
+	buf.Write(b.HashPreimage, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.RecallByte2, 2)")
+	buf.Write(b.RecallByte2, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.RewardKey, 2)")
+	buf.Write(b.RewardKey, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.PartitionNumber, 1)")
+	buf.Write(b.PartitionNumber, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWrite(b.NonceLimiterInfo.Output.Head(32))")
+	buf.RawWrite(b.NonceLimiterInfo.Output.Head(32))
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWriteSize(b.NonceLimiterInfo.GlobalStepNumber, 8) // moze tu")
+	buf.RawWriteSize(b.NonceLimiterInfo.GlobalStepNumber, 8) // moze tu
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWrite(b.NonceLimiterInfo.Seed.Head(48))")
+	buf.RawWrite(b.NonceLimiterInfo.Seed.Head(48))
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWrite(b.NonceLimiterInfo.NextSeed.Head(48))")
+	buf.RawWrite(b.NonceLimiterInfo.NextSeed.Head(48))
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWriteSize(b.NonceLimiterInfo.ZoneUpperBound, 32)")
+	buf.RawWriteSize(b.NonceLimiterInfo.ZoneUpperBound, 32)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWriteSize(b.NonceLimiterInfo.NextZoneUpperBound, 32)")
+	buf.RawWriteSize(b.NonceLimiterInfo.NextZoneUpperBound, 32)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.NonceLimiterInfo.PrevOutput, 1)")
+	buf.Write(b.NonceLimiterInfo.PrevOutput, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.Checkpoints)), 2)")
+	buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.Checkpoints)), 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWrite(b.NonceLimiterInfo.Checkpoints)")
+	buf.RawWrite(b.NonceLimiterInfo.Checkpoints)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.LastStepCheckpoints)), 2)")
+	buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.LastStepCheckpoints)), 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWrite(b.NonceLimiterInfo.LastStepCheckpoints)")
+	buf.RawWrite(b.NonceLimiterInfo.LastStepCheckpoints)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.PreviousSolutionHash, 1)")
+	buf.Write(b.PreviousSolutionHash, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.PricePerGibMinute, 1)")
+	buf.Write(b.PricePerGibMinute, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.ScheduledPricePerGibMinute, 1)")
+	buf.Write(b.ScheduledPricePerGibMinute, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWrite(b.RewardHistoryHash.Head(32))")
+	buf.RawWrite(b.RewardHistoryHash.Head(32))
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.DebtSupply, 1)")
+	buf.Write(b.DebtSupply, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWriteBigInt(b.KryderPlusRateMultiplier, 3)")
+	buf.RawWriteBigInt(b.KryderPlusRateMultiplier, 3)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWriteBigInt(b.KryderPlusRateMultiplierLatch, 1)")
+	buf.RawWriteBigInt(b.KryderPlusRateMultiplierLatch, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWriteBigInt(b.Denomination, 3)")
+	buf.RawWriteBigInt(b.Denomination, 3)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.RedenominationHeight, 1)")
+	buf.Write(b.RedenominationHeight, 1)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.RawWrite(b.DoubleSigningProof.Bytes())")
+	buf.RawWrite(b.DoubleSigningProof.Bytes())
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("buf.Write(b.PreviousCumulativeDiff, 2)")
+	buf.Write(b.PreviousCumulativeDiff, 2)
+	// fmt.Printf("%v\n", buf.Bytes())
+
+	// buf = Encoder{Buffer: bytes.NewBuffer(nil)}
+	fmt.Println("")
+
+	// fmt.Printf("%v\n", buf.Bytes())
 	sha := sha256.New()
 	sha.Write(buf.Bytes())
 	signedHash := sha.Sum(nil)
@@ -232,8 +433,9 @@ func (b *Block) IsValid_2_6() bool {
 	// indep_hash2
 	hash := sha512.Sum384(append(signedHash[:], b.Signature.Bytes()[:]...))
 
-	fmt.Println(b.Signature.Bytes()[:])
+	// fmt.Println(b.Signature.Bytes()[:])
 
+	// fmt.Printf("%v\n", buf.Bytes())
 	return bytes.Equal(hash[:], b.IndepHash)
 }
 

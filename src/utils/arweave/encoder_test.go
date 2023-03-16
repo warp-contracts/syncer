@@ -2,6 +2,7 @@ package arweave
 
 import (
 	"encoding/base64"
+	"fmt"
 	"math/big"
 
 	"github.com/stretchr/testify/require"
@@ -36,6 +37,22 @@ func (s *EncoderTestSuite) TestEncodeInt() {
 	require.Equal(s.T(), "AAIE0g", env.Base64())
 }
 
+func (s *EncoderTestSuite) TestEncodeIntZero() {
+	env := NewEncoder()
+	env.WriteUint64(0, 1)
+	require.Equal(s.T(), []byte{1, 0}, env.Bytes())
+}
+
+func (s *EncoderTestSuite) TestEncodeTimestamp() {
+	env := NewEncoder()
+	env.WriteUint64(1678120795, 1)
+	fmt.Printf("%v \n", env.Bytes())
+
+	// 046406175B
+	// 046406175B
+	require.Equal(s.T(), []byte{0x04, 0x64, 0x06, 0x17, 0x5B}, env.Bytes())
+}
+
 func (s *EncoderTestSuite) TestEncodeBinEmpty() {
 	env := NewEncoder()
 	env.WriteBuffer([]byte{}, 2)
@@ -46,6 +63,13 @@ func (s *EncoderTestSuite) TestEncodeBin() {
 	env := NewEncoder()
 	env.WriteBuffer([]byte{9, 7}, 2)
 	require.Equal(s.T(), []byte{0, 2, 9, 7}, env.Bytes())
+}
+
+func (s *EncoderTestSuite) TestEncodeBinInt() {
+	env := NewEncoder()
+	env.WriteBuffer([]byte{9, 7}, 2)
+	env.WriteUint64(1678120795, 1)
+	require.Equal(s.T(), []byte{0, 2, 9, 7, 0x04, 0x64, 0x06, 0x17, 0x5B}, env.Bytes())
 }
 
 func (s *EncoderTestSuite) TestEncodeListFlat() {
@@ -65,7 +89,22 @@ func (s *EncoderTestSuite) TestEncodeList() {
 	// fmt.Printf("%X\n", env.Bytes())
 	require.Equal(s.T(), []byte{2, 0, 2, 6, 5, 0, 2, 9, 7}, env.Bytes())
 }
+
 func (s *EncoderTestSuite) TestEncodeListEmpty() {
+	env := NewEncoder()
+	l := make([][]byte, 0)
+	env.WriteSliceByte(l, 2, 2)
+	require.Equal(s.T(), []byte{0, 0}, env.Bytes())
+}
+
+func (s *EncoderTestSuite) TestEncodeListEmptyAny() {
+	env := NewEncoder()
+	l := make([]any, 0)
+	env.WriteSliceAny(l, 2, 2)
+	require.Equal(s.T(), []byte{0, 0}, env.Bytes())
+}
+
+func (s *EncoderTestSuite) TestEncodeBuffer() {
 	env := NewEncoder()
 	a, _ := base64.RawURLEncoding.DecodeString("ZXktLIUuYEaTrN6l2grYO49JegaOp0sbz_itn6hVKLao47L_kdFkMlJ3VWSI8fLB")
 	env.WriteBuffer(a, 1)
@@ -118,7 +157,7 @@ func (s *EncoderTestSuite) TestOutput() {
 }
 func (s *EncoderTestSuite) TestRawWriteBigInt() {
 	env := NewEncoder()
-	v := BigInt{*big.NewInt(9)}
+	v := BigInt{*big.NewInt(9), true}
 	env.RawWriteBigInt(v, 3)
 	// fmt.Printf("%X\n", env.Bytes())
 
@@ -126,4 +165,23 @@ func (s *EncoderTestSuite) TestRawWriteBigInt() {
 
 	// ECD46D1E98362443E7DFB5DC45435ADA246A040204E46348C016E8BFF397FFD8
 	// ECD46D1E98362443E7DFB5DC45435ADA246A040204E46348C016E8BFF397FFD8
+}
+
+func (s *EncoderTestSuite) TestBigIntUndefined() {
+	env := NewEncoder()
+	v := BigInt{*big.NewInt(9), false}
+	env.Write(v, 4)
+	// fmt.Printf("%X\n", env.Bytes())
+
+	require.Equal(s.T(), []byte{0, 0, 0, 0}, env.Bytes())
+}
+func (s *EncoderTestSuite) TestBigIntBig() {
+	env := NewEncoder()
+	v := BigInt{*big.NewInt(0), true}
+	v.Int.SetString("115792071036953558077439067295872093892934358766013398190786716226139132215951", 10)
+	env.Write(v, 2)
+	require.Equal(s.T(), []byte{0x0, 0x20, 0xff, 0xff, 0xfd, 0x5c, 0xe9, 0x39, 0x3c, 0x84, 0xa8, 0x39, 0x69, 0xfd, 0x88, 0x8, 0x88, 0xf0, 0xdb, 0xae, 0xdf, 0xc5, 0xb4, 0x3a, 0x5f, 0xfa, 0xe7, 0x66, 0x56, 0x23, 0xbb, 0x9b, 0x42, 0x8f}, env.Bytes())
+
+	// 0020FFFFFD5CE9393C84A83969FD880888F0DBAEDFC5B43A5FFAE7665623BB9B428F
+	// 0020FFFFFD5CE9393C84A83969FD880888F0DBAEDFC5B43A5FFAE7665623BB9B428F
 }

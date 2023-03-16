@@ -27,6 +27,15 @@ type Collector struct {
 	InteractionsSaved                     *prometheus.Desc
 	FailedInteractionParsing              *prometheus.Desc
 	NumWatchdogRestarts                   *prometheus.Desc
+
+	DbInteractionInsert               *prometheus.Desc `json:""`
+	DbLastTransactionBlockHeightError *prometheus.Desc `json:""`
+	TxValidationErrors                *prometheus.Desc `json:""`
+	TxDownloadErrors                  *prometheus.Desc `json:""`
+	BlockValidationErrors             *prometheus.Desc `json:""`
+	BlockDownloadErrors               *prometheus.Desc `json:""`
+	PeerDownloadErrors                *prometheus.Desc `json:""`
+	NetworkInfoDownloadErrors         *prometheus.Desc `json:""`
 }
 
 func NewCollector() *Collector {
@@ -47,6 +56,16 @@ func NewCollector() *Collector {
 		InteractionsSaved:                     prometheus.NewDesc("interactions_saved", "", nil, nil),
 		FailedInteractionParsing:              prometheus.NewDesc("failed_interaction_parsing", "", nil, nil),
 		NumWatchdogRestarts:                   prometheus.NewDesc("num_watchdog_restarts", "", nil, nil),
+
+		// Errors
+		DbInteractionInsert:               prometheus.NewDesc("error_db_interaction", "", nil, nil),
+		DbLastTransactionBlockHeightError: prometheus.NewDesc("error_db_last_tx_block_height", "", nil, nil),
+		TxValidationErrors:                prometheus.NewDesc("error_tx_validation", "", nil, nil),
+		TxDownloadErrors:                  prometheus.NewDesc("error_tx_download", "", nil, nil),
+		BlockValidationErrors:             prometheus.NewDesc("error_block_validation", "", nil, nil),
+		BlockDownloadErrors:               prometheus.NewDesc("error_block_download", "", nil, nil),
+		PeerDownloadErrors:                prometheus.NewDesc("error_peer_download", "", nil, nil),
+		NetworkInfoDownloadErrors:         prometheus.NewDesc("error_network_info_download", "", nil, nil),
 	}
 }
 
@@ -72,24 +91,44 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.InteractionsSaved
 	ch <- self.FailedInteractionParsing
 	ch <- self.NumWatchdogRestarts
+
+	// Errors
+	ch <- self.DbInteractionInsert
+	ch <- self.DbLastTransactionBlockHeightError
+	ch <- self.TxValidationErrors
+	ch <- self.TxDownloadErrors
+	ch <- self.BlockValidationErrors
+	ch <- self.BlockDownloadErrors
+	ch <- self.PeerDownloadErrors
+	ch <- self.NetworkInfoDownloadErrors
 }
 
 // Collect implements required collect function for all promehteus collectors
 func (self *Collector) Collect(ch chan<- prometheus.Metric) {
-	ch <- prometheus.MustNewConstMetric(self.ArweaveCurrentHeight, prometheus.CounterValue, float64(self.monitor.Report.ArweaveCurrentHeight.Load()))
-	ch <- prometheus.MustNewConstMetric(self.ArweaveLastNetworkInfoTimestamp, prometheus.CounterValue, float64(self.monitor.Report.ArweaveLastNetworkInfoTimestamp.Load()))
-	ch <- prometheus.MustNewConstMetric(self.StartTimestamp, prometheus.CounterValue, float64(self.monitor.Report.StartTimestamp.Load()))
-	ch <- prometheus.MustNewConstMetric(self.UpForSeconds, prometheus.CounterValue, float64(self.monitor.Report.UpForSeconds.Load()))
-	ch <- prometheus.MustNewConstMetric(self.SyncerBlocksBehind, prometheus.CounterValue, float64(self.monitor.Report.SyncerBlocksBehind.Load()))
-	ch <- prometheus.MustNewConstMetric(self.SyncerCurrentHeight, prometheus.CounterValue, float64(self.monitor.Report.SyncerCurrentHeight.Load()))
-	ch <- prometheus.MustNewConstMetric(self.SyncerFinishedHeight, prometheus.CounterValue, float64(self.monitor.Report.SyncerFinishedHeight.Load()))
-	ch <- prometheus.MustNewConstMetric(self.AverageBlocksProcessedPerMinute, prometheus.CounterValue, float64(self.monitor.Report.AverageBlocksProcessedPerMinute.Load()))
-	ch <- prometheus.MustNewConstMetric(self.AverageTransactionDownloadedPerMinute, prometheus.CounterValue, float64(self.monitor.Report.AverageTransactionDownloadedPerMinute.Load()))
-	ch <- prometheus.MustNewConstMetric(self.AverageInteractionsSavedPerMinute, prometheus.CounterValue, float64(self.monitor.Report.AverageInteractionsSavedPerMinute.Load()))
-	ch <- prometheus.MustNewConstMetric(self.PeersBlacklisted, prometheus.CounterValue, float64(self.monitor.Report.PeersBlacklisted.Load()))
-	ch <- prometheus.MustNewConstMetric(self.NumPeers, prometheus.CounterValue, float64(self.monitor.Report.NumPeers.Load()))
+	ch <- prometheus.MustNewConstMetric(self.ArweaveCurrentHeight, prometheus.GaugeValue, float64(self.monitor.Report.ArweaveCurrentHeight.Load()))
+	ch <- prometheus.MustNewConstMetric(self.ArweaveLastNetworkInfoTimestamp, prometheus.GaugeValue, float64(self.monitor.Report.ArweaveLastNetworkInfoTimestamp.Load()))
+	ch <- prometheus.MustNewConstMetric(self.StartTimestamp, prometheus.GaugeValue, float64(self.monitor.Report.StartTimestamp.Load()))
+	ch <- prometheus.MustNewConstMetric(self.UpForSeconds, prometheus.GaugeValue, float64(self.monitor.Report.UpForSeconds.Load()))
+	ch <- prometheus.MustNewConstMetric(self.SyncerBlocksBehind, prometheus.GaugeValue, float64(self.monitor.Report.SyncerBlocksBehind.Load()))
+	ch <- prometheus.MustNewConstMetric(self.SyncerCurrentHeight, prometheus.GaugeValue, float64(self.monitor.Report.SyncerCurrentHeight.Load()))
+	ch <- prometheus.MustNewConstMetric(self.SyncerFinishedHeight, prometheus.GaugeValue, float64(self.monitor.Report.SyncerFinishedHeight.Load()))
+	ch <- prometheus.MustNewConstMetric(self.AverageBlocksProcessedPerMinute, prometheus.GaugeValue, float64(self.monitor.Report.AverageBlocksProcessedPerMinute.Load()))
+	ch <- prometheus.MustNewConstMetric(self.AverageTransactionDownloadedPerMinute, prometheus.GaugeValue, float64(self.monitor.Report.AverageTransactionDownloadedPerMinute.Load()))
+	ch <- prometheus.MustNewConstMetric(self.AverageInteractionsSavedPerMinute, prometheus.GaugeValue, float64(self.monitor.Report.AverageInteractionsSavedPerMinute.Load()))
+	ch <- prometheus.MustNewConstMetric(self.PeersBlacklisted, prometheus.GaugeValue, float64(self.monitor.Report.PeersBlacklisted.Load()))
+	ch <- prometheus.MustNewConstMetric(self.NumPeers, prometheus.GaugeValue, float64(self.monitor.Report.NumPeers.Load()))
 	ch <- prometheus.MustNewConstMetric(self.TransactionsDownloaded, prometheus.CounterValue, float64(self.monitor.Report.TransactionsDownloaded.Load()))
 	ch <- prometheus.MustNewConstMetric(self.InteractionsSaved, prometheus.CounterValue, float64(self.monitor.Report.InteractionsSaved.Load()))
 	ch <- prometheus.MustNewConstMetric(self.FailedInteractionParsing, prometheus.CounterValue, float64(self.monitor.Report.FailedInteractionParsing.Load()))
 	ch <- prometheus.MustNewConstMetric(self.NumWatchdogRestarts, prometheus.CounterValue, float64(self.monitor.Report.NumWatchdogRestarts.Load()))
+
+	// Errors
+	ch <- prometheus.MustNewConstMetric(self.DbInteractionInsert, prometheus.CounterValue, float64(self.monitor.Report.Errors.DbInteractionInsert.Load()))
+	ch <- prometheus.MustNewConstMetric(self.DbLastTransactionBlockHeightError, prometheus.CounterValue, float64(self.monitor.Report.Errors.DbLastTransactionBlockHeightError.Load()))
+	ch <- prometheus.MustNewConstMetric(self.TxValidationErrors, prometheus.CounterValue, float64(self.monitor.Report.Errors.TxValidationErrors.Load()))
+	ch <- prometheus.MustNewConstMetric(self.TxDownloadErrors, prometheus.CounterValue, float64(self.monitor.Report.Errors.TxDownloadErrors.Load()))
+	ch <- prometheus.MustNewConstMetric(self.BlockValidationErrors, prometheus.CounterValue, float64(self.monitor.Report.Errors.BlockValidationErrors.Load()))
+	ch <- prometheus.MustNewConstMetric(self.BlockDownloadErrors, prometheus.CounterValue, float64(self.monitor.Report.Errors.BlockDownloadErrors.Load()))
+	ch <- prometheus.MustNewConstMetric(self.PeerDownloadErrors, prometheus.CounterValue, float64(self.monitor.Report.Errors.PeerDownloadErrors.Load()))
+	ch <- prometheus.MustNewConstMetric(self.NetworkInfoDownloadErrors, prometheus.CounterValue, float64(self.monitor.Report.Errors.NetworkInfoDownloadErrors.Load()))
 }

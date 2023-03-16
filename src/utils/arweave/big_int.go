@@ -8,6 +8,7 @@ import (
 
 type BigInt struct {
 	big.Int
+	Valid bool
 }
 
 func (b BigInt) MarshalJSON() ([]byte, error) {
@@ -27,5 +28,6 @@ func (b *BigInt) UnmarshalJSON(p []byte) error {
 		return fmt.Errorf("not a valid big integer: %s", p)
 	}
 	b.Int = z
+	b.Valid = true
 	return nil
 }
