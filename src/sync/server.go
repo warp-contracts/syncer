@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -38,7 +39,7 @@ func NewServer(config *config.Config) (self *Server) {
 	}
 
 	self.registry = prometheus.NewRegistry()
-	self.registry.MustRegister(prometheus.NewGoCollector())
+	self.registry.MustRegister(collectors.NewGoCollector())
 
 	return
 }
