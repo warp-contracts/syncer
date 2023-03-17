@@ -34,7 +34,7 @@ func NewInteractionParser(config *config.Config) (self *InteractionParser, err e
 	return
 }
 
-func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64, blockId string, blockTimestamp int64) (out *model.Interaction, err error) {
+func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64, blockId arweave.Base64String, blockTimestamp int64) (out *model.Interaction, err error) {
 	out = &model.Interaction{
 		InteractionId:      tx.ID,
 		BlockHeight:        blockHeight,
@@ -159,8 +159,7 @@ func (self *InteractionParser) fillTags(tx *arweave.Transaction, out *model.Inte
 	return nil
 }
 
-func (self *InteractionParser) createSortKey(tx *arweave.Transaction, blockHeight int64, id string) string {
-	blockId := []byte(id)
+func (self *InteractionParser) createSortKey(tx *arweave.Transaction, blockHeight int64, blockId []byte) string {
 	transactionId := []byte(tx.ID)
 
 	// Concatenate data

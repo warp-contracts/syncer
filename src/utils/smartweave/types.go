@@ -7,9 +7,9 @@ type Owner struct {
 }
 
 type Block struct {
-	Height    int64  `json:"height"`
-	Id        string `json:"id"`
-	Timestamp int64  `json:"timestamp"`
+	Height    int64                `json:"height"`
+	Id        arweave.Base64String `json:"id"`
+	Timestamp int64                `json:"timestamp"`
 }
 
 type Amount struct {

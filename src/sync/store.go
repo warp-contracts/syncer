@@ -2,13 +2,13 @@ package sync
 
 import (
 	"errors"
+	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitor"
 	"syncer/src/utils/task"
 
-	"context"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -53,12 +53,22 @@ func (self *Store) WithDB(v *gorm.DB) *Store {
 	return self
 }
 
-func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransactionBlockHeight int64) (err error) {
+func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransactionBlockHeight int64, lastProcessedBlockHash arweave.Base64String) (err error) {
 	operation := func() error {
-		self.Log.WithField("length", len(pendingInteractions)).Debug("Insert batch of interactions")
+		self.Log.WithField("length", len(pendingInteractions)).WithField("hash", lastProcessedBlockHash.Base64()).Info("Insert batch of interactions and state")
 		err = self.DB.WithContext(self.Ctx).
 			Transaction(func(tx *gorm.DB) error {
-				err = self.setLastTransactionBlockHeight(self.Ctx, tx, lastTransactionBlockHeight)
+				if lastTransactionBlockHeight <= 0 {
+					return errors.New("block height too small")
+				}
+				state := model.State{
+					Id:                         1,
+					LastTransactionBlockHeight: lastTransactionBlockHeight,
+					LastProcessedBlockHash:     lastProcessedBlockHash,
+				}
+				err = tx.WithContext(self.Ctx).
+					Save(&state).
+					Error
 				if err != nil {
 					self.Log.WithError(err).Error("Failed to update last transaction block height")
 					self.monitor.Report.Errors.DbLastTransactionBlockHeightError.Inc()
@@ -111,9 +121,10 @@ func (self *Store) run() (err error) {
 
 	var pendingInteractions []*model.Interaction
 	var lastTransactionBlockHeight int64
+	var lastProcessedBlockHash []byte
 
 	insert := func() {
-		err = self.insert(pendingInteractions, lastTransactionBlockHeight)
+		err = self.insert(pendingInteractions, lastTransactionBlockHeight, lastProcessedBlockHash)
 		if err != nil {
 			// This is a terminal error, it already tried to retry
 			self.Log.WithError(err).Error("Failed to insert data")
@@ -140,6 +151,7 @@ func (self *Store) run() (err error) {
 
 			self.Log.WithField("height", payload.BlockHeight).WithField("num_interactions", len(pendingInteractions)).Info("Got block")
 			lastTransactionBlockHeight = payload.BlockHeight
+			lastProcessedBlockHash = payload.BlockHash
 
 			pendingInteractions = append(pendingInteractions, payload.Interactions...)
 
@@ -155,13 +167,4 @@ func (self *Store) run() (err error) {
 			timer = time.NewTimer(self.Config.StoreMaxTimeInQueue)
 		}
 	}
-}
-
-func (self *Store) setLastTransactionBlockHeight(ctx context.Context, tx *gorm.DB, value int64) (err error) {
-	if value <= 0 {
-		err = errors.New("block height too small")
-		return
-	}
-	state := model.State{Id: 1}
-	return self.DB.WithContext(ctx).Model(&state).Update("last_transaction_block_height", value).Error
 }

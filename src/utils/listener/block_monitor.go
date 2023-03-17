@@ -1,6 +1,7 @@
 package listener
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -21,7 +22,8 @@ type BlockMonitor struct {
 	*task.Task
 
 	// Runtime configuration
-	startHeight int64
+	startHeight            int64
+	previousBlockIndepHash arweave.Base64String
 
 	client  *arweave.Client
 	monitor *monitor.Monitor
@@ -66,6 +68,7 @@ func (self *BlockMonitor) WithInitStartHeight(db *gorm.DB) *BlockMonitor {
 			return
 		}
 		self.startHeight = state.LastTransactionBlockHeight
+		self.previousBlockIndepHash = state.LastProcessedBlockHash
 		return nil
 	})
 	return self
@@ -79,6 +82,7 @@ func (self *BlockMonitor) WithInputChannel(v chan *arweave.NetworkInfo) *BlockMo
 // Listens for changed height and downloads the missing blocks
 func (self *BlockMonitor) run() error {
 	lastSyncedHeight := self.startHeight
+	lastProcessedBlockHash := self.previousBlockIndepHash
 
 	// Listen for new blocks (blocks)
 	// Finishes when Listener is stopping
@@ -119,10 +123,28 @@ func (self *BlockMonitor) run() error {
 				goto retry
 			}
 
+			if len(lastProcessedBlockHash) > 0 &&
+				!bytes.Equal(lastProcessedBlockHash, block.PreviousBlock) {
+				self.Log.WithField("height", height).
+					WithField("last_processed_block_hash", lastProcessedBlockHash).
+					WithField("previous_block", block.PreviousBlock).
+					Error("Previous block hash isn't valid, retrying after sleep")
+
+				// TODO: Add specific error counter
+				self.monitor.Report.Errors.BlockValidationErrors.Inc()
+
+				//TODO: Move this timeout to configuration
+				time.Sleep(time.Second * 10)
+
+				// TODO: Try downloading with another peer
+				// TODO: Log malicious peer
+				goto retry
+			}
+
 			if !block.IsValid() {
 				self.Log.WithField("height", height).Error("Block hash isn't valid, retrying after sleep")
-				// self.Log.WithField("height", height).Error("Block hash isn't valid, blacklisting peer for ever and retrying")
 				self.monitor.Report.Errors.BlockValidationErrors.Inc()
+				//TODO: Move this timeout to configuration
 				time.Sleep(time.Second * 10)
 				goto retry
 			}
@@ -145,6 +167,7 @@ func (self *BlockMonitor) run() error {
 			self.monitor.Report.TransactionsDownloaded.Add(uint64(len(transactions)))
 
 			payload := &Payload{
+				BlockHash:      block.IndepHash.Bytes(),
 				BlockHeight:    block.Height,
 				BlockTimestamp: block.Timestamp,
 				Transactions:   transactions,
@@ -153,6 +176,10 @@ func (self *BlockMonitor) run() error {
 			// Blocks until a monitorTranactions is ready to receive
 			// or Listener is stopped
 			self.Output <- payload
+
+			// Prepare for the next block
+			lastSyncedHeight = block.Height
+			lastProcessedBlockHash = block.IndepHash
 		}
 	}
 

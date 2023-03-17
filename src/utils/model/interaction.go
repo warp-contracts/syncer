@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"syncer/src/utils/arweave"
 	"syncer/src/utils/smartweave"
 
 	"github.com/lib/pq"
@@ -16,7 +17,7 @@ type Interaction struct {
 	InteractionId      string
 	Interaction        string
 	BlockHeight        int64
-	BlockId            string
+	BlockId            arweave.Base64String
 	ContractId         string
 	Function           string
 	Input              string
