@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
-	"fmt"
-	"reflect"
 )
 
 type Encoder struct {
@@ -33,7 +31,7 @@ func (self Encoder) WriteUint64(val uint64, sizeBytes int) {
 	self.WriteBuffer(buf, sizeBytes)
 }
 
-// Erlang's ar_serialize:encode_int
+// Erlang's ar_serialize:encode_int but for big int
 func (self Encoder) WriteBigInt(val BigInt, sizeBytes int) {
 	buf := val.Bytes()
 	buf = self.Trim(buf)
@@ -45,7 +43,7 @@ func (self Encoder) WriteBuffer(val []byte, sizeBytes int) {
 	buf := make([]byte, 8)
 	size := uint64(len(val))
 	binary.BigEndian.PutUint64(buf, size)
-	self.Buffer.Write(buf[8-uint64(sizeBytes):])
+	self.Buffer.Write(buf[8-sizeBytes:])
 	self.Buffer.Write(val)
 }
 
@@ -56,13 +54,7 @@ func (self Encoder) encodeBin(val []byte, sizeBytes int) []byte {
 	return append(buf[8-sizeBytes:], val...)
 }
 
-// -------------------------------------------------------------------------------------
-
 func (self Encoder) Write(val any, sizeBytes int) {
-	if val == nil || reflect.ValueOf(val).IsZero() {
-		fmt.Println("!!!!!!!!!!!!!!!!Undefined field")
-	}
-
 	switch x := val.(type) {
 	case []byte:
 		self.WriteBuffer(x, sizeBytes)
@@ -76,15 +68,8 @@ func (self Encoder) Write(val any, sizeBytes int) {
 			for i := 0; i < sizeBytes; i++ {
 				self.WriteByte(0)
 			}
-			fmt.Println("Undefined field")
 			break
 		}
-		// fmt.Printf("%v %d\n", x.Uint64(), sizeBytes)
-
-		// if !x.IsUint64() {
-		// 	panic("BigInt is too big")
-		// }
-
 		self.WriteBigInt(x, sizeBytes)
 	case int64:
 		self.WriteUint64(uint64(x), sizeBytes)
@@ -93,7 +78,6 @@ func (self Encoder) Write(val any, sizeBytes int) {
 	default:
 		panic("unsupported encoder type")
 	}
-
 }
 
 func (self Encoder) RawWrite(val any) {
@@ -116,18 +100,25 @@ func (self Encoder) RawWrite(val any) {
 }
 
 func (self Encoder) RawWriteSize(val any, sizeBytes int) {
-	out := make([]byte, sizeBytes)
 	switch x := val.(type) {
+	case Base64String:
+		self.RawWrite(x.Head(sizeBytes))
+	case BigInt:
+		buf := make([]byte, sizeBytes)
+		x.FillBytes(buf)
+		self.Buffer.Write(buf)
 	case uint16:
+		out := make([]byte, sizeBytes)
 		binary.BigEndian.PutUint16(out, x)
-	case uint64:
-		binary.BigEndian.PutUint64(out[sizeBytes-8:], x)
+		self.Buffer.Write(out)
 
+	case uint64:
+		out := make([]byte, sizeBytes)
+		binary.BigEndian.PutUint64(out[sizeBytes-8:], x)
+		self.Buffer.Write(out)
 	default:
 		panic("unsupported encoder raw type")
 	}
-
-	self.Buffer.Write(out)
 }
 
 func (self Encoder) WriteUint(val uint, sizeBytes int) {
@@ -152,12 +143,18 @@ func (self Encoder) WriteUint16(val uint16, sizeBytes int) {
 	self.WriteBuffer(buf, sizeBytes)
 }
 
-// func (self Encoder) WriteSlice(val []any, lenBytes, elemSizeBytes int) {
-// 	self.WriteUint(uint(len(val)), lenBytes)
-// 	for _, v := range val {
-// 		self.Write(v, elemSizeBytes)
-// 	}
-// }
+func (self Encoder) WriteSlice(val any, lenBytes, elemSizeBytes int) {
+	switch x := val.(type) {
+	case []any:
+		self.WriteSliceAny(x, lenBytes, elemSizeBytes)
+	case [][]byte:
+		self.WriteSliceByte(x, lenBytes, elemSizeBytes)
+	case []Base64String:
+		self.WriteBase64StringSlice(x, lenBytes, elemSizeBytes)
+	default:
+		panic("unsupported encoder slice type")
+	}
+}
 
 func (self Encoder) WriteSliceAny(bins []any, lenBytes, elemSizeBytes int) {
 	var encodeBinList func(bins []any, encoded []byte, n int, lenBytes, elemSizeBytes int) []byte
@@ -221,36 +218,12 @@ func (self Encoder) WriteBase64StringSlice(bins []Base64String, lenBytes, elemSi
 	self.Buffer.Write(buf)
 }
 
-// encode_bin_list([], Encoded, N, LenBits, _ElemSizeBits) ->
-// 		<< N:LenBits, (iolist_to_binary(Encoded))/binary >>;
-// encode_bin_list([Bin | Bins], Encoded, N, LenBits, ElemSizeBits) ->
-// 		Elem = encode_bin(Bin, ElemSizeBits),
-// 		encode_bin_list(Bins, [Elem | Encoded], N + 1, LenBits, ElemSizeBits).
-
 // Erlang's binary:encode_unsigned
 func (self Encoder) RawWriteUint64(val uint64) {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, val)
 	buf = self.Trim(buf)
 	self.Buffer.Write(buf)
-}
-
-// func (self Encoder) RawWriteUint16(val uint16) {
-// 	buf := make([]byte, 2)
-// 	binary.BigEndian.PutUint16(buf, val)
-// 	buf = self.Trim(buf)
-// 	self.Buffer.Write(buf)
-// }
-
-func (self Encoder) RawWriteBigInt(val BigInt, sizeBytes int) {
-	// TODO: GET RID OF THIS
-	if !val.IsUint64() {
-		panic("bad bigint value")
-	}
-	value := val.Uint64()
-	for i := 0; i < sizeBytes; i++ {
-		self.WriteByte(byte(value >> uint((sizeBytes-i-1)*8)))
-	}
 }
 
 func (self Encoder) RawWriteBase64StringSlice(val []Base64String) {
