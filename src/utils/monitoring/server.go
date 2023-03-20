@@ -50,7 +50,7 @@ func (self *Server) WithMonitor(m Monitor) *Server {
 }
 
 func (self *Server) run() (err error) {
-	gin.SetMode(gin.DebugMode)
+	gin.SetMode(gin.ReleaseMode)
 
 	v1 := self.Router.Group("v1")
 	{
