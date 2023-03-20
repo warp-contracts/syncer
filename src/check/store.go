@@ -3,6 +3,7 @@ package check
 import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"time"
 
@@ -13,8 +14,8 @@ import (
 // SinkTask handles caching data and periodically calling flush function
 type Store struct {
 	*task.SinkTask[int]
-
-	db *gorm.DB
+	db      *gorm.DB
+	monitor monitoring.Monitor
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -36,13 +37,26 @@ func (self *Store) WithInputChannel(input chan int) *Store {
 	return self
 }
 
+func (self *Store) WithMonitor(monitor monitoring.Monitor) *Store {
+	self.monitor = monitor
+	return self
+}
+
 func (self *Store) save(ids []int) error {
 	err := self.db.Model(&model.BundleItem{}).
 		Where("id IN ?", ids).
 		Update("state", model.BundleStateOnBundler).
 		Error
 	if err != nil {
+		self.Log.WithError(err).Error("Failed to update bundle state")
+
+		// Update monitoring
+		self.monitor.GetReport().Checker.Errors.DbStateUpdateError.Inc()
 		return err
 	}
+
+	// Update monitoring
+	self.monitor.GetReport().Checker.State.DbStateUpdated.Inc()
+
 	return nil
 }

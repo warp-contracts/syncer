@@ -4,6 +4,7 @@ import (
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 
 	"gorm.io/gorm"
@@ -12,7 +13,8 @@ import (
 // Periodically gets the current network height from warp's GW and confirms bundle is FINALIZED
 type Poller struct {
 	*task.Task
-	db *gorm.DB
+	db      *gorm.DB
+	monitor monitoring.Monitor
 
 	input  chan *arweave.NetworkInfo
 	Output chan *Payload
@@ -40,6 +42,11 @@ func (self *Poller) WithDB(db *gorm.DB) *Poller {
 
 func (self *Poller) WithInputChannel(input chan *arweave.NetworkInfo) *Poller {
 	self.input = input
+	return self
+}
+
+func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
+	self.monitor = monitor
 	return self
 }
 
@@ -90,6 +97,9 @@ func (self *Poller) run() error {
 				}:
 				}
 			}
+
+			// Update monitoring
+			self.monitor.GetReport().Checker.State.BundlesTakenFromDb.Add(uint64(len(interactions)))
 		}
 	}
 
