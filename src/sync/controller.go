@@ -5,7 +5,8 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
-	monitoring "syncer/src/utils/monitor"
+	"syncer/src/utils/monitoring"
+	monitor_syncer "syncer/src/utils/monitoring/syncer"
 	"syncer/src/utils/peer_monitor"
 	"syncer/src/utils/task"
 )
@@ -21,7 +22,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	self.Task = task.NewTask(config, "controller")
 
-	monitor := monitoring.NewMonitor().
+	monitor := monitor_syncer.NewMonitor().
 		WithMaxHistorySize(30)
 
 	server := monitoring.NewServer(config).
@@ -71,9 +72,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	watchdog := task.NewWatchdog(config).
 		WithTask(watched).
 		WithIsOK(func() bool {
-			isOK := monitor.IsSyncerOK()
+			isOK := monitor.IsOK()
 			if !isOK {
-				monitor.Report.NumWatchdogRestarts.Inc()
+				monitor.GetReport().Syncer.State.NumWatchdogRestarts.Inc()
 			}
 			return isOK
 		})

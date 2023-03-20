@@ -6,7 +6,7 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
-	"syncer/src/utils/monitor"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 
 	"time"
@@ -26,7 +26,7 @@ type Store struct {
 
 	DB *gorm.DB
 
-	monitor *monitor.Monitor
+	monitor monitoring.Monitor
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -38,7 +38,7 @@ func NewStore(config *config.Config) (self *Store) {
 	return
 }
 
-func (self *Store) WithMonitor(v *monitor.Monitor) *Store {
+func (self *Store) WithMonitor(v monitoring.Monitor) *Store {
 	self.monitor = v
 	return self
 }
@@ -71,7 +71,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 					Error
 				if err != nil {
 					self.Log.WithError(err).Error("Failed to update last transaction block height")
-					self.monitor.Report.Errors.DbLastTransactionBlockHeightError.Inc()
+					self.monitor.GetReport().Syncer.Errors.DbLastTransactionBlockHeightError.Inc()
 					return err
 				}
 
@@ -87,14 +87,14 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 				if err != nil {
 					self.Log.WithError(err).Error("Failed to insert Interactions")
 					self.Log.WithField("interactions", pendingInteractions).Debug("Failed interactions")
-					self.monitor.Report.Errors.DbInteractionInsert.Inc()
+					self.monitor.GetReport().Syncer.Errors.DbInteractionInsert.Inc()
 					return err
 				}
 				return nil
 			})
 		if err == nil {
-			self.monitor.Report.SyncerFinishedHeight.Store(lastTransactionBlockHeight)
-			self.monitor.Report.InteractionsSaved.Add(uint64(len(pendingInteractions)))
+			self.monitor.GetReport().Syncer.State.SyncerFinishedHeight.Store(lastTransactionBlockHeight)
+			self.monitor.GetReport().Syncer.State.InteractionsSaved.Add(uint64(len(pendingInteractions)))
 		}
 		return err
 	}

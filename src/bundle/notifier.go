@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/notify"
 	"syncer/src/utils/task"
 
@@ -16,6 +17,7 @@ type Notifier struct {
 	db *gorm.DB
 
 	streamer *notify.Streamer
+	monitor  monitoring.Monitor
 
 	// Data about the interactions that need to be bundled
 	output chan *model.BundleItem
@@ -41,6 +43,11 @@ func NewNotifier(config *config.Config) (self *Notifier) {
 
 func (self *Notifier) WithDB(db *gorm.DB) *Notifier {
 	self.db = db
+	return self
+}
+
+func (self *Notifier) WithMonitor(monitor monitoring.Monitor) *Notifier {
+	self.monitor = monitor
 	return self
 }
 
@@ -91,6 +98,9 @@ func (self *Notifier) run() error {
 				}
 
 				self.output <- &bundleItem
+
+				// Update metrics
+				self.monitor.GetReport().Bundler.State.BundlesFromNotifications.Inc()
 			})
 		}
 	}

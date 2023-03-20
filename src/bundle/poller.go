@@ -4,6 +4,7 @@ import (
 	"context"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 
 	"gorm.io/gorm"
@@ -15,6 +16,8 @@ import (
 type Poller struct {
 	*task.Task
 	db *gorm.DB
+
+	monitor monitoring.Monitor
 
 	// Data about the interactions that need to be bundled
 	output chan *model.BundleItem
@@ -41,6 +44,11 @@ func (self *Poller) WithDB(db *gorm.DB) *Poller {
 
 func (self *Poller) WithOutputChannel(bundleItems chan *model.BundleItem) *Poller {
 	self.output = bundleItems
+	return self
+}
+
+func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
+	self.monitor = monitor
 	return self
 }
 
@@ -86,4 +94,7 @@ func (self *Poller) check() {
 		case self.output <- &bundleItems[i]:
 		}
 	}
+
+	// Update metrics
+	self.monitor.GetReport().Bundler.State.BundlesFromSelects.Add(uint64(len(bundleItems)))
 }

@@ -1,4 +1,4 @@
-package monitor
+package monitoring
 
 import (
 	"context"
@@ -20,7 +20,7 @@ type Server struct {
 	httpServer *http.Server
 	Router     *gin.Engine
 
-	monitor *Monitor
+	monitor Monitor
 }
 
 func NewServer(config *config.Config) (self *Server) {
@@ -43,12 +43,9 @@ func NewServer(config *config.Config) (self *Server) {
 	return
 }
 
-func (self *Server) WithMonitor(m *Monitor) *Server {
+func (self *Server) WithMonitor(m Monitor) *Server {
 	self.monitor = m
-
-	collector := NewCollector().WithMonitor(m)
-	self.registry.MustRegister(collector)
-
+	self.registry.MustRegister(m.GetPrometheusCollector())
 	return self
 }
 
@@ -58,7 +55,7 @@ func (self *Server) run() (err error) {
 	v1 := self.Router.Group("v1")
 	{
 		v1.GET("state", self.monitor.OnGetState)
-		v1.GET("health", self.monitor.OnGet)
+		v1.GET("health", self.monitor.OnGetHealth)
 		v1.GET("monitor", self.handle())
 	}
 

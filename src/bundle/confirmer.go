@@ -3,6 +3,7 @@ package bundle
 import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 // This is done to prevent flooding database with bundle_items state updates
 type Confirmer struct {
 	*task.SinkTask[*Confirmation]
+	monitor monitoring.Monitor
 
 	db *gorm.DB
 }
@@ -43,6 +45,11 @@ func (self *Confirmer) WithInputChannel(input chan *Confirmation) *Confirmer {
 	return self
 }
 
+func (self *Confirmer) WithMonitor(monitor monitoring.Monitor) *Confirmer {
+	self.monitor = monitor
+	return self
+}
+
 func (self *Confirmer) save(confirmations []*Confirmation) error {
 	// Uses one transaction to do all the updates
 	// NOTE: It still uses many requests to the database,
@@ -70,7 +77,15 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 	})
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to save bundle items")
+
+		// Update monitoring
+		self.monitor.GetReport().Bundler.Errors.ConfirmationsSavedToDbError.Inc()
+		return err
 	}
 
-	return err
+	// Update monitoring
+	self.monitor.GetReport().Bundler.State.ConfirmationsSavedToDb.Inc()
+
+	return nil
+
 }

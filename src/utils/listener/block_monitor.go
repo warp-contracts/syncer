@@ -9,7 +9,7 @@ import (
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
-	"syncer/src/utils/monitor"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"time"
 
@@ -26,7 +26,7 @@ type BlockMonitor struct {
 	previousBlockIndepHash arweave.Base64String
 
 	client  *arweave.Client
-	monitor *monitor.Monitor
+	monitor monitoring.Monitor
 
 	input  chan *arweave.NetworkInfo
 	Output chan *Payload
@@ -48,7 +48,7 @@ func NewBlockMonitor(config *config.Config) (self *BlockMonitor) {
 	return
 }
 
-func (self *BlockMonitor) WithMonitor(monitor *monitor.Monitor) *BlockMonitor {
+func (self *BlockMonitor) WithMonitor(monitor monitoring.Monitor) *BlockMonitor {
 	self.monitor = monitor
 	return self
 }
@@ -96,7 +96,7 @@ func (self *BlockMonitor) run() error {
 
 		// Download transactions from
 		for height := lastSyncedHeight + 1; height <= networkInfo.Height; height++ {
-			self.monitor.Report.SyncerCurrentHeight.Store(height)
+			self.monitor.GetReport().Syncer.State.SyncerCurrentHeight.Store(height)
 
 		retry:
 			self.Log.WithField("height", height).Debug("Downloading block")
@@ -112,7 +112,7 @@ func (self *BlockMonitor) run() error {
 				// This will completly reset the HTTP client and possibly help in solving the problem
 				self.client.Reset()
 
-				self.monitor.Report.Errors.BlockDownloadErrors.Inc()
+				self.monitor.GetReport().Syncer.Errors.BlockDownloadErrors.Inc()
 
 				time.Sleep(self.Config.ListenerRetryFailedTransactionDownloadInterval)
 				if self.IsStopping.Load() {
@@ -131,7 +131,7 @@ func (self *BlockMonitor) run() error {
 					Error("Previous block hash isn't valid, retrying after sleep")
 
 				// TODO: Add specific error counter
-				self.monitor.Report.Errors.BlockValidationErrors.Inc()
+				self.monitor.GetReport().Syncer.Errors.BlockValidationErrors.Inc()
 
 				//TODO: Move this timeout to configuration
 				time.Sleep(time.Second * 10)
@@ -143,7 +143,7 @@ func (self *BlockMonitor) run() error {
 
 			if !block.IsValid() {
 				self.Log.WithField("height", height).Error("Block hash isn't valid, retrying after sleep")
-				self.monitor.Report.Errors.BlockValidationErrors.Inc()
+				self.monitor.GetReport().Syncer.Errors.BlockValidationErrors.Inc()
 				//TODO: Move this timeout to configuration
 				time.Sleep(time.Second * 10)
 				goto retry
@@ -164,7 +164,7 @@ func (self *BlockMonitor) run() error {
 				continue
 			}
 
-			self.monitor.Report.TransactionsDownloaded.Add(uint64(len(transactions)))
+			self.monitor.GetReport().Syncer.State.TransactionsDownloaded.Add(uint64(len(transactions)))
 
 			payload := &Payload{
 				BlockHash:      block.IndepHash.Bytes(),
@@ -216,7 +216,7 @@ func (self *BlockMonitor) downloadTransactions(block *arweave.Block) (out []*arw
 					// This will completly reset the HTTP client and possibly help in solving the problem
 					self.client.Reset()
 
-					self.monitor.Report.Errors.TxDownloadErrors.Inc()
+					self.monitor.GetReport().Syncer.Errors.TxDownloadErrors.Inc()
 
 					time.Sleep(self.Config.ListenerRetryFailedTransactionDownloadInterval)
 					if self.IsStopping.Load() {

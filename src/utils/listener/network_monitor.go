@@ -4,7 +4,7 @@ import (
 	"context"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
-	"syncer/src/utils/monitor"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"time"
 )
@@ -17,7 +17,7 @@ type NetworkMonitor struct {
 	// Runtime configuration
 	requiredConfirmationBlocks int64
 	client                     *arweave.Client
-	monitor                    *monitor.Monitor
+	monitor                    monitoring.Monitor
 
 	// Output channel
 	Output chan *arweave.NetworkInfo
@@ -39,7 +39,7 @@ func NewNetworkMonitor(config *config.Config) (self *NetworkMonitor) {
 	return
 }
 
-func (self *NetworkMonitor) WithMonitor(monitor *monitor.Monitor) *NetworkMonitor {
+func (self *NetworkMonitor) WithMonitor(monitor monitoring.Monitor) *NetworkMonitor {
 	self.monitor = monitor
 	return self
 }
@@ -68,16 +68,12 @@ func (self *NetworkMonitor) runPeriodically() error {
 	networkInfo, err := self.client.GetNetworkInfo(ctx)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get Arweave network info")
-		if self.monitor != nil {
-			self.monitor.Report.Errors.NetworkInfoDownloadErrors.Inc()
-		}
+		self.monitor.GetReport().NetworkInfo.Errors.NetworkInfoDownloadErrors.Inc()
 		return nil
 	}
 
-	if self.monitor != nil {
-		self.monitor.Report.ArweaveCurrentHeight.Store(networkInfo.Height)
-		self.monitor.Report.ArweaveLastNetworkInfoTimestamp.Store(uint64(time.Now().Unix()))
-	}
+	self.monitor.GetReport().NetworkInfo.State.ArweaveCurrentHeight.Store(uint64(networkInfo.Height))
+	self.monitor.GetReport().NetworkInfo.State.ArweaveLastNetworkInfoTimestamp.Store(uint64(time.Now().Unix()))
 
 	// This is the last block height we consider stable
 	stableHeight := networkInfo.Height - self.requiredConfirmationBlocks

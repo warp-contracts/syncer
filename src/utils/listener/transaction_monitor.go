@@ -4,7 +4,7 @@ import (
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
-	"syncer/src/utils/monitor"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"syncer/src/utils/warp"
 )
@@ -15,7 +15,7 @@ type TransactionMonitor struct {
 	*task.Task
 
 	interactionParser *warp.InteractionParser
-	monitor           *monitor.Monitor
+	monitor           monitoring.Monitor
 
 	input  chan *Payload
 	Output chan *Payload
@@ -44,7 +44,7 @@ func NewTransactionMonitor(config *config.Config) (self *TransactionMonitor) {
 	return
 }
 
-func (self *TransactionMonitor) WithMonitor(monitor *monitor.Monitor) *TransactionMonitor {
+func (self *TransactionMonitor) WithMonitor(monitor monitoring.Monitor) *TransactionMonitor {
 	self.monitor = monitor
 	return self
 }
@@ -75,7 +75,7 @@ func (self *TransactionMonitor) run() error {
 		for _, tx := range payload.Transactions {
 			interaction, err := self.interactionParser.Parse(tx, payload.BlockHeight, payload.BlockHash, payload.BlockTimestamp)
 			if err != nil {
-				self.monitor.Report.FailedInteractionParsing.Inc()
+				self.monitor.GetReport().Syncer.State.FailedInteractionParsing.Inc()
 				self.Log.WithField("tx_id", tx.ID).Warn("Failed to parse transaction")
 				continue
 			}
@@ -109,7 +109,7 @@ func (self *TransactionMonitor) verifyTransactions(transactions []*arweave.Trans
 	for _, tx := range transactions {
 		err = tx.Verify()
 		if err != nil {
-			self.monitor.Report.Errors.TxValidationErrors.Inc()
+			self.monitor.GetReport().Syncer.Errors.TxValidationErrors.Inc()
 			self.Log.Error("Transaction failed to verify")
 			return
 		}

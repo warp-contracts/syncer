@@ -6,6 +6,7 @@ import (
 	"syncer/src/utils/bundlr"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 
 	"github.com/jackc/pgtype"
@@ -16,6 +17,7 @@ type Bundler struct {
 	*task.Task
 	db          *gorm.DB
 	bundleItems chan *model.BundleItem
+	monitor     monitoring.Monitor
 
 	// Bundling and signing
 	bundlrClient *bundlr.Client
@@ -57,11 +59,19 @@ func (self *Bundler) WithInputChannel(in chan *model.BundleItem) *Bundler {
 	return self
 }
 
+func (self *Bundler) WithMonitor(monitor monitoring.Monitor) *Bundler {
+	self.monitor = monitor
+	return self
+}
+
 func (self *Bundler) run() (err error) {
 	// Waits for new set of interactions to bundle
 	// Finishes when when the source of items is closed
 	// It should be safe to assume all pending items are processed
 	for item := range self.bundleItems {
+		// Update stats
+		self.monitor.GetReport().Bundler.State.AllBundlesFromDb.Inc()
+
 		// Copy the pointer so it's not overwritten in the next iteration
 		item := item
 		self.Workers.Submit(func() {
@@ -99,7 +109,14 @@ func (self *Bundler) run() (err error) {
 			resp, err := self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
 			if err != nil {
 				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to upload interaction to Bundlr")
+
+				// Update stats
+				self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
+				return
 			}
+
+			// Update stats
+			self.monitor.GetReport().Bundler.State.BundlrSuccess.Inc()
 
 			select {
 			case <-self.Ctx.Done():

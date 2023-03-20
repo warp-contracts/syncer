@@ -3,6 +3,7 @@ package bundle
 import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 
 	"gorm.io/gorm"
@@ -46,4 +47,10 @@ func NewCollector(config *config.Config, db *gorm.DB) (self *Collector) {
 		})
 
 	return
+}
+
+func (self *Collector) WithMonitor(monitor monitoring.Monitor) *Collector {
+	self.notifier.WithMonitor(monitor)
+	self.poller.WithMonitor(monitor)
+	return self
 }
