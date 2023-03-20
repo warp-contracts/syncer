@@ -3,6 +3,7 @@ package monitoring
 import (
 	"context"
 	"net/http"
+	"syncer/src/utils/build_info"
 	"syncer/src/utils/config"
 	"syncer/src/utils/task"
 
@@ -57,6 +58,7 @@ func (self *Server) run() (err error) {
 		v1.GET("state", self.monitor.OnGetState)
 		v1.GET("health", self.monitor.OnGetHealth)
 		v1.GET("monitor", self.handle())
+		v1.GET("version", self.onVersion)
 	}
 
 	err = self.httpServer.ListenAndServe()
@@ -73,6 +75,13 @@ func (self *Server) handle() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h.ServeHTTP(c.Writer, c.Request)
 	}
+}
+
+func (self *Server) onVersion(c *gin.Context) {
+	c.JSON(http.StatusOK, map[string]string{
+		"version":    build_info.Version,
+		"build_date": build_info.BuildDate,
+	})
 }
 
 func (self *Server) stop() {
