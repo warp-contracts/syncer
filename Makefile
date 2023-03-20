@@ -7,6 +7,7 @@ PATH    := bin:$(PATH)
 GO       = go
 VERSION ?= $(shell git describe --tags --always --match=v* 2> /dev/null || \
 			cat $(CURDIR)/.version 2> /dev/null || echo v0)
+DATE    ?= $(shell date +%FT%T%z)
 
 export GOPATH
 
