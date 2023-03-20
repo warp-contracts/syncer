@@ -5,7 +5,7 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
-	"syncer/src/utils/monitor"
+	monitoring "syncer/src/utils/monitor"
 	"syncer/src/utils/peer_monitor"
 	"syncer/src/utils/task"
 )
@@ -21,10 +21,10 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	self.Task = task.NewTask(config, "controller")
 
-	monitor := monitor.NewMonitor().
+	monitor := monitoring.NewMonitor().
 		WithMaxHistorySize(30)
 
-	server := NewServer(config).
+	server := monitoring.NewServer(config).
 		WithMonitor(monitor)
 
 	watched := func() *task.Task {

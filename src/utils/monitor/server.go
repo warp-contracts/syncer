@@ -1,10 +1,9 @@
-package sync
+package monitor
 
 import (
 	"context"
 	"net/http"
 	"syncer/src/utils/config"
-	"syncer/src/utils/monitor"
 	"syncer/src/utils/task"
 
 	"github.com/gin-gonic/gin"
@@ -21,7 +20,7 @@ type Server struct {
 	httpServer *http.Server
 	Router     *gin.Engine
 
-	monitor *monitor.Monitor
+	monitor *Monitor
 }
 
 func NewServer(config *config.Config) (self *Server) {
@@ -44,10 +43,10 @@ func NewServer(config *config.Config) (self *Server) {
 	return
 }
 
-func (self *Server) WithMonitor(m *monitor.Monitor) *Server {
+func (self *Server) WithMonitor(m *Monitor) *Server {
 	self.monitor = m
 
-	collector := monitor.NewCollector().WithMonitor(m)
+	collector := NewCollector().WithMonitor(m)
 	self.registry.MustRegister(collector)
 
 	return self
