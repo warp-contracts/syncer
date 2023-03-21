@@ -64,7 +64,6 @@ func (self *Poller) runPeriodically() error {
 }
 
 func (self *Poller) check() {
-	self.Log.Debug("Getting interactions pending bundling")
 
 	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Bundler.PollerTimeout)
 	defer cancel()

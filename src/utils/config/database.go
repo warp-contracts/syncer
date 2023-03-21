@@ -15,8 +15,11 @@ type Database struct {
 	SslMode           string
 	PingTimeout       time.Duration
 	ClientKey         string
+	ClientKeyPath     string
 	ClientCert        string
+	ClientCertPath    string
 	CaCert            string
+	CaCertPath        string
 	MigrationUser     string
 	MigrationPassword string
 }

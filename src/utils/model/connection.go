@@ -41,7 +41,9 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 		build_info.Version,
 	)
 
-	if config.Database.ClientKey != "" && config.Database.ClientCert != "" && config.Database.CaCert != "" {
+	if config.Database.CaCertPath != "" && config.Database.ClientKeyPath != "" && config.Database.ClientCertPath != "" {
+		dsn += fmt.Sprintf(" sslcert=%s sslkey=%s sslrootcert=%s", config.Database.ClientCertPath, config.Database.ClientKeyPath, config.Database.CaCertPath)
+	} else if config.Database.ClientKey != "" && config.Database.ClientCert != "" && config.Database.CaCert != "" {
 		var keyFile, certFile, caFile *os.File
 		keyFile, err = os.CreateTemp("", "key.pem")
 		if err != nil {
@@ -72,8 +74,6 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 		if err != nil {
 			return
 		}
-
-		dsn += fmt.Sprintf(" sslcert=%s sslkey=%s sslrootcert=%s", certFile.Name(), keyFile.Name(), caFile.Name())
 	}
 
 	self, err = gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger})
@@ -100,6 +100,11 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 
 func Migrate(ctx context.Context, config *config.Config) (err error) {
 	log := l.NewSublogger("db-migrate")
+
+	if config.Database.MigrationUser == "" || config.Database.MigrationPassword == "" {
+		log.Info("Migration user not set, skipping migrations")
+		return
+	}
 
 	// Run migrations
 	migrations := &migrate.HttpFileSystemMigrationSource{
