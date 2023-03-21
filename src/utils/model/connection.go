@@ -77,6 +77,8 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 		if err != nil {
 			return
 		}
+
+		dsn += fmt.Sprintf(" sslcert=%s sslkey=%s sslrootcert=%s", certFile.Name(), keyFile.Name(), caFile.Name())
 	}
 
 	self, err = gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger})
