@@ -42,8 +42,11 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 	)
 
 	if config.Database.CaCertPath != "" && config.Database.ClientKeyPath != "" && config.Database.ClientCertPath != "" {
+		log.Info("Using SSL certificates from files")
 		dsn += fmt.Sprintf(" sslcert=%s sslkey=%s sslrootcert=%s", config.Database.ClientCertPath, config.Database.ClientKeyPath, config.Database.CaCertPath)
 	} else if config.Database.ClientKey != "" && config.Database.ClientCert != "" && config.Database.CaCert != "" {
+		log.Info("Using SSL certificates from variables")
+
 		var keyFile, certFile, caFile *os.File
 		keyFile, err = os.CreateTemp("", "key.pem")
 		if err != nil {
