@@ -4,6 +4,7 @@ import (
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/task"
+	"syncer/src/utils/tool"
 	"time"
 )
 
@@ -26,6 +27,7 @@ func NewGenerator(config *config.Config) (self *Generator) {
 }
 
 func (self *Generator) runPeriodically() error {
+	self.Log.Info("Generated tx")
 	tx := self.fakeTransaction()
 
 	select {
@@ -36,5 +38,17 @@ func (self *Generator) runPeriodically() error {
 }
 
 func (self *Generator) fakeTransaction() *arweave.Transaction {
-	return &arweave.Transaction{}
+	return &arweave.Transaction{
+		Signature: arweave.Base64String("fake"),
+		Owner:     arweave.Base64String("fake"),
+		Tags: []arweave.Tag{
+			{Name: arweave.Base64String("bundler-tests"), Value: arweave.Base64String("true")},
+			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(43))},
+			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(43))},
+			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(43))},
+			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(500))},
+		},
+		Data: "fake",
+		ID:   tool.RandomString(43),
+	}
 }

@@ -2,6 +2,7 @@ package listener
 
 import (
 	"context"
+	"sync"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/monitoring"
@@ -18,12 +19,14 @@ type NetworkMonitor struct {
 	requiredConfirmationBlocks int64
 	client                     *arweave.Client
 	monitor                    monitoring.Monitor
+	mtx                        sync.Mutex
 
 	// Output channel
 	Output chan *arweave.NetworkInfo
 
 	// Runtime variables
-	lastHeight int64
+	lastHeight      int64
+	lastNetworkInfo *arweave.NetworkInfo
 }
 
 // Using Arweave client periodically checks for blocks of transactions
@@ -59,6 +62,13 @@ func (self *NetworkMonitor) WithInterval(interval time.Duration) *NetworkMonitor
 	return self
 }
 
+func (self *NetworkMonitor) GetLastNetworkInfo() *arweave.NetworkInfo {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
+	return self.lastNetworkInfo
+}
+
 // Periodically checks Arweave network info for updated height
 func (self *NetworkMonitor) runPeriodically() error {
 	// Use a specific URL as the source of truth, to avoid race conditions with SDK
@@ -77,7 +87,6 @@ func (self *NetworkMonitor) runPeriodically() error {
 
 	// This is the last block height we consider stable
 	stableHeight := networkInfo.Height - self.requiredConfirmationBlocks
-
 	if stableHeight <= self.lastHeight {
 		// Nothing changed, retry later
 		return nil
@@ -85,6 +94,10 @@ func (self *NetworkMonitor) runPeriodically() error {
 
 	// There are new blocks, broadcast
 	self.lastHeight = stableHeight
+
+	self.mtx.Lock()
+	self.lastNetworkInfo = networkInfo
+	self.mtx.Unlock()
 
 	select {
 	case <-self.StopChannel:
