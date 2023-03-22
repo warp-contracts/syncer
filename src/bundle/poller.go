@@ -68,7 +68,7 @@ func (self *Poller) check() {
 			SELECT interaction_id
 			FROM bundle_items
 			WHERE state = 'PENDING'::bundle_state
-			OR (state = 'UPDATING'::bundle_state AND EXTRACT(EPOCH FROM (NOW() - updated_at)) < ?)
+			OR (state = 'UPLOADING'::bundle_state AND EXTRACT(EPOCH FROM (NOW() - updated_at)) < ?)
 			ORDER BY interaction_id ASC
 			LIMIT ?
 		)
