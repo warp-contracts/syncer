@@ -12,7 +12,7 @@ DECLARE
 BEGIN
 	SELECT pg_notification_queue_usage() > 0.95 INTO is_queue_full;
 
-	IF NOT is_queue_full THEN
+	IF is_queue_full THEN
 		-- pg_notify would fail upon full queue, so let's avoid this situation
 		-- This bundle item WON'T GET LOST, it will be picked up by the bundler's polling job
 		RETURN NEW;
