@@ -84,7 +84,7 @@ func (self *BaseClient) Reset() {
 			AddRetryCondition(self.onRetryCondition).
 			OnBeforeRequest(self.onRateLimit).
 			// NOTE: Trace logs, used only when debugging. Needs to be before other OnAfterResponse callbacks
-			EnableTrace().
+			// EnableTrace().
 			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
 				t, _ := json.Marshal(resp.Request.TraceInfo())
 				self.log.WithField("trace", string(t)).WithField("url", resp.Request.URL).Info("Trace")
