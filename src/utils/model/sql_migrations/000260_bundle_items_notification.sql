@@ -20,7 +20,7 @@ BEGIN
 	END IF;
 
 	-- Skip if there's no bundler listening
-	SELECT TRUE FROM pg_stat_activity WHERE query='listen "bundle_items_pending"' INTO is_bundler_listening;
+	SELECT EXISTS(SELECT pid FROM pg_stat_activity WHERE query='listen "bundle_items_pending"') INTO is_bundler_listening;
 	IF NOT is_bundler_listening THEN
 		-- Bundler is down, it will get this bundle item when it comes back up
 		RETURN NEW;
