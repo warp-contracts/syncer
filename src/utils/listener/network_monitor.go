@@ -19,7 +19,7 @@ type NetworkMonitor struct {
 	requiredConfirmationBlocks int64
 	client                     *arweave.Client
 	monitor                    monitoring.Monitor
-	mtx                        sync.Mutex
+	cond                       *sync.Cond
 
 	// Output channel
 	Output chan *arweave.NetworkInfo
@@ -33,6 +33,7 @@ type NetworkMonitor struct {
 func NewNetworkMonitor(config *config.Config) (self *NetworkMonitor) {
 	self = new(NetworkMonitor)
 
+	self.cond = sync.NewCond(&sync.Mutex{})
 	self.Output = make(chan *arweave.NetworkInfo)
 
 	self.Task = task.NewTask(config, "network-monitor").
@@ -63,9 +64,11 @@ func (self *NetworkMonitor) WithInterval(interval time.Duration) *NetworkMonitor
 }
 
 func (self *NetworkMonitor) GetLastNetworkInfo() *arweave.NetworkInfo {
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
-
+	self.cond.L.Lock()
+	for self.lastNetworkInfo == nil {
+		self.cond.Wait()
+	}
+	self.cond.L.Unlock()
 	return self.lastNetworkInfo
 }
 
@@ -95,9 +98,10 @@ func (self *NetworkMonitor) runPeriodically() error {
 	// There are new blocks, broadcast
 	self.lastHeight = stableHeight
 
-	self.mtx.Lock()
+	self.cond.L.Lock()
 	self.lastNetworkInfo = networkInfo
-	self.mtx.Unlock()
+	self.cond.Broadcast()
+	self.cond.L.Unlock()
 
 	select {
 	case <-self.StopChannel:

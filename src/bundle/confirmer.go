@@ -1,7 +1,9 @@
 package bundle
 
 import (
+	"database/sql"
 	"syncer/src/utils/config"
+	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
@@ -14,9 +16,9 @@ import (
 // This is done to prevent flooding database with bundle_items state updates
 type Confirmer struct {
 	*task.SinkTask[*Confirmation]
-	monitor monitoring.Monitor
-
-	db *gorm.DB
+	monitor        monitoring.Monitor
+	db             *gorm.DB
+	networkMonitor *listener.NetworkMonitor
 }
 
 type Confirmation struct {
@@ -50,16 +52,29 @@ func (self *Confirmer) WithMonitor(monitor monitoring.Monitor) *Confirmer {
 	return self
 }
 
+func (self *Confirmer) WithNetworkMonitor(v *listener.NetworkMonitor) *Confirmer {
+	self.networkMonitor = v
+	return self
+}
+
 func (self *Confirmer) save(confirmations []*Confirmation) error {
+	// Network manager updates this value
+	// NOTE: This can potentially block if NetworkMonitor can't get the first height
+	currentBlockHeight := self.networkMonitor.GetLastNetworkInfo().Height
+
 	// Uses one transaction to do all the updates
 	// NOTE: It still uses many requests to the database,
 	// it should be possible to combine updates into batches, but it's not a priority for now.
 	err := self.db.Transaction(func(tx *gorm.DB) error {
 		for _, confirmation := range confirmations {
-			err := tx.Model(&model.BundleItem{}).
-				Where("interaction_id = ?", confirmation.InteractionID).
+			err := tx.Model(&model.BundleItem{
+				InteractionID: confirmation.InteractionID,
+			}).
 				Where("state = ?", model.BundleStateUploading).
-				Update("state", model.BundleStateUploaded).
+				Updates(model.BundleItem{
+					State:       model.BundleStateUploaded,
+					BlockHeight: sql.NullInt64{Int64: currentBlockHeight, Valid: true},
+				}).
 				Error
 			if err != nil {
 				return err

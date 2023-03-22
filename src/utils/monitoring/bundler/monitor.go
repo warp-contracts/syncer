@@ -21,7 +21,8 @@ func NewMonitor() (self *Monitor) {
 	self = new(Monitor)
 
 	self.Report = report.Report{
-		Bundler: &report.BundlerReport{},
+		Bundler:     &report.BundlerReport{},
+		NetworkInfo: &report.NetworkInfoReport{},
 	}
 
 	self.collector = NewCollector().WithMonitor(self)

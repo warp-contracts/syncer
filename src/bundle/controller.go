@@ -1,8 +1,10 @@
 package bundle
 
 import (
+	"syncer/src/utils/arweave"
 	"syncer/src/utils/bundlr"
 	"syncer/src/utils/config"
+	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
 	monitor_bundler "syncer/src/utils/monitoring/bundler"
@@ -37,6 +39,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		return
 	}
 
+	// Arweave client
+	arweaveClient := arweave.NewClient(self.Ctx, config)
+
 	// Bundlr client
 	bundlrClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
 
@@ -49,6 +54,13 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	collector := NewCollector(config, db).
 		WithMonitor(monitor)
 
+	// Monitors latest Arweave network block height
+	networkMonitor := listener.NewNetworkMonitor(config).
+		WithClient(arweaveClient).
+		WithMonitor(monitor).
+		WithInterval(config.ListenerPeriod).
+		WithRequiredConfirmationBlocks(0)
+
 	// Sends interactions to bundlr.network
 	bundler := NewBundler(config, db).
 		WithInputChannel(collector.Output).
@@ -59,6 +71,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	confirmer := NewConfirmer(config).
 		WithDB(db).
 		WithMonitor(monitor).
+		WithNetworkMonitor(networkMonitor).
 		WithInputChannel(bundler.Output)
 
 	// Setup everything, will start upon calling Controller.Start()
