@@ -79,6 +79,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(confirmer.Task).
 		WithSubtask(bundler.Task).
 		WithSubtask(monitor.Task).
+		WithSubtask(networkMonitor.Task).
 		WithSubtask(server.Task).
 		WithSubtask(collector.Task)
 	return
