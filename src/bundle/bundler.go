@@ -15,9 +15,9 @@ import (
 
 type Bundler struct {
 	*task.Task
-	db          *gorm.DB
-	bundleItems chan *model.BundleItem
-	monitor     monitoring.Monitor
+	db      *gorm.DB
+	input   chan *model.BundleItem
+	monitor monitoring.Monitor
 
 	// Bundling and signing
 	bundlrClient *bundlr.Client
@@ -55,7 +55,7 @@ func (self *Bundler) WithClient(client *bundlr.Client) *Bundler {
 }
 
 func (self *Bundler) WithInputChannel(in chan *model.BundleItem) *Bundler {
-	self.bundleItems = in
+	self.input = in
 	return self
 }
 
@@ -65,10 +65,10 @@ func (self *Bundler) WithMonitor(monitor monitoring.Monitor) *Bundler {
 }
 
 func (self *Bundler) run() (err error) {
-	// Waits for new set of interactions to bundle
+	// Waits for new interactions to bundle
 	// Finishes when when the source of items is closed
 	// It should be safe to assume all pending items are processed
-	for item := range self.bundleItems {
+	for item := range self.input {
 		// Update stats
 		self.monitor.GetReport().Bundler.State.AllBundlesFromDb.Inc()
 

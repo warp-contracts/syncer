@@ -51,7 +51,7 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 		return
 	}
 
-	self.log.WithField("resp", resp.Body()).Info("Uploaded to bundler")
+	// self.log.WithField("resp", resp.Body()).Info("Uploaded to bundler")
 
 	return
 }
