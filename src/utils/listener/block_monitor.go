@@ -40,7 +40,7 @@ func NewBlockMonitor(config *config.Config) (self *BlockMonitor) {
 
 	self.Task = task.NewTask(config, "block-monitor").
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(config.ListenerNumWorkers).
+		WithWorkerPool(config.ListenerNumWorkers, config.ListenerWorkerQueueSize).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})
@@ -197,7 +197,7 @@ func (self *BlockMonitor) downloadTransactions(block *arweave.Block) (out []*arw
 		idx := idx
 		txId := base64.RawURLEncoding.EncodeToString(txId)
 
-		self.Workers.Submit(func() {
+		self.SubmitToWorker(func() {
 			// NOTE: Infinite loop, because there's nothing better we can do.
 			for {
 				if self.IsStopping.Load() {

@@ -37,7 +37,7 @@ func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 		// Pool of workers that perform requests to bundlr.
 		// It's possible to run multiple requests in parallel.
 		// We're limiting the number of parallel requests with the number of workers.
-		WithWorkerPool(config.Bundler.PollerMaxParallelQueries).
+		WithWorkerPool(config.Bundler.PollerMaxParallelQueries, config.Bundler.WorkerPoolQueueSize).
 		WithSubtaskFunc(self.run)
 
 	var err error
@@ -74,7 +74,7 @@ func (self *Bundler) run() (err error) {
 
 		// Copy the pointer so it's not overwritten in the next iteration
 		item := item
-		self.Workers.Submit(func() {
+		self.SubmitToWorker(func() {
 			// Fill bundle item
 			bundleItem := new(bundlr.BundleItem)
 

@@ -21,13 +21,13 @@ func NewGenerator(config *config.Config) (self *Generator) {
 	self.Output = make(chan *arweave.Transaction)
 
 	self.Task = task.NewTask(config, "generator").
-		WithPeriodicSubtaskFunc(2000*time.Millisecond, self.runPeriodically)
+		WithPeriodicSubtaskFunc(10*time.Millisecond, self.runPeriodically)
 
 	return
 }
 
 func (self *Generator) runPeriodically() error {
-	self.Log.Info("Generated tx")
+	// self.Log.Info("Generated tx")
 	tx := self.fakeTransaction()
 
 	select {

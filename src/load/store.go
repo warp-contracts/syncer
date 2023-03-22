@@ -19,8 +19,8 @@ func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
 
 	self.SinkTask = task.NewSinkTask[*Payload](config, "store").
-		WithOnFlush(100*time.Millisecond, self.save).
-		WithBatchSize(1)
+		WithOnFlush(1000*time.Millisecond, self.save).
+		WithBatchSize(10)
 	return
 }
 
@@ -39,10 +39,13 @@ func (self *Store) save(payloads []*Payload) error {
 
 	err := self.db.Transaction(func(tx *gorm.DB) (err error) {
 		for _, payload := range payloads {
+
+			// self.Log.WithField("id", payload.Interaction.InteractionId).Info("Interaction")
+
 			err = tx.Create(payload.Interaction).Error
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to save interaction")
-				return
+				continue
 			}
 
 			payload.BundleItem.InteractionID = payload.Interaction.ID
@@ -50,7 +53,7 @@ func (self *Store) save(payloads []*Payload) error {
 			err = tx.Create(payload.BundleItem).Error
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to save bundle item")
-				return
+				continue
 			}
 		}
 		return

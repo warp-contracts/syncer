@@ -55,7 +55,7 @@ func (self *Parser) run() (err error) {
 	)
 
 	for tx := range self.input {
-		self.Log.Info("Parsing tx")
+		// self.Log.Info("Parsing tx")
 
 		block := self.blockDownloader.GetNewestBlock()
 

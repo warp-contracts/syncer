@@ -81,6 +81,9 @@ type Config struct {
 	// Number of workers that download the transactions
 	ListenerNumWorkers int
 
+	// Max number of transactions that wait in the worker queue
+	ListenerWorkerQueueSize int
+
 	// Maximum time a peer is blacklisted.
 	// Even after this duration is over it may take some time for the peer to be re-checked
 	PeerMonitorMaxTimeBlacklisted time.Duration
@@ -99,6 +102,9 @@ type Config struct {
 
 	// Number of workers that check peers in parallel
 	PeerMonitorNumWorkers int
+
+	// Number of peers pending verification in worker queue
+	PeerMonitorWorkerQueueSize int
 
 	// Num of Interactions that are stored in the Store
 	// before being inserted into the database in one db transaction and batch.
@@ -150,12 +156,14 @@ func setDefaults() {
 	viper.SetDefault("ListenerRetryFailedTransactionDownloadInterval", "10s")
 	viper.SetDefault("ListenerRequiredConfirmationBlocks", "10")
 	viper.SetDefault("ListenerNumWorkers", "50")
+	viper.SetDefault("ListenerWorkerQueueSize", "10000")
 
 	viper.SetDefault("PeerMonitorMaxTimeBlacklisted", "30m")
 	viper.SetDefault("PeerMonitorMaxPeersRemovedFromBlacklist", "5")
 	viper.SetDefault("PeerMonitorPeriod", "10m")
 	viper.SetDefault("PeerMonitorMaxPeers", "15")
 	viper.SetDefault("PeerMonitorNumWorkers", "40")
+	viper.SetDefault("PeerMonitorWorkerQueueSize", "1000")
 
 	viper.SetDefault("StoreBatchSize", "500")
 	viper.SetDefault("StoreMaxTimeInQueue", "10s")

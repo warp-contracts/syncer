@@ -32,7 +32,7 @@ func NewPoller(config *config.Config) (self *Poller) {
 		// Pool of workers that actually do the check.
 		// It's possible to run multiple requests in parallel.
 		// We're limiting the number of parallel requests with the number of workers.
-		WithWorkerPool(config.InteractionManagerMaxParallelQueries)
+		WithWorkerPool(config.InteractionManagerMaxParallelQueries, 1)
 
 	return
 }
@@ -53,12 +53,7 @@ func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
 }
 
 func (self *Poller) runPeriodically() error {
-	if self.Workers.WaitingQueueSize() > 1 {
-		self.Log.Debug("Too many pending interaction checks")
-		return nil
-	}
-
-	self.Workers.Submit(self.check)
+	self.SubmitToWorker(self.check)
 
 	return nil
 }

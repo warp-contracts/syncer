@@ -43,7 +43,7 @@ func NewPeerMonitor(config *config.Config) (self *PeerMonitor) {
 
 	self.Task = task.NewTask(config, "peer-monitor").
 		WithPeriodicSubtaskFunc(config.PeerMonitorPeriod, self.runPeriodically).
-		WithWorkerPool(config.PeerMonitorNumWorkers)
+		WithWorkerPool(config.PeerMonitorNumWorkers, config.PeerMonitorWorkerQueueSize)
 
 	return
 }
@@ -149,7 +149,7 @@ func (self *PeerMonitor) sortPeersByMetrics(height int64, allPeers []string) (pe
 		peer := peer
 		i := i
 
-		self.Workers.Submit(func() {
+		self.SubmitToWorker(func() {
 			var (
 				info     *arweave.NetworkInfo
 				duration time.Duration

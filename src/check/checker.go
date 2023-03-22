@@ -30,7 +30,7 @@ func NewChecker(config *config.Config) (self *Checker) {
 
 	self.Task = task.NewTask(config, "checker").
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(5)
+		WithWorkerPool(config.Checker.WorkerPoolSize, config.Checker.WorkerQueueSize)
 
 	return
 }
@@ -59,7 +59,7 @@ func (self *Checker) run() error {
 
 		payload := payload
 
-		self.Workers.Submit(func() {
+		self.SubmitToWorker(func() {
 			// Check if the bundle is finalized
 			status, err := self.bundlrClient.GetStatus(self.Ctx, payload.BundlerTxId)
 			if err != nil {

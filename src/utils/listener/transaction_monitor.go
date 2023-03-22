@@ -27,7 +27,6 @@ func NewTransactionMonitor(config *config.Config) (self *TransactionMonitor) {
 
 	self.Task = task.NewTask(config, "transaction-monitor").
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(config.ListenerNumWorkers).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})

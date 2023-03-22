@@ -36,7 +36,7 @@ func NewNotifier(config *config.Config) (self *Notifier) {
 		// Interactions that somehow wasn't sent through the notification channel. Probably because of a restart.
 		WithSubtaskFunc(self.run).
 		// Workers unmarshal big JSON messages and optionally fetch data from the database if the messages wuldn't fit in the notification channel
-		WithWorkerPool(5)
+		WithWorkerPool(config.Bundler.NotifierWorkerPoolSize, config.Bundler.NotifierWorkerQueueSize)
 
 	return
 }
@@ -67,7 +67,7 @@ func (self *Notifier) run() error {
 				self.Log.Info("Notification streamer channel closed")
 				return nil
 			}
-			self.Workers.Submit(func() {
+			self.SubmitToWorker(func() {
 				var notification model.BundleItemNotification
 				err := json.Unmarshal([]byte(msg), &notification)
 				if err != nil {
@@ -97,7 +97,11 @@ func (self *Notifier) run() error {
 					}
 				}
 
-				self.output <- &bundleItem
+				select {
+				case <-self.StopChannel:
+					return
+				case self.output <- &bundleItem:
+				}
 
 				// Update metrics
 				self.monitor.GetReport().Bundler.State.BundlesFromNotifications.Inc()

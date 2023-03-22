@@ -27,17 +27,19 @@ type Task struct {
 	stopWaitGroup sync.WaitGroup
 
 	// Context active as long as there's anything running in the task.
-	// Used outside the task.
+	// Used OUTSIDE the task.
 	CtxRunning    context.Context
 	cancelRunning context.CancelFunc
 
 	// Context cancelled when Stop() is called.
-	// Used inside the task
+	// Used INSIDE the task
 	Ctx    context.Context
 	cancel context.CancelFunc
 
 	// Workers that perform the task
-	Workers *workerpool.WorkerPool
+	Workers            *workerpool.WorkerPool
+	workerQueueCond    *sync.Cond
+	workerMaxQueueSize int
 
 	// Callbacks
 	onBeforeStart []func() error
@@ -130,11 +132,44 @@ func (self *Task) WithPeriodicSubtaskFunc(period time.Duration, f func() error) 
 	return self
 }
 
-func (self *Task) WithWorkerPool(maxWorkers int) *Task {
+func (self *Task) WithWorkerPool(maxWorkers int, maxQueueSize int) *Task {
+	// Queue synchronization
+	var m sync.Mutex
+	self.workerQueueCond = sync.NewCond(&m)
+	self.workerMaxQueueSize = maxQueueSize
+
+	// The pool
 	self.Workers = workerpool.New(maxWorkers)
 	return self.WithOnAfterStop(func() {
 		self.Workers.StopWait()
+		self.workerQueueCond.Broadcast()
 	})
+}
+
+func (self *Task) SubmitToWorker(f func()) {
+	// Wait for the worker queue length to be less than size
+	self.workerQueueCond.L.Lock()
+	for self.Workers.WaitingQueueSize() > self.workerMaxQueueSize {
+		self.Log.Debug("Worker queue is full, waiting...")
+		self.workerQueueCond.Wait()
+
+		// Exit if stopping
+		if self.IsStopping.Load() {
+			self.workerQueueCond.L.Unlock()
+			return
+		}
+	}
+	self.workerQueueCond.L.Unlock()
+
+	// Submit the task
+	self.Workers.Submit(
+		func() {
+			f()
+
+			// Wake up one waiting goroutine
+			self.workerQueueCond.Signal()
+		},
+	)
 }
 
 func (self *Task) run(subtask func() error) {
