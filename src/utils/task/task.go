@@ -37,7 +37,7 @@ type Task struct {
 	cancel context.CancelFunc
 
 	// Workers that perform the task
-	Workers            *workerpool.WorkerPool
+	workers            *workerpool.WorkerPool
 	workerQueueCond    *sync.Cond
 	workerMaxQueueSize int
 
@@ -139,9 +139,9 @@ func (self *Task) WithWorkerPool(maxWorkers int, maxQueueSize int) *Task {
 	self.workerMaxQueueSize = maxQueueSize
 
 	// The pool
-	self.Workers = workerpool.New(maxWorkers)
+	self.workers = workerpool.New(maxWorkers)
 	return self.WithOnAfterStop(func() {
-		self.Workers.StopWait()
+		self.workers.StopWait()
 		self.workerQueueCond.Broadcast()
 	})
 }
@@ -149,7 +149,7 @@ func (self *Task) WithWorkerPool(maxWorkers int, maxQueueSize int) *Task {
 func (self *Task) SubmitToWorker(f func()) {
 	// Wait for the worker queue length to be less than size
 	self.workerQueueCond.L.Lock()
-	for self.Workers.WaitingQueueSize() > self.workerMaxQueueSize {
+	for self.workers.WaitingQueueSize() > self.workerMaxQueueSize {
 		self.Log.Debug("Worker queue is full, waiting...")
 		self.workerQueueCond.Wait()
 
@@ -162,7 +162,7 @@ func (self *Task) SubmitToWorker(f func()) {
 	self.workerQueueCond.L.Unlock()
 
 	// Submit the task
-	self.Workers.Submit(
+	self.workers.Submit(
 		func() {
 			f()
 
