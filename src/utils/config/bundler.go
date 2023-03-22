@@ -31,6 +31,9 @@ type Bundler struct {
 	// Maksimum number of interactions updated in the database in one db transaction
 	ConfirmerMaxBatchSize int
 
+	// Retry sending bundles to bundlr.network
+	ConfirmerRetryBundleAfter time.Duration
+
 	// Number of workers that send bundles in parallel
 	BundlerNumBundlingWorkers uint16
 }
@@ -42,6 +45,7 @@ func setBundlerDefaults() {
 	viper.SetDefault("Bundler.WorkerPoolQueueSize", "1000")
 	viper.SetDefault("Bundler.PollerMaxDownloadedBatchSize", "100")
 	viper.SetDefault("Bundler.ConfirmerMaxBatchSize", "1000")
+	viper.SetDefault("Bundler.ConfirmerRetryBundleAfter", "10m")
 	viper.SetDefault("Bundler.BundlerNumBundlingWorkers", "2")
 	viper.SetDefault("Bundler.NotifierWorkerPoolSize", "5")
 	viper.SetDefault("Bundler.NotifierWorkerQueueSize", "100")

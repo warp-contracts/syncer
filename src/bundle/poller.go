@@ -68,13 +68,14 @@ func (self *Poller) check() {
 			SELECT interaction_id
 			FROM bundle_items
 			WHERE state = 'PENDING'::bundle_state
+			OR (state = 'UPDATING'::bundle_state AND EXTRACT(EPOCH FROM (NOW() - updated_at)) < ?)
 			ORDER BY interaction_id ASC
 			LIMIT ?
 		)
 		UPDATE bundle_items
-		SET state = 'UPLOADING'::bundle_state
+		SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
 		WHERE interaction_id IN (SELECT interaction_id FROM rows)
-		RETURNING *`, self.Config.Bundler.ConfirmerMaxBatchSize).
+		RETURNING *`, self.Config.Bundler.ConfirmerRetryBundleAfter.Seconds(), self.Config.Bundler.ConfirmerMaxBatchSize).
 		Scan(&bundleItems).Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get interactions")
