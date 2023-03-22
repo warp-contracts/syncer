@@ -2,7 +2,6 @@ package bundlr
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -72,7 +71,6 @@ func (self *BaseClient) Reset() {
 
 	self.ctx, self.cancel = context.WithCancel(self.parentCtx)
 
-	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
 			// SetDebug(true).
@@ -85,11 +83,11 @@ func (self *BaseClient) Reset() {
 			OnBeforeRequest(self.onRateLimit).
 			// NOTE: Trace logs, used only when debugging. Needs to be before other OnAfterResponse callbacks
 			// EnableTrace().
-			OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
-				t, _ := json.Marshal(resp.Request.TraceInfo())
-				self.log.WithField("trace", string(t)).WithField("url", resp.Request.URL).Info("Trace")
-				return nil
-			}).
+			// OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
+			// 	t, _ := json.Marshal(resp.Request.TraceInfo())
+			// 	self.log.WithField("trace", string(t)).WithField("url", resp.Request.URL).Info("Trace")
+			// 	return nil
+			// }).
 			// OnAfterResponse(self.onRetryRequest).
 			OnAfterResponse(self.onStatusToError)
 
