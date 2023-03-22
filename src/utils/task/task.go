@@ -150,8 +150,9 @@ func (self *Task) SubmitToWorker(f func()) {
 	// Wait for the worker queue length to be less than size
 	self.workerQueueCond.L.Lock()
 	for self.workers.WaitingQueueSize() > self.workerMaxQueueSize {
-		self.Log.Debug("Worker queue is full, waiting...")
+		self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is full, waiting...")
 		self.workerQueueCond.Wait()
+		self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is not full anymore!")
 
 		// Exit if stopping
 		if self.IsStopping.Load() {

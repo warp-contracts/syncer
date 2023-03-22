@@ -54,12 +54,10 @@ func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
 
 func (self *Poller) runPeriodically() error {
 	self.SubmitToWorker(self.check)
-
 	return nil
 }
 
 func (self *Poller) check() {
-
 	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Bundler.PollerTimeout)
 	defer cancel()
 
@@ -82,9 +80,12 @@ func (self *Poller) check() {
 		self.Log.WithError(err).Error("Failed to get interactions")
 	}
 
+	self.Log.WithField("count", len(bundleItems)).Debug("Polled bundle items")
+
 	for i := range bundleItems {
 		select {
 		case <-self.StopChannel:
+			return
 		case self.output <- &bundleItems[i]:
 		}
 	}

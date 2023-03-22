@@ -75,7 +75,7 @@ func (self *BaseClient) Reset() {
 	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
-			SetDebug(true).
+			// SetDebug(true).
 			SetBaseURL(self.config.Urls[0]).
 			SetTimeout(self.config.RequestTimeout).
 			SetHeader("User-Agent", "warp.cc/bundle/"+build_info.Version).
