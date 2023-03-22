@@ -68,7 +68,7 @@ func (self *Poller) check() {
 			SELECT interaction_id
 			FROM bundle_items
 			WHERE state = 'PENDING'::bundle_state
-			OR (state = 'UPLOADING'::bundle_state AND EXTRACT(EPOCH FROM (NOW() - updated_at)) < ?)
+			OR (state = 'UPLOADING'::bundle_state AND EXTRACT(EPOCH FROM (NOW() - updated_at)) > ?)
 			ORDER BY interaction_id ASC
 			LIMIT ?
 		)
@@ -89,8 +89,9 @@ func (self *Poller) check() {
 			return
 		case self.output <- &bundleItems[i]:
 		}
+
+		// Update metrics
+		self.monitor.GetReport().Bundler.State.BundlesFromSelects.Inc()
 	}
 
-	// Update metrics
-	self.monitor.GetReport().Bundler.State.BundlesFromSelects.Add(uint64(len(bundleItems)))
 }
