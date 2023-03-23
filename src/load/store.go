@@ -19,8 +19,8 @@ func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
 
 	self.SinkTask = task.NewSinkTask[*Payload](config, "store").
-		WithOnFlush(1000*time.Millisecond, self.save).
-		WithBatchSize(10)
+		WithOnFlush(500*time.Millisecond, self.save).
+		WithBatchSize(15)
 	return
 }
 
