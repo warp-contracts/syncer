@@ -22,6 +22,12 @@ type Database struct {
 	CaCertPath        string
 	MigrationUser     string
 	MigrationPassword string
+
+	// Connection configuration
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxIdleTime time.Duration
+	ConnMaxLifetime time.Duration
 }
 
 func setDatabaseDefaults() {
@@ -34,4 +40,8 @@ func setDatabaseDefaults() {
 	viper.SetDefault("Database.PingTimeout", "15s")
 	viper.SetDefault("Database.MigrationUser", "postgres")
 	viper.SetDefault("Database.MigrationPassword", "postgres")
+	viper.SetDefault("Database.MaxOpenConns", "50")
+	viper.SetDefault("Database.MaxIdleConns", "30")
+	viper.SetDefault("Database.ConnMaxIdleTime", "30m")
+	viper.SetDefault("Database.ConnMaxLifetime", "2h")
 }

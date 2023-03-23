@@ -86,6 +86,15 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 		return
 	}
 
+	db, err := self.DB()
+	if err != nil {
+		return
+	}
+
+	db.SetMaxOpenConns(config.Database.MaxOpenConns)
+	db.SetMaxIdleConns(config.Database.MaxIdleConns)
+	db.SetConnMaxIdleTime(config.Database.ConnMaxIdleTime)
+	db.SetConnMaxLifetime(config.Database.ConnMaxLifetime)
 	err = Ping(ctx, self)
 	if err != nil {
 		return

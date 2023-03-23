@@ -55,6 +55,6 @@ func setBundlerDefaults() {
 	viper.SetDefault("Bundler.BundlerNumBundlingWorkers", "30")
 	viper.SetDefault("Bundler.NotifierWorkerPoolSize", "50")
 	viper.SetDefault("Bundler.NotifierWorkerQueueSize", "100")
-	viper.SetDefault("Bundler.ConfirmerBatchSize", "1000")
+	viper.SetDefault("Bundler.ConfirmerBatchSize", "100")
 	viper.SetDefault("Bundler.ConfirmerInterval", "1s")
 }
