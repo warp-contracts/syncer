@@ -31,7 +31,8 @@ type SinkTask[T comparable] struct {
 func NewSinkTask[T comparable](config *config.Config, name string) (self *SinkTask[T]) {
 	self = new(SinkTask[T])
 	self.Task = NewTask(config, name).
-		WithSubtaskFunc(self.receive)
+		WithSubtaskFunc(self.receive).
+		WithWorkerPool(1, 5)
 
 	return
 }
@@ -50,7 +51,10 @@ func (self *SinkTask[T]) WithInputChannel(input chan T) *SinkTask[T] {
 func (self *SinkTask[T]) WithOnFlush(interval time.Duration, f func([]T) error) *SinkTask[T] {
 	self.onFlush = f
 	self.Task = self.Task.
-		WithPeriodicSubtaskFunc(interval, self.flush)
+		WithPeriodicSubtaskFunc(interval, func() error {
+			self.SubmitToWorker(func() { self.flush() })
+			return nil
+		})
 	return self
 }
 
@@ -62,10 +66,16 @@ func (self *SinkTask[T]) numPendingConfirmation() int {
 
 // Puts data into the queue
 func (self *SinkTask[T]) receive() error {
+	var isBatchReady bool
 	for data := range self.input {
 		self.mtx.Lock()
 		self.queue.PushBack(data)
+		isBatchReady = self.queue.Len() >= self.batchSize
 		self.mtx.Unlock()
+	}
+
+	if isBatchReady {
+		self.SubmitToWorker(func() { self.flush() })
 	}
 	return nil
 }
