@@ -43,14 +43,14 @@ type Bundlr struct {
 
 func setBundlrDefaults() {
 	viper.SetDefault("Bundlr.Urls", []string{"https://node2.bundlr.network"})
-	viper.SetDefault("Bundlr.RequestTimeout", "30s")
+	viper.SetDefault("Bundlr.RequestTimeout", "60s")
 	viper.SetDefault("Bundlr.CheckPeerTimeout", "1s")
 	viper.SetDefault("Bundlr.DialerTimeout", "30s")
 	viper.SetDefault("Bundlr.DialerKeepAlive", "15s")
 	viper.SetDefault("Bundlr.IdleConnTimeout", "31s")
 	viper.SetDefault("Bundlr.TLSHandshakeTimeout", "10s")
-	viper.SetDefault("Bundlr.LimiterInterval", "500ms")
-	viper.SetDefault("Bundlr.LimiterBurstSize", "7")
+	viper.SetDefault("Bundlr.LimiterInterval", "1ms")
+	viper.SetDefault("Bundlr.LimiterBurstSize", "1000000")
 	// This is an empty wallet
 	viper.SetDefault("Bundlr.Wallet", `{
 		"d": "IVv3IzUPbj2yJP9qqJcH3cVI86jWdhZCpNoomLeJaH0rpKnujzlDSADC2yuFNBnS_sIthk1-w83_bkTwwOOCAn_9LZbkKYEd2onZ7iWAh--tMB5ijNHv0acn64TZjS-5aH6WgfsxwCjrXj57ejnh7GaterucVpTX_RlGtpp5IWY5ISM-5JLBm2wLLnXjhsJD51a03eClxy0MAclG6suOkm2pRF7yl1sJjQ23kZ7xExpO-Lb_j8o1JEGao5xI1TPWdJyovuhPrWK14l3JXU9URz6IKFH9xuvbWjqWhyVQVjUBBWg5B5DbzQhI_6tPVHb8eUBP9L9BNkRyr5cWU1SCYynzEa9_1cXjLuYNtTUB9358bkveYiZRlvSjCYoNd6lSFtESbyMfvmU2FF7gnduVqzdTPuisfHHNYQKCall-emCt9Oiy26OJ2uMX-dfqutcZd65OlJN5KG65h6D8cp7xjDlwHx4VeK2qI-dyzOS6ufZlG0nrNEfzRDekmRsFCgZxJUjc0JjCMde5LRKZhsmltntizeaURw69dnNTrtrLFQLlo6X3wEHzyjFNqaqJDQmB6UnpdOjZp6FeotV02FpeqhJZ8pA1kYywO9LFB-iciy7h-bufHoK5Owti-CwOMADdwzYPPaKrbhc7ZhAuogQTMfFSHJtL5_le_Y-k8FTtu4E",
