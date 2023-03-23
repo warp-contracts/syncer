@@ -126,7 +126,7 @@ func (self *BaseClient) onStatusToError(c *resty.Client, resp *resty.Response) e
 	if resp.StatusCode() > 399 && resp.StatusCode() < 500 {
 		self.log.WithField("status", resp.StatusCode()).
 			WithField("resp", string(resp.Body())).
-			WithField("body", resp.Request.Body).
+			// WithField("body", resp.Request.Body).
 			WithField("url", resp.Request.URL).
 			Debug("Bad request")
 	}
