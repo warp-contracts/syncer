@@ -101,7 +101,7 @@ func (self *Bundler) run() (err error) {
 
 			err = json.Unmarshal(tagBytes, &bundleItem.Tags)
 			if err != nil {
-				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to get transaction tags")
+				self.Log.WithError(err).WithField("len", len(tagBytes)).WithField("id", item.InteractionID).Warn("Failed to unmarshal transaction tags")
 				return
 			}
 
