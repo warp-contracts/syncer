@@ -42,6 +42,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Arweave client
 	arweaveClient := arweave.NewClient(self.Ctx, config)
 
+	// tutaj musi byc fallback  na arweave.net jak gw nie odpowiada
+
 	// Bundlr client
 	bundlrClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
 

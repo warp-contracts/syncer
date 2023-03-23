@@ -7,11 +7,13 @@ import (
 type BundlerErrors struct {
 	BundrlError                 atomic.Uint64 `json:"bundrl_error"`
 	ConfirmationsSavedToDbError atomic.Uint64 `json:"confirmations_saved_to_db_error"`
+	AdditionalFetchError        atomic.Uint64 `json:"additional_fetch_error"`
 }
 
 type BundlerState struct {
 	// Counting bundles that come from the database
 	BundlesFromNotifications atomic.Uint64 `json:"bundles_from_notifications"`
+	AdditionalFetches        atomic.Uint64 `json:"additional_fetches"`
 	BundlesFromSelects       atomic.Uint64 `json:"bundles_from_selects"`
 	AllBundlesFromDb         atomic.Uint64 `json:"all_bundles_from_db"`
 

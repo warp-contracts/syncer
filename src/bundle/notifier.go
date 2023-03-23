@@ -92,9 +92,12 @@ func (self *Notifier) run() error {
 						Scan(&bundleItem).
 						Error
 					if err != nil {
+						// Action will be retried automatically, no need to do it here
 						self.Log.WithError(err).Error("Failed to get bundle item")
+						self.monitor.GetReport().Bundler.Errors.AdditionalFetchError.Inc()
 						return
 					}
+					self.monitor.GetReport().Bundler.State.AdditionalFetches.Inc()
 				}
 
 				select {
