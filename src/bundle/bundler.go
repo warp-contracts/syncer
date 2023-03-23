@@ -8,6 +8,7 @@ import (
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
+	"syncer/src/utils/tool"
 
 	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
@@ -79,7 +80,7 @@ func (self *Bundler) run() (err error) {
 			bundleItem := new(bundlr.BundleItem)
 
 			if item.Transaction.Status != pgtype.Present {
-				// Data neede for creating the bundle isn't present
+				// Data needed for creating the bundle isn't present
 				// Mark it as uploaded, so it's not processed again
 				return
 			}
@@ -90,7 +91,7 @@ func (self *Bundler) run() (err error) {
 				return
 			}
 
-			bundleItem.Data = arweave.Base64String(data)
+			bundleItem.Data = arweave.Base64String(tool.MinifyJSON(data))
 
 			tagBytes, err := item.Tags.MarshalJSON()
 			if err != nil {

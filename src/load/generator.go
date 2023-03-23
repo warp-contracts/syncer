@@ -49,7 +49,7 @@ func (self *Generator) fakeTransaction() *arweave.Transaction {
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(43))},
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(10))},
 		},
-		Data: base64.RawURLEncoding.EncodeToString([]byte(tool.RandomString(1))),
+		Data: base64.RawURLEncoding.EncodeToString([]byte(tool.RandomString(10000))),
 		ID:   tool.RandomString(43),
 	}
 }
