@@ -106,12 +106,28 @@ func (self *Bundler) run() (err error) {
 			}
 
 			// Send the bundle item to bundlr
-			resp, err := self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
+			uploadResponse, resp, err := self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
 			if err != nil {
 				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to upload interaction to Bundlr")
 
 				// Update stats
 				self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
+
+				// Bad request shouldn't be retried
+				if resp != nil && resp.StatusCode() > 399 && resp.StatusCode() < 500 {
+					err := self.db.Model(&model.BundleItem{
+						InteractionID: item.InteractionID,
+					}).
+						Where("state = ?", model.BundleStateUploading).
+						Updates(model.BundleItem{
+							State: model.BundleStateMalformed,
+						}).
+						Error
+					if err != nil {
+						self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to update bundle item state")
+					}
+				}
+
 				return
 			}
 
@@ -123,7 +139,7 @@ func (self *Bundler) run() (err error) {
 				return
 			case self.Output <- &Confirmation{
 				InteractionID: item.InteractionID,
-				BundlerTxID:   resp.Id,
+				BundlerTxID:   uploadResponse.Id,
 			}:
 			}
 		})

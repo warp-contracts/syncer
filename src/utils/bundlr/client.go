@@ -5,6 +5,8 @@ import (
 	"io"
 	"syncer/src/utils/bundlr/responses"
 	"syncer/src/utils/config"
+
+	"github.com/go-resty/resty/v2"
 )
 
 type Client struct {
@@ -17,7 +19,7 @@ func NewClient(ctx context.Context, config *config.Bundlr) (self *Client) {
 	return
 }
 
-func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem) (out *responses.Upload, err error) {
+func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem) (out *responses.Upload, resp *resty.Response, err error) {
 	reader, err := item.Reader(signer)
 	if err != nil {
 		return
@@ -34,7 +36,7 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 	req, cancel := self.Request(ctx)
 	defer cancel()
 
-	resp, err := req.
+	resp, err = req.
 		SetBody(body).
 		SetResult(&responses.Upload{}).
 		ForceContentType("application/json").
