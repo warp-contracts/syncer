@@ -126,6 +126,7 @@ func Migrate(ctx context.Context, config *config.Config) (err error) {
 	if err != nil {
 		return
 	}
+	defer db.Close()
 
 	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
 	if err != nil {
