@@ -75,7 +75,7 @@ func (self *Poller) check() {
 		UPDATE bundle_items
 		SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
 		WHERE interaction_id IN (SELECT interaction_id FROM rows)
-		RETURNING *`, self.Config.Bundler.ConfirmerRetryBundleAfter.Seconds(), self.Config.Bundler.ConfirmerMaxBatchSize).
+		RETURNING *`, self.Config.Bundler.PollerRetryBundleAfter.Seconds(), self.Config.Bundler.PollerMaxBatchSize).
 		Scan(&bundleItems).Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get interactions")

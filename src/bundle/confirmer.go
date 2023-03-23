@@ -7,7 +7,6 @@ import (
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -31,8 +30,8 @@ func NewConfirmer(config *config.Config) (self *Confirmer) {
 	self = new(Confirmer)
 
 	self.SinkTask = task.NewSinkTask[*Confirmation](config, "confirmer").
-		WithBatchSize(100).
-		WithOnFlush(time.Second, self.save)
+		WithBatchSize(config.Bundler.ConfirmerBatchSize).
+		WithOnFlush(config.Bundler.ConfirmerInterval, self.save)
 
 	return
 }
