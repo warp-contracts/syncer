@@ -39,7 +39,6 @@ func (self *Generator) runPeriodically() error {
 }
 
 func (self *Generator) fakeTransaction() *arweave.Transaction {
-	v := []byte(tool.RandomString(40000))
 	return &arweave.Transaction{
 		Signature: arweave.Base64String("fake"),
 		Owner:     arweave.Base64String("fake"),
@@ -48,9 +47,9 @@ func (self *Generator) fakeTransaction() *arweave.Transaction {
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(43))},
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(43))},
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(43))},
-			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(v)},
+			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(10))},
 		},
-		Data: base64.RawURLEncoding.EncodeToString(v),
+		Data: base64.RawURLEncoding.EncodeToString([]byte(tool.RandomString(1))),
 		ID:   tool.RandomString(43),
 	}
 }

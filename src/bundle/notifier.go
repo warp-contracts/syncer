@@ -87,7 +87,7 @@ func (self *Notifier) run() error {
 					// Only id is there, we need to fetch the rest of the data from the database
 					err = self.db.WithContext(self.Ctx).
 						Model(&model.BundleItem{}).
-						Select("transaction").
+						Select("transaction", "tags").
 						Where("interaction_id = ?", notification.InteractionID).
 						Scan(&bundleItem).
 						Error

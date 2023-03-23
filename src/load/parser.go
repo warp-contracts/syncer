@@ -83,7 +83,7 @@ func (self *Parser) run() (err error) {
 		}
 
 		// Transaction
-		txJSON, err = json.Marshal(tx.Tags)
+		txJSON, err = json.Marshal(tx)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to marshal tags")
 			return

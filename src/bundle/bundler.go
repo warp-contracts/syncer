@@ -84,10 +84,9 @@ func (self *Bundler) run() (err error) {
 				return
 			}
 
-			self.Log.WithField("id", item.InteractionID).Debug("Sending interaction to Bundlr")
 			data, err := item.Transaction.MarshalJSON()
 			if err != nil {
-				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to get interaction data")
+				self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to get interaction data")
 				return
 			}
 
@@ -95,20 +94,21 @@ func (self *Bundler) run() (err error) {
 
 			tagBytes, err := item.Tags.MarshalJSON()
 			if err != nil {
-				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to get transaction tags")
+				self.Log.WithError(err).WithField("len", len(tagBytes)).WithField("id", item.InteractionID).Error("Failed to get transaction tags")
 				return
 			}
 
 			err = json.Unmarshal(tagBytes, &bundleItem.Tags)
 			if err != nil {
-				self.Log.WithError(err).WithField("len", len(tagBytes)).WithField("id", item.InteractionID).Warn("Failed to unmarshal transaction tags")
+				self.Log.WithError(err).WithField("len", len(tagBytes)).WithField("id", item.InteractionID).Error("Failed to unmarshal transaction tags")
 				return
 			}
 
+			self.Log.WithField("id", item.InteractionID).Debug("Sending interaction to Bundlr")
 			// Send the bundle item to bundlr
 			uploadResponse, resp, err := self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
 			if err != nil {
-				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to upload interaction to Bundlr")
+				self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to upload interaction to Bundlr")
 
 				// Update stats
 				self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
