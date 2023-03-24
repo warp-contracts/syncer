@@ -7,6 +7,7 @@ import (
 	"syncer/src/utils/model"
 	monitor_syncer "syncer/src/utils/monitoring/syncer"
 	"syncer/src/utils/task"
+	"time"
 )
 
 type Controller struct {
@@ -32,7 +33,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	networkMonitor := listener.NewNetworkMonitor(config).
 		WithClient(client).
 		WithMonitor(monitor_syncer.NewMonitor() /*dummy monitor */).
-		WithInterval(config.ListenerPeriod).
+		WithInterval(30 * time.Second).
 		WithRequiredConfirmationBlocks(0)
 
 	// Downloading the latest Arweave block

@@ -55,6 +55,7 @@ func (self *Streamer) WithCapacity(size int) *Streamer {
 }
 
 func (self *Streamer) disconnect() {
+
 	err := self.connection.Close()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to close connection")
@@ -97,7 +98,6 @@ func (self *Streamer) connect() (err error) {
 			Certificates:       []tls.Certificate{cert},
 		}
 	}
-
 	self.pool, err = pgx.NewConnPool(pgx.ConnPoolConfig{ConnConfig: config})
 	if err != nil {
 		return
@@ -114,6 +114,8 @@ func (self *Streamer) connect() (err error) {
 func (self *Streamer) reconnect() {
 	var err error
 	for {
+		self.disconnect()
+
 		err = self.connect()
 		if err == nil {
 			// SUCCESS
@@ -151,7 +153,7 @@ func (self *Streamer) run() (err error) {
 		}
 
 		if err != nil {
-			self.Log.WithError(err).Error("Failed to wait for notification, reconnecting")
+			self.Log.WithError(err).WithField("cause", self.connection.CauseOfDeath()).Error("Failed to wait for notification, reconnecting")
 			self.reconnect()
 		} else {
 			// Send notification to output channel
