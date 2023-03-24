@@ -22,15 +22,19 @@ type Streamer struct {
 
 	pool       *pgx.ConnPool
 	connection *pgx.Conn
-	mtx        sync.Mutex
+	cond       *sync.Cond
 
-	isListening bool
-	channelName string
-	Output      chan string
+	isListening  bool
+	ctxListen    context.Context
+	cancelListen context.CancelFunc
+	channelName  string
+	Output       chan string
 }
 
 func NewStreamer(config *config.Config, name string) (self *Streamer) {
 	self = new(Streamer)
+
+	self.cond = sync.NewCond(&sync.Mutex{})
 
 	self.Output = make(chan string)
 
@@ -57,23 +61,24 @@ func (self *Streamer) WithCapacity(size int) *Streamer {
 }
 
 func (self *Streamer) Pause() (err error) {
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
+	self.cond.L.Lock()
+	defer self.cond.L.Unlock()
 	if !self.isListening {
 		return
 	}
 
-	err = self.connection.Unlisten(self.channelName)
-	if err != nil {
-		return
-	}
 	self.isListening = false
+
+	// This will finish waiting for messages in the listening goroutine
+	// It will call UNLISTEN
+	self.cancelListen()
+
 	return
 }
 
 func (self *Streamer) Resume() (err error) {
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
+	self.cond.L.Lock()
+	defer self.cond.L.Unlock()
 
 	if self.isListening {
 		return
@@ -84,6 +89,12 @@ func (self *Streamer) Resume() (err error) {
 		return
 	}
 	self.isListening = true
+
+	self.ctxListen, self.cancelListen = context.WithCancel(self.Ctx)
+
+	// Wake the listening goroutine
+	self.cond.Broadcast()
+
 	return
 }
 
@@ -164,25 +175,47 @@ func (self *Streamer) reconnect() {
 	}
 }
 
+func (self *Streamer) waitForListen() (err error) {
+	self.cond.L.Lock()
+	defer self.cond.L.Unlock()
+
+	for !self.isListening {
+		self.cond.Wait()
+		if self.IsStopping.Load() {
+			return errors.New("stopped")
+		}
+	}
+
+	return
+}
+
 func (self *Streamer) run() (err error) {
 	err = self.Resume()
 	if err != nil {
 		return
 	}
 
-	defer func() {
-		err = self.Pause()
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to unlisten channel")
-		}
-	}()
-
 	for {
-		// Waits for notification unless task gets stopped
-		msg, err := self.connection.WaitForNotification(self.Ctx)
+		// Waits for notification unless task gets stopped or PAUSED
+		msg, err := self.connection.WaitForNotification(self.ctxListen)
 		if errors.Is(err, context.Canceled) {
-			// Stop() was called
-			return nil
+			if self.IsStopping.Load() {
+				// Stop() was called
+				return nil
+			}
+
+			// Pause() was called
+			err := self.connection.Unlisten(self.channelName)
+			if err != nil {
+				return err
+			}
+
+			err = self.waitForListen()
+			if err != nil {
+				return err
+			}
+
+			continue
 		}
 
 		if err != nil {
