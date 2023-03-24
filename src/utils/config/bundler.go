@@ -7,6 +7,9 @@ import (
 )
 
 type Bundler struct {
+	// Disable polling mechanism
+	PollerDisabled bool
+
 	// How often to poll the database
 	PollerInterval time.Duration
 
@@ -48,6 +51,7 @@ type Bundler struct {
 }
 
 func setBundlerDefaults() {
+	viper.SetDefault("Bundler.PollerDisabled", "false")
 	viper.SetDefault("Bundler.PollerInterval", "10s")
 	viper.SetDefault("Bundler.PollerTimeout", "90s")
 	viper.SetDefault("Bundler.PollerMaxParallelQueries", "50")

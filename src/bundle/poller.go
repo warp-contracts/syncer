@@ -26,6 +26,11 @@ type Poller struct {
 func NewPoller(config *config.Config) (self *Poller) {
 	self = new(Poller)
 
+	if config.Bundler.PollerDisabled {
+		self.Task = task.NewTask(config, "poller")
+		return
+	}
+
 	self.Task = task.NewTask(config, "poller").
 		WithPeriodicSubtaskFunc(config.Bundler.PollerInterval, self.runPeriodically).
 		// Worker pool for downloading interactions in parallel

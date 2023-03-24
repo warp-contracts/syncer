@@ -27,6 +27,7 @@ func NewNotifier(config *config.Config) (self *Notifier) {
 	self = new(Notifier)
 
 	if config.Bundler.NotifierDisabled {
+		self.Task = task.NewTask(config, "bundler-notifier")
 		return
 	}
 
