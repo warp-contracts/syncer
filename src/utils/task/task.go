@@ -146,6 +146,11 @@ func (self *Task) WithWorkerPool(maxWorkers int, maxQueueSize int) *Task {
 	})
 }
 
+func (self *Task) GetWorkerQueueFillFactor() float32 {
+	size := self.workers.WaitingQueueSize()
+	return float32(size) / float32(self.workerMaxQueueSize)
+}
+
 func (self *Task) SubmitToWorkerIfEmpty(f func()) {
 	self.workerQueueCond.L.Lock()
 	defer self.workerQueueCond.L.Unlock()

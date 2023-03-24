@@ -61,6 +61,23 @@ func (self *Notifier) WithOutputChannel(bundleItems chan *model.BundleItem) *Not
 	return self
 }
 
+func (self *Notifier) controllListening() {
+	factor := self.GetWorkerQueueFillFactor()
+	if factor > 0.9 {
+		err := self.streamer.Pause()
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to pause streamer")
+		}
+	}
+
+	if factor < 0.1 {
+		err := self.streamer.Resume()
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to resume streamer")
+		}
+	}
+}
+
 func (self *Notifier) run() error {
 	for {
 		select {
@@ -72,6 +89,7 @@ func (self *Notifier) run() error {
 				self.Log.Info("Notification streamer channel closed")
 				return nil
 			}
+
 			self.SubmitToWorker(func() {
 				var notification model.BundleItemNotification
 				err := json.Unmarshal([]byte(msg), &notification)
@@ -114,6 +132,10 @@ func (self *Notifier) run() error {
 				// Update metrics
 				self.monitor.GetReport().Bundler.State.BundlesFromNotifications.Inc()
 			})
+
+			// Pause streamer if the queue is too full or resume it
+			self.controllListening()
+
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"sync"
 	"syncer/src/utils/build_info"
 	"syncer/src/utils/config"
 	"syncer/src/utils/task"
@@ -21,10 +22,11 @@ type Streamer struct {
 
 	pool       *pgx.ConnPool
 	connection *pgx.Conn
+	mtx        sync.Mutex
 
+	isListening bool
 	channelName string
-
-	Output chan string
+	Output      chan string
 }
 
 func NewStreamer(config *config.Config, name string) (self *Streamer) {
@@ -52,6 +54,37 @@ func (self *Streamer) WithNotificationChannelName(name string) *Streamer {
 func (self *Streamer) WithCapacity(size int) *Streamer {
 	self.Output = make(chan string, size)
 	return self
+}
+
+func (self *Streamer) Pause() (err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+	if !self.isListening {
+		return
+	}
+
+	err = self.connection.Unlisten(self.channelName)
+	if err != nil {
+		return
+	}
+	self.isListening = false
+	return
+}
+
+func (self *Streamer) Resume() (err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
+	if self.isListening {
+		return
+	}
+
+	err = self.connection.Listen(self.channelName)
+	if err != nil {
+		return
+	}
+	self.isListening = true
+	return
 }
 
 func (self *Streamer) disconnect() {
@@ -132,13 +165,13 @@ func (self *Streamer) reconnect() {
 }
 
 func (self *Streamer) run() (err error) {
-	err = self.connection.Listen(self.channelName)
+	err = self.Resume()
 	if err != nil {
 		return
 	}
 
 	defer func() {
-		err = self.connection.Unlisten(self.channelName)
+		err = self.Pause()
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to unlisten channel")
 		}
