@@ -94,4 +94,9 @@ func (self *Poller) check() {
 		self.monitor.GetReport().Bundler.State.BundlesFromSelects.Inc()
 	}
 
+	// Start another check if there can be more items to fetch
+	// Skip this if another check is scheduled
+	if len(bundleItems) == self.Config.Bundler.PollerMaxBatchSize {
+		self.SubmitToWorkerIfEmpty(self.check)
+	}
 }

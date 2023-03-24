@@ -146,9 +146,30 @@ func (self *Task) WithWorkerPool(maxWorkers int, maxQueueSize int) *Task {
 	})
 }
 
+func (self *Task) SubmitToWorkerIfEmpty(f func()) {
+	self.workerQueueCond.L.Lock()
+	defer self.workerQueueCond.L.Unlock()
+
+	if self.workers.WaitingQueueSize() > 0 {
+		return
+	}
+
+	// Submit the task
+	self.workers.Submit(
+		func() {
+			f()
+
+			// Wake up one waiting goroutine
+			self.workerQueueCond.Signal()
+		},
+	)
+}
+
 func (self *Task) SubmitToWorker(f func()) {
 	// Wait for the worker queue length to be less than size
 	self.workerQueueCond.L.Lock()
+	defer self.workerQueueCond.L.Unlock()
+
 	for self.workers.WaitingQueueSize() > self.workerMaxQueueSize {
 		self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is full, waiting...")
 		self.workerQueueCond.Wait()
@@ -156,11 +177,10 @@ func (self *Task) SubmitToWorker(f func()) {
 
 		// Exit if stopping
 		if self.IsStopping.Load() {
-			self.workerQueueCond.L.Unlock()
+			// self.workerQueueCond.L.Unlock()
 			return
 		}
 	}
-	self.workerQueueCond.L.Unlock()
 
 	// Submit the task
 	self.workers.Submit(
