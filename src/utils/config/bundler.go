@@ -58,7 +58,7 @@ func setBundlerDefaults() {
 	viper.SetDefault("Bundler.PollerMaxDownloadedBatchSize", "100")
 	viper.SetDefault("Bundler.PollerMaxBatchSize", "100")
 	viper.SetDefault("Bundler.PollerRetryBundleAfter", "10m")
-	viper.SetDefault("Bundler.WorkerPoolQueueSize", "100")
+	viper.SetDefault("Bundler.WorkerPoolQueueSize", "5")
 	viper.SetDefault("Bundler.BundlerNumBundlingWorkers", "50")
 	viper.SetDefault("Bundler.NotifierDisabled", "false")
 	viper.SetDefault("Bundler.NotifierWorkerPoolSize", "50")
