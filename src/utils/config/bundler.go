@@ -28,6 +28,9 @@ type Bundler struct {
 	// Maksimum number of interactions selected from the database in one db transaction
 	PollerMaxDownloadedBatchSize int
 
+	// Switch off listening for async notifications
+	NotifierDisabled bool
+
 	// Maksimum number of workers that handle notifications
 	NotifierWorkerPoolSize int
 
@@ -53,6 +56,7 @@ func setBundlerDefaults() {
 	viper.SetDefault("Bundler.PollerMaxBatchSize", "1000")
 	viper.SetDefault("Bundler.PollerRetryBundleAfter", "10m")
 	viper.SetDefault("Bundler.BundlerNumBundlingWorkers", "500")
+	viper.SetDefault("Bundler.NotifierDisabled", "false")
 	viper.SetDefault("Bundler.NotifierWorkerPoolSize", "50")
 	viper.SetDefault("Bundler.NotifierWorkerQueueSize", "100")
 	viper.SetDefault("Bundler.ConfirmerBatchSize", "100")
