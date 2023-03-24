@@ -67,6 +67,8 @@ func (self *Streamer) Pause() (err error) {
 		return
 	}
 
+	self.Log.Info("Pause streamer")
+
 	self.isListening = false
 
 	// This will finish waiting for messages in the listening goroutine
@@ -83,6 +85,8 @@ func (self *Streamer) Resume() (err error) {
 	if self.isListening {
 		return
 	}
+
+	self.Log.Info("Resume streamer")
 
 	err = self.connection.Listen(self.channelName)
 	if err != nil {
