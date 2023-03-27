@@ -2,9 +2,11 @@ package load
 
 import (
 	"syncer/src/utils/config"
+	"syncer/src/utils/model"
 	"syncer/src/utils/task"
 	"time"
 
+	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
 )
 
@@ -49,6 +51,8 @@ func (self *Store) save(payloads []*Payload) error {
 			}
 
 			payload.BundleItem.InteractionID = payload.Interaction.ID
+			payload.BundleItem.State = model.BundleStatePending
+			payload.BundleItem.BundlrResponse.Status = pgtype.Null
 
 			err = tx.Create(payload.BundleItem).Error
 			if err != nil {
