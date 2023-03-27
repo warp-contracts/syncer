@@ -132,6 +132,13 @@ func (self *Bundler) run() (err error) {
 				return
 			}
 
+			// We'll store the JSON response
+			response, err := json.Marshal(uploadResponse)
+			if err != nil {
+				self.Log.WithError(err).Error("Failed to marshal response")
+				return
+			}
+
 			// Update stats
 			self.monitor.GetReport().Bundler.State.BundlrSuccess.Inc()
 
@@ -141,6 +148,7 @@ func (self *Bundler) run() (err error) {
 			case self.Output <- &Confirmation{
 				InteractionID: item.InteractionID,
 				BundlerTxID:   uploadResponse.Id,
+				Response:      pgtype.JSONB{Bytes: response, Status: pgtype.Present},
 			}:
 			}
 		})

@@ -8,6 +8,7 @@ import (
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 
+	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +24,7 @@ type Confirmer struct {
 type Confirmation struct {
 	InteractionID int
 	BundlerTxID   string
-	Signature     string
+	Response      pgtype.JSONB
 }
 
 func NewConfirmer(config *config.Config) (self *Confirmer) {
@@ -73,6 +74,7 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 				Updates(model.BundleItem{
 					State:       model.BundleStateUploaded,
 					BlockHeight: sql.NullInt64{Int64: currentBlockHeight, Valid: true},
+					Response:    confirmation.Response,
 				}).
 				Error
 			if err != nil {

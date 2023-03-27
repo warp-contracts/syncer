@@ -22,6 +22,8 @@ type BundleItem struct {
 	State BundleState
 	// Block height upon which interaction was bundled. Used to trigger verification later
 	BlockHeight sql.NullInt64
+	// Response from bundlr.network
+	Response pgtype.JSONB
 	// Time of the last update to this row
 	UpdatedAt time.Time
 }
