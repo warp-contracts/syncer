@@ -42,6 +42,6 @@ func setDatabaseDefaults() {
 	viper.SetDefault("Database.MigrationPassword", "postgres")
 	viper.SetDefault("Database.MaxOpenConns", "50")
 	viper.SetDefault("Database.MaxIdleConns", "30")
-	viper.SetDefault("Database.ConnMaxIdleTime", "30m")
+	viper.SetDefault("Database.ConnMaxIdleTime", "10m")
 	viper.SetDefault("Database.ConnMaxLifetime", "2h")
 }

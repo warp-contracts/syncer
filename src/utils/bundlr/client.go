@@ -30,9 +30,6 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 		return
 	}
 
-	// fmt.Println(body)
-	// self.log.WithField("body", string(body)).Info("Item")
-
 	req, cancel := self.Request(ctx)
 	defer cancel()
 
@@ -41,7 +38,7 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 		SetResult(&responses.Upload{}).
 		ForceContentType("application/json").
 		SetHeader("Content-Type", "application/octet-stream").
-		// SetHeader("x-proof-type", "receipt").
+		SetHeader("x-proof-type", "receipt").
 		Post("/tx")
 	if err != nil {
 		return
