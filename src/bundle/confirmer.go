@@ -72,9 +72,9 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 			}).
 				Where("state = ?", model.BundleStateUploading).
 				Updates(model.BundleItem{
-					State:       model.BundleStateUploaded,
-					BlockHeight: sql.NullInt64{Int64: currentBlockHeight, Valid: true},
-					Response:    confirmation.Response,
+					State:          model.BundleStateUploaded,
+					BlockHeight:    sql.NullInt64{Int64: currentBlockHeight, Valid: true},
+					BundlrResponse: confirmation.Response,
 				}).
 				Error
 			if err != nil {
