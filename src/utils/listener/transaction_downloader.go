@@ -18,14 +18,16 @@ type TransactionDownloader struct {
 
 	client  *arweave.Client
 	monitor monitoring.Monitor
-
-	input  chan *arweave.Block
-	Output chan *Payload
+	filter  func(*arweave.Transaction) bool
+	input   chan *arweave.Block
+	Output  chan *Payload
 }
 
 // Using Arweave client periodically checks for blocks of transactions
 func NewTransactionDownloader(config *config.Config) (self *TransactionDownloader) {
 	self = new(TransactionDownloader)
+
+	self.filter = func(tx *arweave.Transaction) bool { return true }
 
 	self.Output = make(chan *Payload)
 
@@ -51,6 +53,11 @@ func (self *TransactionDownloader) WithClient(client *arweave.Client) *Transacti
 
 func (self *TransactionDownloader) WithInputChannel(v chan *arweave.Block) *TransactionDownloader {
 	self.input = v
+	return self
+}
+
+func (self *TransactionDownloader) WithFilter(f func(tx *arweave.Transaction) bool) *TransactionDownloader {
+	self.filter = f
 	return self
 }
 
@@ -95,9 +102,8 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 	var wg sync.WaitGroup
 	wg.Add(len(block.Txs))
 
-	out = make([]*arweave.Transaction, len(block.Txs))
-	for idx, txId := range block.Txs {
-		idx := idx
+	out = make([]*arweave.Transaction, 0, len(block.Txs))
+	for _, txId := range block.Txs {
 		txId := base64.RawURLEncoding.EncodeToString(txId)
 
 		self.SubmitToWorker(func() {
@@ -132,9 +138,24 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 					// FIXME: Inform downstream something's wrong
 				}
 
+				// Skip transactions that don't pass the filter
+				if !self.filter(tx) {
+					goto end
+				}
+
+				// Verify transaction signature
+				err = tx.Verify()
+				if err != nil {
+					self.monitor.GetReport().Syncer.Errors.TxValidationErrors.Inc()
+					self.Log.Error("Transaction failed to verify")
+					goto end
+				}
+
 				mtx.Lock()
-				out[idx] = tx
+				out = append(out, tx)
 				mtx.Unlock()
+
+				self.Log.WithField("txId", txId).Trace("Downloaded transaction")
 
 				goto end
 			}
