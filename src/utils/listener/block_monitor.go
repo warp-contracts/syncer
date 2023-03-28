@@ -96,7 +96,7 @@ func (self *BlockMonitor) run() error {
 
 		// Download transactions from
 		for height := lastSyncedHeight + 1; height <= networkInfo.Height; height++ {
-			self.monitor.GetReport().Syncer.State.SyncerCurrentHeight.Store(height)
+			self.monitor.GetReport().BlockMonitor.State.SyncerCurrentHeight.Store(height)
 
 		retry:
 			self.Log.WithField("height", height).Debug("Downloading block")
@@ -112,7 +112,7 @@ func (self *BlockMonitor) run() error {
 				// This will completly reset the HTTP client and possibly help in solving the problem
 				self.client.Reset()
 
-				self.monitor.GetReport().Syncer.Errors.BlockDownloadErrors.Inc()
+				self.monitor.GetReport().BlockMonitor.Errors.BlockDownloadErrors.Inc()
 
 				time.Sleep(self.Config.ListenerRetryFailedTransactionDownloadInterval)
 				if self.IsStopping.Load() {
@@ -131,7 +131,7 @@ func (self *BlockMonitor) run() error {
 					Error("Previous block hash isn't valid, retrying after sleep")
 
 				// TODO: Add specific error counter
-				self.monitor.GetReport().Syncer.Errors.BlockValidationErrors.Inc()
+				self.monitor.GetReport().BlockMonitor.Errors.BlockValidationErrors.Inc()
 
 				//TODO: Move this timeout to configuration
 				time.Sleep(time.Second * 10)
@@ -143,7 +143,7 @@ func (self *BlockMonitor) run() error {
 
 			if !block.IsValid() {
 				self.Log.WithField("height", height).Error("Block hash isn't valid, retrying after sleep")
-				self.monitor.GetReport().Syncer.Errors.BlockValidationErrors.Inc()
+				self.monitor.GetReport().BlockMonitor.Errors.BlockValidationErrors.Inc()
 				//TODO: Move this timeout to configuration
 				time.Sleep(time.Second * 10)
 				goto retry
@@ -164,7 +164,7 @@ func (self *BlockMonitor) run() error {
 				continue
 			}
 
-			self.monitor.GetReport().Syncer.State.TransactionsDownloaded.Add(uint64(len(transactions)))
+			self.monitor.GetReport().BlockMonitor.State.TransactionsDownloaded.Add(uint64(len(transactions)))
 
 			payload := &Payload{
 				BlockHash:      block.IndepHash.Bytes(),
@@ -216,7 +216,7 @@ func (self *BlockMonitor) downloadTransactions(block *arweave.Block) (out []*arw
 					// This will completly reset the HTTP client and possibly help in solving the problem
 					self.client.Reset()
 
-					self.monitor.GetReport().Syncer.Errors.TxDownloadErrors.Inc()
+					self.monitor.GetReport().BlockMonitor.Errors.TxDownloadErrors.Inc()
 
 					time.Sleep(self.Config.ListenerRetryFailedTransactionDownloadInterval)
 					if self.IsStopping.Load() {

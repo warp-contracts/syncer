@@ -60,6 +60,10 @@ build-race:  | $(BASE); $(info $(M) building executable…) @
 run: build-race | ; $(info $(M) starting app with default params…)
 	bin/$(PACKAGE) sync
 
+.PHONY: contract
+contract: build-race | ; $(info $(M) starting synchronizing contracts with default params…)
+	bin/$(PACKAGE) contract
+
 .PHONY: bundle
 bundle: build-race | ; $(info $(M) starting bundling with default params…)
 	bin/$(PACKAGE) bundle

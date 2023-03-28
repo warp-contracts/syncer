@@ -74,7 +74,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithIsOK(func() bool {
 			isOK := monitor.IsOK()
 			if !isOK {
-				monitor.GetReport().Syncer.State.NumWatchdogRestarts.Inc()
+				monitor.GetReport().Run.Errors.NumWatchdogRestarts.Inc()
 			}
 			return isOK
 		})

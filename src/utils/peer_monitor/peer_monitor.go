@@ -81,8 +81,8 @@ func (self *PeerMonitor) runPeriodically() (err error) {
 
 	self.client.SetPeers(peers[:numPeers])
 
-	self.monitor.GetReport().Syncer.State.NumPeers.Store(uint64(numPeers))
-	self.monitor.GetReport().Syncer.State.PeersBlacklisted.Store(uint64(self.blacklist.Size.Load()))
+	self.monitor.GetReport().Peer.State.NumPeers.Store(uint64(numPeers))
+	self.monitor.GetReport().Peer.State.PeersBlacklisted.Store(uint64(self.blacklist.Size.Load()))
 
 	self.Log.WithField("numBlacklisted", self.blacklist.Size.Load()).Trace("Set new peers")
 	self.blacklist.RemoveOldest(self.Config.PeerMonitorMaxPeersRemovedFromBlacklist)
@@ -109,6 +109,7 @@ func (self *PeerMonitor) getPeers() (peers []string, err error) {
 	allPeers, err := self.client.GetPeerList(self.Ctx)
 	if err != nil {
 		self.Log.Error("Failed to get Arweave network info")
+		self.monitor.GetReport().Peer.Errors.PeerDownloadErrors.Inc()
 		return
 	}
 	self.Log.WithField("numPeers", len(allPeers)).Debug("Got peers")

@@ -21,6 +21,7 @@ func NewMonitor() (self *Monitor) {
 	self = new(Monitor)
 
 	self.Report = report.Report{
+		Run:         &report.RunReport{},
 		Checker:     &report.CheckerReport{},
 		NetworkInfo: &report.NetworkInfoReport{},
 	}

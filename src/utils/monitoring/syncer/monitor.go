@@ -32,8 +32,11 @@ func NewMonitor() (self *Monitor) {
 	self = new(Monitor)
 
 	self.Report = report.Report{
-		Syncer:      &report.SyncerReport{},
-		NetworkInfo: &report.NetworkInfoReport{},
+		Run:          &report.RunReport{},
+		Syncer:       &report.SyncerReport{},
+		NetworkInfo:  &report.NetworkInfoReport{},
+		BlockMonitor: &report.BlockMonitorReport{},
+		Peer:         &report.PeerReport{},
 	}
 
 	self.collector = NewCollector().WithMonitor(self)
@@ -56,7 +59,7 @@ func (self *Monitor) WithMaxHistorySize(maxHistorySize int) *Monitor {
 	self.TransactionCounts = deque.New[uint64](self.historySize)
 	self.InteractionsSaved = deque.New[uint64](self.historySize)
 
-	self.Report.Syncer.State.StartTimestamp.Store(time.Now().Unix())
+	self.Report.Run.State.StartTimestamp.Store(time.Now().Unix())
 	return self
 }
 
@@ -70,7 +73,7 @@ func round(f float64) float64 {
 
 // Measure block processing speed
 func (self *Monitor) monitorBlocks() (err error) {
-	loaded := self.Report.Syncer.State.SyncerCurrentHeight.Load()
+	loaded := self.Report.BlockMonitor.State.SyncerCurrentHeight.Load()
 	if loaded == 0 {
 		// Neglect the first 0
 		return
@@ -82,13 +85,13 @@ func (self *Monitor) monitorBlocks() (err error) {
 	}
 	value := float64(self.BlockHeights.Back()-self.BlockHeights.Front()) / float64(self.BlockHeights.Len())
 
-	self.Report.Syncer.State.AverageBlocksProcessedPerMinute.Store(round(value))
+	self.Report.BlockMonitor.State.AverageBlocksProcessedPerMinute.Store(round(value))
 	return
 }
 
 // Measure transaction processing speed
 func (self *Monitor) monitorTransactions() (err error) {
-	loaded := self.Report.Syncer.State.TransactionsDownloaded.Load()
+	loaded := self.Report.BlockMonitor.State.TransactionsDownloaded.Load()
 	if loaded == 0 {
 		// Neglect the first 0
 		return
@@ -99,7 +102,7 @@ func (self *Monitor) monitorTransactions() (err error) {
 		self.TransactionCounts.PopFront()
 	}
 	value := float64(self.TransactionCounts.Back()-self.TransactionCounts.Front()) / float64(self.TransactionCounts.Len())
-	self.Report.Syncer.State.AverageTransactionDownloadedPerMinute.Store(round(value))
+	self.Report.BlockMonitor.State.AverageTransactionDownloadedPerMinute.Store(round(value))
 	return
 }
 
@@ -122,20 +125,20 @@ func (self *Monitor) monitorInteractions() (err error) {
 
 func (self *Monitor) IsOK() bool {
 	now := time.Now().Unix()
-	if now-self.Report.Syncer.State.StartTimestamp.Load() < 300 {
+	if now-self.Report.Run.State.StartTimestamp.Load() < 300 {
 		return true
 	}
 
 	// Syncer is operational long enough, check stats
-	return self.Report.Syncer.State.AverageBlocksProcessedPerMinute.Load() > 0.1
+	return self.Report.BlockMonitor.State.AverageBlocksProcessedPerMinute.Load() > 0.1
 }
 
 func (self *Monitor) OnGetState(c *gin.Context) {
 	// pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 
 	// Fill data
-	self.Report.Syncer.State.SyncerBlocksBehind.Store(int64(self.Report.NetworkInfo.State.ArweaveCurrentHeight.Load()) - self.Report.Syncer.State.SyncerCurrentHeight.Load())
-	self.Report.Syncer.State.UpForSeconds.Store(uint64(time.Now().Unix() - self.Report.Syncer.State.StartTimestamp.Load()))
+	self.Report.BlockMonitor.State.SyncerBlocksBehind.Store(int64(self.Report.NetworkInfo.State.ArweaveCurrentHeight.Load()) - self.Report.BlockMonitor.State.SyncerCurrentHeight.Load())
+	self.Report.Run.State.UpForSeconds.Store(uint64(time.Now().Unix() - self.Report.Run.State.StartTimestamp.Load()))
 
 	c.JSON(http.StatusOK, &self.Report)
 }
