@@ -130,6 +130,7 @@ type Config struct {
 	Bundlr   Bundlr
 	Checker  Checker
 	Database Database
+	Contract Contract
 }
 
 func setDefaults() {
@@ -173,6 +174,7 @@ func setDefaults() {
 	setBundlrDefaults()
 	setCheckerDefaults()
 	setDatabaseDefaults()
+	setContractDefaults()
 }
 
 func Default() (config *Config) {

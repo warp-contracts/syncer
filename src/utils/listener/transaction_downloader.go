@@ -8,6 +8,7 @@ import (
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/monitoring"
+	"syncer/src/utils/smartweave"
 	"syncer/src/utils/task"
 	"time"
 )
@@ -56,8 +57,28 @@ func (self *TransactionDownloader) WithInputChannel(v chan *arweave.Block) *Tran
 	return self
 }
 
-func (self *TransactionDownloader) WithFilter(f func(tx *arweave.Transaction) bool) *TransactionDownloader {
-	self.filter = f
+func (self *TransactionDownloader) WithFilterContracts() *TransactionDownloader {
+	self.filter = func(tx *arweave.Transaction) bool {
+		if tx.Format < 2 {
+			return false
+		}
+
+		var isContract bool
+		var isContractSrcId bool
+
+		for _, tag := range tx.Tags {
+			if string(tag.Value) == "SmartWeaveContract" &&
+				string(tag.Name) == smartweave.TagAppName {
+				isContract = true
+			}
+
+			if string(tag.Name) == smartweave.TagContractSrcTxId && len(tag.Value) > 0 {
+				isContractSrcId = true
+			}
+
+		}
+		return isContract && isContractSrcId
+	}
 	return self
 }
 
@@ -66,9 +87,9 @@ func (self *TransactionDownloader) run() error {
 	// Listen for new blocks (blocks)
 	// Finishes when Listener is stopping
 	for block := range self.input {
-		self.Log.
-			WithField("height", block.Height).
-			Debug("Downloading transactions")
+		// self.Log.
+		// 	WithField("height", block.Height).
+		// 	Debug("Downloading transactions")
 
 		transactions, err := self.downloadTransactions(block)
 		if self.IsStopping.Load() {
@@ -113,7 +134,7 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 					goto end
 				}
 
-				self.Log.WithField("txId", txId).Debug("Downloading transaction")
+				// self.Log.WithField("txId", txId).Debug("Downloading transaction")
 
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {

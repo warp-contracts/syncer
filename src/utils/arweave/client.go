@@ -1,7 +1,9 @@
 package arweave
 
 import (
+	"bytes"
 	"context"
+	"math/big"
 	"strconv"
 	"syncer/src/utils/config"
 	"time"
@@ -26,6 +28,7 @@ func (self *Client) GetNetworkInfo(ctx context.Context) (out *NetworkInfo, err e
 
 	resp, err := req.
 		SetResult(&NetworkInfo{}).
+		ForceContentType("application/json").
 		Get("/info")
 	if err != nil {
 		return
@@ -47,6 +50,7 @@ func (self *Client) GetPeerList(ctx context.Context) (out []string, err error) {
 
 	resp, err := req.
 		SetResult([]string{}).
+		ForceContentType("application/json").
 		Get("/peers")
 	if err != nil {
 		return
@@ -102,6 +106,7 @@ func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Bl
 	resp, err := req.
 		SetResult(&Block{}).
 		SetPathParam("height", strconv.FormatInt(height, 10)).
+		ForceContentType("application/json").
 		Get("/block/height/{height}")
 	if err != nil {
 		return
@@ -125,6 +130,7 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 
 	resp, err := req.
 		SetResult(&Transaction{}).
+		ForceContentType("application/json").
 		SetPathParam("id", id).
 		Get("/tx/{id}")
 	if err != nil {
@@ -138,4 +144,100 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 	}
 
 	return
+}
+
+// https://docs.arweave.org/developers/server/http-api#get-transaction-offset-and-size
+func (self *Client) GetTransactionOffsetInfo(ctx context.Context, id string) (out *OffsetInfo, err error) {
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
+		SetResult(&OffsetInfo{}).
+		ForceContentType("application/json").
+		SetPathParam("id", id).
+		Get("/tx/{id}/offset")
+	if err != nil {
+		return
+	}
+
+	out, ok := resp.Result().(*OffsetInfo)
+	if !ok {
+		err = ErrFailedToParse
+		return
+	}
+
+	if !out.Offset.Valid || !out.Size.Valid {
+		err = ErrBadResponse
+		return
+	}
+
+	return
+}
+
+func (self *Client) getChunk(ctx context.Context, offset big.Int) (out *ChunkData, err error) {
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
+		SetPathParam("offset", offset.String()).
+		SetResult(&ChunkData{}).
+		ForceContentType("application/json").
+		Get("/chunk/{offset}")
+	if err != nil {
+		return
+	}
+
+	out, ok := resp.Result().(*ChunkData)
+	if !ok {
+		err = ErrFailedToParse
+		return
+	}
+
+	return
+}
+
+func (self *Client) GetChunks(ctx context.Context, id string) (out bytes.Buffer, err error) {
+	// Download chunks
+	info, err := self.GetTransactionOffsetInfo(ctx, id)
+	if err != nil {
+		return
+	}
+
+	zero := big.NewInt(0)
+	for info.Size.Cmp(zero) > 0 {
+		var chunk *ChunkData
+		chunk, err = self.getChunk(ctx, info.Offset.Int)
+		if err != nil {
+			return
+		}
+
+		out.Write(chunk.Chunk.Bytes())
+
+		// Are there more chunks?
+		chunkSize := big.NewInt(int64(len(chunk.Chunk.Bytes())))
+		info.Size.Int.Sub(&info.Size.Int, chunkSize)
+		info.Size.Int.Sub(&info.Offset.Int, chunkSize)
+	}
+
+	return
+}
+
+// https://docs.arweave.org/developers/server/http-api#get-transaction-field
+func (self *Client) GetTransactionDataById(ctx context.Context, id string) (out bytes.Buffer, err error) {
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
+		SetPathParam("id", id).
+		Get("/tx/{id}/data")
+	if err != nil {
+		return
+	}
+
+	out.Write(resp.Body())
+	if out.Len() > 0 {
+		return
+	}
+
+	return self.GetChunks(ctx, id)
 }

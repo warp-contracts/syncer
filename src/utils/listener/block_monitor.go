@@ -204,7 +204,7 @@ func (self *BlockMonitor) downloadTransactions(block *arweave.Block) (out []*arw
 					goto end
 				}
 
-				self.Log.WithField("txId", txId).Debug("Downloading transaction")
+				// self.Log.WithField("txId", txId).Debug("Downloading transaction")
 
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {

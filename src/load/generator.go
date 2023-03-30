@@ -1,7 +1,6 @@
 package load
 
 import (
-	"encoding/base64"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/task"
@@ -51,7 +50,7 @@ func (self *Generator) fakeTransaction() *arweave.Transaction {
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(43))},
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(10))},
 		},
-		Data: base64.RawURLEncoding.EncodeToString(self.v),
+		Data: self.v,
 		ID:   tool.RandomString(43),
 	}
 }

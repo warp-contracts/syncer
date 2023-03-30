@@ -30,3 +30,14 @@ type Proof struct {
 	Offest int
 	Proof  []byte
 }
+
+type OffsetInfo struct {
+	Offset BigInt `json:"offset"`
+	Size   BigInt `json:"size"`
+}
+
+type ChunkData struct {
+	Chunk    Base64String `json:"chunk"`
+	TxPath   string       `json:"tx_path"`
+	DataPath string       `json:"data_path"`
+}

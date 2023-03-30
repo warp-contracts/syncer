@@ -17,7 +17,7 @@ type Transaction struct {
 	Tags      []Tag        `json:"tags"`
 	Target    Base64String `json:"target"`
 	Quantity  string       `json:"quantity"`
-	Data      string       `json:"data"` // base64.encode
+	Data      Base64String `json:"data"`
 	DataSize  string       `json:"data_size"`
 	DataRoot  Base64String `json:"data_root"`
 	Reward    string       `json:"reward"`
@@ -30,6 +30,15 @@ type Transaction struct {
 type Tag struct {
 	Name  Base64String `json:"name"`
 	Value Base64String `json:"value"`
+}
+
+func (self *Transaction) GetTag(name string) (value string, ok bool) {
+	for _, tag := range self.Tags {
+		if string(tag.Name) == name {
+			return string(tag.Value), true
+		}
+	}
+	return
 }
 
 // https://docs.arweave.org/developers/server/http-api#transaction-signing

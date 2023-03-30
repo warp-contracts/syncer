@@ -20,7 +20,7 @@ type Controller struct {
 func NewController(config *config.Config) (self *Controller, err error) {
 	self = new(Controller)
 
-	self.Task = task.NewTask(config, "controller")
+	self.Task = task.NewTask(config, "contract-controller")
 
 	monitor := monitor_contract.NewMonitor().
 		WithMaxHistorySize(30)
@@ -55,19 +55,36 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		transactionDownloader := listener.NewTransactionDownloader(config).
 			WithClient(client).
 			WithInputChannel(blockDownloader.Output).
-			WithMonitor(monitor)
+			WithMonitor(monitor).
+			WithFilterContracts()
 
-		// store := NewStore(config).
-		// 	WithInputChannel(transactionMonitor.Output).
-		// 	WithMonitor(monitor).
-		// 	WithDB(db)
+		payloadToTxMapper := task.NewMapper[*listener.Payload, *arweave.Transaction](config, "transaction-to-payload").
+			WithInputChannel(transactionDownloader.Output).
+			WithMapFunc(func(in *listener.Payload, out chan *arweave.Transaction) (err error) {
+				for _, tx := range in.Transactions {
+					out <- tx
+				}
+				return
+			})
 
-		return task.NewTask(config, "watched").
+		loader := NewLoader(config).
+			WithInputChannel(payloadToTxMapper.Output).
+			WithMonitor(monitor).
+			WithClient(client)
+
+		store := NewStore(config).
+			WithInputChannel(loader.Output).
+			WithMonitor(monitor).
+			WithDB(db)
+
+		return task.NewTask(config, "watched-contract").
 			WithSubtask(peerMonitor.Task).
-			// WithSubtask(store.Task).
+			WithSubtask(store.Task).
 			WithSubtask(networkMonitor.Task).
 			WithSubtask(blockDownloader.Task).
-			WithSubtask(transactionDownloader.Task)
+			WithSubtask(transactionDownloader.Task).
+			WithSubtask(payloadToTxMapper.Task).
+			WithSubtask(loader.Task)
 	}
 
 	watchdog := task.NewWatchdog(config).

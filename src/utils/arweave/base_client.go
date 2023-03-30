@@ -364,6 +364,5 @@ func (self *BaseClient) Request(ctx context.Context) (*resty.Request, context.Ca
 	ctx, cancel := onecontext.Merge(self.ctx, ctx)
 
 	return self.client.R().
-		SetContext(ctx).
-		ForceContentType("application/json"), cancel
+		SetContext(ctx), cancel
 }
