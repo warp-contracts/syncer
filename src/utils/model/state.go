@@ -14,11 +14,11 @@ type State struct {
 	LastProcessedBlockHash arweave.Base64String
 
 	// Height of the last fully processed transaction block
-	ContractLastTransactionBlockHeight uint64
+	ContractFinishedHeight uint64
 
 	// Hash of the last fully processed transaction block
 	// Next block needs to have this hash set as its previous block hash
-	ContractLastProcessedBlockHash arweave.Base64String
+	ContractFinishedBlockHash arweave.Base64String
 }
 
 func (State) TableName() string {

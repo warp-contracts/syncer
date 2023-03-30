@@ -97,6 +97,8 @@ func (self *TransactionDownloader) run() error {
 			return nil
 		}
 		if err != nil {
+			// FIXME: Monitor counter
+			// FIXME: Shouldn't we stop?
 			self.Log.WithError(err).WithField("height", block.Height).Error("Failed to download transactions in block")
 			continue
 		}

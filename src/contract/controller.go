@@ -50,7 +50,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithClient(client).
 			WithInputChannel(networkMonitor.Output).
 			WithMonitor(monitor).
-			WithInitStartHeight(db)
+			WithInitStartHeight(db, listener.ComponentContract)
 
 		transactionDownloader := listener.NewTransactionDownloader(config).
 			WithClient(client).
@@ -58,17 +58,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithMonitor(monitor).
 			WithFilterContracts()
 
-		payloadToTxMapper := task.NewMapper[*listener.Payload, *arweave.Transaction](config, "transaction-to-payload").
-			WithInputChannel(transactionDownloader.Output).
-			WithMapFunc(func(in *listener.Payload, out chan *arweave.Transaction) (err error) {
-				for _, tx := range in.Transactions {
-					out <- tx
-				}
-				return
-			})
-
 		loader := NewLoader(config).
-			WithInputChannel(payloadToTxMapper.Output).
+			WithInputChannel(transactionDownloader.Output).
 			WithMonitor(monitor).
 			WithClient(client)
 
@@ -83,7 +74,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithSubtask(networkMonitor.Task).
 			WithSubtask(blockDownloader.Task).
 			WithSubtask(transactionDownloader.Task).
-			WithSubtask(payloadToTxMapper.Task).
 			WithSubtask(loader.Task)
 	}
 

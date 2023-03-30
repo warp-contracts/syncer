@@ -24,7 +24,7 @@ type SinkTask[T comparable] struct {
 	// Data about the interactions that need to be bundled
 	input chan T
 
-	// Ids of the bundle items that will be confirmed
+	// Data that will be passed to onFlush callback
 	queue deque.Deque[T]
 }
 
@@ -52,7 +52,7 @@ func (self *SinkTask[T]) WithOnFlush(interval time.Duration, f func([]T) error) 
 	self.onFlush = f
 	self.Task = self.Task.
 		WithPeriodicSubtaskFunc(interval, func() error {
-			self.SubmitToWorker(func() { self.flush() })
+			self.SubmitToWorkerIfEmpty(func() { self.flush() })
 			return nil
 		})
 	return self
@@ -72,10 +72,10 @@ func (self *SinkTask[T]) receive() error {
 		self.queue.PushBack(data)
 		isBatchReady = self.queue.Len() >= self.batchSize
 		self.mtx.Unlock()
-	}
 
-	if isBatchReady {
-		self.SubmitToWorker(func() { self.flush() })
+		if isBatchReady {
+			self.SubmitToWorkerIfEmpty(func() { self.flush() })
+		}
 	}
 	return nil
 }

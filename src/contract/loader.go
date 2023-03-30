@@ -3,8 +3,10 @@ package contract
 import (
 	"bytes"
 	"errors"
+	"sync"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
+	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/smartweave"
@@ -20,7 +22,7 @@ type Loader struct {
 	monitor monitoring.Monitor
 	client  *arweave.Client
 	// Data about the interactions that need to be bundled
-	input  chan *arweave.Transaction
+	input  chan *listener.Payload
 	Output chan *Payload
 }
 
@@ -45,7 +47,7 @@ func (self *Loader) WithMonitor(monitor monitoring.Monitor) *Loader {
 	return self
 }
 
-func (self *Loader) WithInputChannel(v chan *arweave.Transaction) *Loader {
+func (self *Loader) WithInputChannel(v chan *listener.Payload) *Loader {
 	self.input = v
 	return self
 }
@@ -57,21 +59,61 @@ func (self *Loader) WithClient(client *arweave.Client) *Loader {
 
 func (self *Loader) run() error {
 	// Each payload has a slice of transactions
-	for tx := range self.input {
-		tx := tx
-		self.SubmitToWorker(func() {
-			err := self.load(tx)
-			if err != nil {
-				self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract")
-			}
-		})
+	for payload := range self.input {
+		data, err := self.loadAll(payload.Transactions)
+		if err != nil {
+			// FIXME: Handle error
+			self.Log.WithError(err).Error("Failed to load contracts")
+			return err
+		}
+
+		select {
+		case <-self.Ctx.Done():
+			return nil
+		case self.Output <- &Payload{
+			Data:        data,
+			BlockHeight: uint64(payload.BlockHeight),
+			BlockHash:   payload.BlockHash,
+		}:
+		}
 	}
 
 	return nil
 }
 
-func (self *Loader) load(tx *arweave.Transaction) (err error) {
-	var payload Payload
+func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*ContractData, err error) {
+	var (
+		wg  sync.WaitGroup
+		mtx sync.Mutex
+	)
+
+	wg.Add(len(transactions))
+	out = make([]*ContractData, 0, len(transactions))
+	for _, tx := range transactions {
+		tx := tx
+		self.SubmitToWorker(func() {
+			contractData, err := self.load(tx)
+			if err != nil {
+				// FIXME: Monitor errors
+				self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract")
+				goto done
+			}
+
+			mtx.Lock()
+			out = append(out, contractData)
+			mtx.Unlock()
+		done:
+			wg.Done()
+		})
+	}
+
+	// Wait for all contracts in batch to be loaded
+	wg.Wait()
+	return
+}
+
+func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error) {
+	out = new(ContractData)
 
 	_, ok := tx.GetTag(warp.TagWarpTestnet)
 	if ok {
@@ -79,7 +121,7 @@ func (self *Loader) load(tx *arweave.Transaction) (err error) {
 		return
 	}
 
-	payload.Contract, err = self.getContract(tx)
+	out.Contract, err = self.getContract(tx)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to parse contract")
 		return
@@ -91,15 +133,10 @@ func (self *Loader) load(tx *arweave.Transaction) (err error) {
 	// 	return
 	// }
 
-	payload.Source, err = self.getSource(payload.Contract.SrcTxId.String)
+	out.Source, err = self.getSource(out.Contract.SrcTxId.String)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get contract source")
 		return
-	}
-
-	select {
-	case <-self.Ctx.Done():
-	case self.Output <- &payload:
 	}
 
 	return

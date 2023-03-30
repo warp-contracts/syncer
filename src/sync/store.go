@@ -160,10 +160,7 @@ func (self *Store) run() (err error) {
 			}
 
 		case <-timer.C:
-			if len(pendingInteractions) > 0 {
-				self.Log.Debug("Batch timed out, trigger insert")
-				insert()
-			}
+			insert()
 			timer = time.NewTimer(self.Config.StoreMaxTimeInQueue)
 		}
 	}

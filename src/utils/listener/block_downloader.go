@@ -55,7 +55,7 @@ func (self *BlockDownloader) WithClient(client *arweave.Client) *BlockDownloader
 	return self
 }
 
-func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB) *BlockDownloader {
+func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB, component Component) *BlockDownloader {
 	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
 		// Get the last storeserverd block height from the database
 		var state model.State
@@ -64,8 +64,19 @@ func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB) *BlockDownloader {
 			self.Log.WithError(err).Error("Failed to get last transaction block height")
 			return
 		}
-		self.startHeight = state.LastTransactionBlockHeight
-		self.previousBlockIndepHash = state.LastProcessedBlockHash
+
+		// Different components may have different starting points
+		switch component {
+		case ComponentSyncer:
+			self.startHeight = state.LastTransactionBlockHeight
+			self.previousBlockIndepHash = state.LastProcessedBlockHash
+		case ComponentContract:
+			self.startHeight = state.LastTransactionBlockHeight
+			self.previousBlockIndepHash = state.LastProcessedBlockHash
+		default:
+			panic("unknown component")
+		}
+
 		return nil
 	})
 	return self
