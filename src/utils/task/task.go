@@ -176,9 +176,9 @@ func (self *Task) SubmitToWorker(f func()) {
 	defer self.workerQueueCond.L.Unlock()
 
 	for self.workers.WaitingQueueSize() > self.workerMaxQueueSize {
-		self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is full, waiting...")
+		// self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is full, waiting...")
 		self.workerQueueCond.Wait()
-		self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is not full anymore!")
+		// self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is not full anymore!")
 
 		// Exit if stopping
 		if self.IsStopping.Load() {
