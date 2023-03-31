@@ -61,7 +61,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithClient(arweaveClient).
 		WithMonitor(monitor).
 		WithInterval(config.ListenerPeriod).
-		WithRequiredConfirmationBlocks(0)
+		WithRequiredConfirmationBlocks(0).
+		WithEnableOutput(false /*disable output channel to avoid blocking*/)
 
 	// Sends interactions to bundlr.network
 	bundler := NewBundler(config, db).

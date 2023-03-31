@@ -27,6 +27,7 @@ type NetworkMonitor struct {
 	// Runtime variables
 	lastHeight      int64
 	lastNetworkInfo *arweave.NetworkInfo
+	isOutputEnabled bool
 }
 
 // Using Arweave client periodically checks for blocks of transactions
@@ -35,6 +36,7 @@ func NewNetworkMonitor(config *config.Config) (self *NetworkMonitor) {
 
 	self.cond = sync.NewCond(&sync.Mutex{})
 	self.Output = make(chan *arweave.NetworkInfo)
+	self.isOutputEnabled = true
 
 	self.Task = task.NewTask(config, "network-monitor").
 		WithOnAfterStop(func() {
@@ -60,6 +62,10 @@ func (self *NetworkMonitor) WithRequiredConfirmationBlocks(requiredConfirmationB
 
 func (self *NetworkMonitor) WithInterval(interval time.Duration) *NetworkMonitor {
 	self.Task = self.Task.WithPeriodicSubtaskFunc(interval, self.runPeriodically)
+	return self
+}
+func (self *NetworkMonitor) WithEnableOutput(v bool) *NetworkMonitor {
+	self.isOutputEnabled = v
 	return self
 }
 
@@ -103,9 +109,11 @@ func (self *NetworkMonitor) runPeriodically() error {
 	self.cond.Broadcast()
 	self.cond.L.Unlock()
 
-	select {
-	case <-self.StopChannel:
-	case self.Output <- networkInfo:
+	if self.isOutputEnabled {
+		select {
+		case <-self.StopChannel:
+		case self.Output <- networkInfo:
+		}
 	}
 
 	return nil
