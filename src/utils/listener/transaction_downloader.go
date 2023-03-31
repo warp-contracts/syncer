@@ -11,6 +11,8 @@ import (
 	"syncer/src/utils/smartweave"
 	"syncer/src/utils/task"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
 )
 
 // Fills in transactions for a given block
@@ -24,15 +26,17 @@ type TransactionDownloader struct {
 	Output  chan *Payload
 
 	// Parameters
-	maxTimeToDownload time.Duration
+	backoff *backoff.ExponentialBackOff
 }
 
 // Using Arweave client periodically checks for blocks of transactions
 func NewTransactionDownloader(config *config.Config) (self *TransactionDownloader) {
 	self = new(TransactionDownloader)
 
-	// No limit by default
-	self.maxTimeToDownload = 0
+	// No time limit by default
+	self.backoff = backoff.NewExponentialBackOff()
+	self.backoff.MaxElapsedTime = 0
+	self.backoff.MaxInterval = self.Config.ListenerRetryFailedTransactionDownloadInterval
 
 	self.filter = func(tx *arweave.Transaction) bool { return true }
 
@@ -63,8 +67,9 @@ func (self *TransactionDownloader) WithInputChannel(v chan *arweave.Block) *Tran
 	return self
 }
 
-func (self *TransactionDownloader) WithMaxTimeToDownload(v time.Duration) *TransactionDownloader {
-	self.maxTimeToDownload = v
+func (self *TransactionDownloader) WithBackoff(maxElapsedTime, maxInterval time.Duration) *TransactionDownloader {
+	self.backoff.MaxElapsedTime = maxElapsedTime
+	self.backoff.MaxInterval = maxInterval
 	return self
 }
 
@@ -143,60 +148,53 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 		txId := base64.RawURLEncoding.EncodeToString(txId)
 
 		self.SubmitToWorker(func() {
-			// NOTE: Infinite loop, because there's nothing better we can do.
-			for {
-				if self.IsStopping.Load() {
-					goto end
-				}
+			var tx *arweave.Transaction
 
-				// self.Log.WithField("txId", txId).Debug("Downloading transaction")
-
-				tx, err := self.client.GetTransactionById(self.Ctx, txId)
+			// Retries downloading transaction until success or permanent error
+			err = backoff.Retry(func() error {
+				tx, err = self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {
 					if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
 						// Stopping
-						goto end
+						return backoff.Permanent(err)
 					}
-					self.Log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, retrying after timeout")
+					self.Log.WithError(err).WithField("txId", txId).Warn("Failed to download transaction, retrying after timeout")
 
 					// This will completly reset the HTTP client and possibly help in solving the problem
 					self.client.Reset()
 
 					self.monitor.GetReport().TransactionDownloader.Errors.TxDownloadErrors.Inc()
 
-					time.Sleep(self.Config.ListenerRetryFailedTransactionDownloadInterval)
-					if self.IsStopping.Load() {
-						// Stopping
-						// Neglect this block and close the goroutine
-						self.Log.WithError(err).WithField("txId", txId).Error("Neglect downloading transaction, listener is stopping anyway")
-						goto end
-					}
-
 					// FIXME: Inform downstream something's wrong
-					continue
 				}
 
-				// Skip transactions that don't pass the filter
-				if !self.filter(tx) {
-					goto end
-				}
-
-				// Verify transaction signature
-				err = tx.Verify()
-				if err != nil {
-					self.monitor.GetReport().Syncer.Errors.TxValidationErrors.Inc()
-					self.Log.Error("Transaction failed to verify")
-					goto end
-				}
-
-				mtx.Lock()
-				out = append(out, tx)
-				mtx.Unlock()
-
-				self.Log.WithField("txId", txId).Trace("Downloaded transaction")
-
+				return err
+			}, self.backoff)
+			if err != nil {
+				// Permanent error
+				self.Log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, giving up")
 				goto end
 			}
+
+			// Skip transactions that don't pass the filter
+			if !self.filter(tx) {
+				goto end
+			}
+
+			// Verify transaction signature
+			err = tx.Verify()
+			if err != nil {
+				self.monitor.GetReport().Syncer.Errors.TxValidationErrors.Inc()
+				self.Log.Error("Transaction failed to verify")
+				goto end
+			}
+
+			mtx.Lock()
+			out = append(out, tx)
+			mtx.Unlock()
+
+			self.Log.WithField("txId", txId).Trace("Downloaded transaction")
+
 		end:
 			wg.Done()
 		})

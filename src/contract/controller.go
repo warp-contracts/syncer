@@ -56,6 +56,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithClient(client).
 			WithInputChannel(blockDownloader.Output).
 			WithMonitor(monitor).
+			WithBackoff(config.Contract.TransactionMaxElapsedTime, config.Contract.TransactionMaxInterval).
 			WithFilterContracts()
 
 		loader := NewLoader(config).
