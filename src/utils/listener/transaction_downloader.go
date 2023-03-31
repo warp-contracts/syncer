@@ -22,11 +22,17 @@ type TransactionDownloader struct {
 	filter  func(*arweave.Transaction) bool
 	input   chan *arweave.Block
 	Output  chan *Payload
+
+	// Parameters
+	maxTimeToDownload time.Duration
 }
 
 // Using Arweave client periodically checks for blocks of transactions
 func NewTransactionDownloader(config *config.Config) (self *TransactionDownloader) {
 	self = new(TransactionDownloader)
+
+	// No limit by default
+	self.maxTimeToDownload = 0
 
 	self.filter = func(tx *arweave.Transaction) bool { return true }
 
@@ -54,6 +60,11 @@ func (self *TransactionDownloader) WithClient(client *arweave.Client) *Transacti
 
 func (self *TransactionDownloader) WithInputChannel(v chan *arweave.Block) *TransactionDownloader {
 	self.input = v
+	return self
+}
+
+func (self *TransactionDownloader) WithMaxTimeToDownload(v time.Duration) *TransactionDownloader {
+	self.maxTimeToDownload = v
 	return self
 }
 
