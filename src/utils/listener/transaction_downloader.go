@@ -26,7 +26,8 @@ type TransactionDownloader struct {
 	Output  chan *Payload
 
 	// Parameters
-	backoff *backoff.ExponentialBackOff
+	maxElapsedTime time.Duration
+	maxInterval    time.Duration
 }
 
 // Using Arweave client periodically checks for blocks of transactions
@@ -34,10 +35,6 @@ func NewTransactionDownloader(config *config.Config) (self *TransactionDownloade
 	self = new(TransactionDownloader)
 
 	// No time limit by default
-	self.backoff = backoff.NewExponentialBackOff()
-	self.backoff.MaxElapsedTime = 0
-	self.backoff.MaxInterval = self.Config.ListenerRetryFailedTransactionDownloadInterval
-
 	self.filter = func(tx *arweave.Transaction) bool { return true }
 
 	self.Output = make(chan *Payload)
@@ -68,8 +65,8 @@ func (self *TransactionDownloader) WithInputChannel(v chan *arweave.Block) *Tran
 }
 
 func (self *TransactionDownloader) WithBackoff(maxElapsedTime, maxInterval time.Duration) *TransactionDownloader {
-	self.backoff.MaxElapsedTime = maxElapsedTime
-	self.backoff.MaxInterval = maxInterval
+	self.maxElapsedTime = maxElapsedTime
+	self.maxInterval = maxInterval
 	return self
 }
 
@@ -144,32 +141,44 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 	wg.Add(len(block.Txs))
 
 	out = make([]*arweave.Transaction, 0, len(block.Txs))
-	for _, txId := range block.Txs {
-		txId := base64.RawURLEncoding.EncodeToString(txId)
+	for _, txIdBytes := range block.Txs {
+		txIdBytes := txIdBytes
 
 		self.SubmitToWorker(func() {
-			var tx *arweave.Transaction
+			var (
+				err error
+				tx  *arweave.Transaction
+			)
+
+			// Encode txId for later
+			txId := base64.RawURLEncoding.EncodeToString(txIdBytes)
+
+			// Configure backoff
+			b := backoff.NewExponentialBackOff()
+			b.MaxElapsedTime = self.maxElapsedTime
+			b.MaxInterval = self.maxInterval
 
 			// Retries downloading transaction until success or permanent error
-			err = backoff.Retry(func() error {
-				tx, err = self.client.GetTransactionById(self.Ctx, txId)
-				if err != nil {
-					if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
-						// Stopping
-						return backoff.Permanent(err)
+			err = backoff.Retry(
+				func() (err error) {
+					tx, err = self.client.GetTransactionById(self.Ctx, txId)
+					if err != nil {
+						if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
+							// Stopping
+							return backoff.Permanent(err)
+						}
+						self.Log.WithError(err).WithField("txId", txId).Warn("Failed to download transaction, retrying after timeout")
+
+						// This will completly reset the HTTP client and possibly help in solving the problem
+						self.client.Reset()
+
+						self.monitor.GetReport().TransactionDownloader.Errors.TxDownloadErrors.Inc()
+
+						// FIXME: Inform downstream something's wrong
 					}
-					self.Log.WithError(err).WithField("txId", txId).Warn("Failed to download transaction, retrying after timeout")
 
-					// This will completly reset the HTTP client and possibly help in solving the problem
-					self.client.Reset()
-
-					self.monitor.GetReport().TransactionDownloader.Errors.TxDownloadErrors.Inc()
-
-					// FIXME: Inform downstream something's wrong
-				}
-
-				return err
-			}, self.backoff)
+					return err
+				}, b)
 			if err != nil {
 				// Permanent error
 				self.Log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, giving up")
