@@ -1,6 +1,7 @@
 package task
 
 import (
+	"math"
 	"syncer/src/utils/config"
 
 	"time"
@@ -22,7 +23,7 @@ type Processor[In any, Out any] struct {
 	onProcess func(In) ([]Out, error)
 
 	// Periodically called to handle a batch of processed data
-	onFlush func(deque.Deque[Out]) error
+	onFlush func([]Out) error
 
 	// Queue for the processed data
 	queue deque.Deque[Out]
@@ -41,14 +42,15 @@ func NewProcessor[In any, Out any](config *config.Config, name string) (self *Pr
 	self = new(Processor[In, Out])
 
 	self.Task = NewTask(config, name).
-		WithSubtaskFunc(self.run)
+		WithSubtaskFunc(self.run).
+		WithWorkerPool(1, 0)
 
 	return
 }
 
 func (self *Processor[In, Out]) WithBatchSize(batchSize int) *Processor[In, Out] {
-	self.queue.SetMinCapacity(2 * uint(batchSize))
 	self.batchSize = batchSize
+	self.queue.SetMinCapacity(uint(math.Round(1.5 * float64(batchSize))))
 	return self
 }
 
@@ -57,7 +59,7 @@ func (self *Processor[In, Out]) WithInputChannel(v chan In) *Processor[In, Out] 
 	return self
 }
 
-func (self *Processor[In, Out]) WithOnFlush(interval time.Duration, f func(deque.Deque[Out]) error) *Processor[In, Out] {
+func (self *Processor[In, Out]) WithOnFlush(interval time.Duration, f func([]Out) error) *Processor[In, Out] {
 	self.flushInterval = interval
 	self.onFlush = f
 	return self
@@ -73,29 +75,29 @@ func (self *Processor[In, Out]) WithMaxBackoffInterval(v time.Duration) *Process
 	return self
 }
 
-func (self *Processor[In, Out]) flush() (err error) {
+func (self *Processor[In, Out]) flush() {
 	// Copy data to avoid locking for too long
-	// batch := make([]Out, 0, self.queue.Len())
-	// for i := 0; i < self.queue.Len(); i++ {
-	// 	batch = append(batch, self.queue.PopFront())
-	// }
+	data := make([]Out, 0, self.queue.Len())
+	for i := 0; i < self.queue.Len(); i++ {
+		data = append(data, self.queue.PopFront())
+	}
 
-	// Expotentially increase the interval between retries
-	// Never stop retrying
-	// Wait at most maxBackoffInterval between retries
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = 0
-	b.MaxInterval = self.maxBackoffInterval
+	self.SubmitToWorker(func() {
+		// Expotentially increase the interval between retries
+		// Never stop retrying
+		// Wait at most maxBackoffInterval between retries
+		b := backoff.NewExponentialBackOff()
+		b.MaxElapsedTime = 0
+		b.MaxInterval = self.maxBackoffInterval
 
-	return backoff.Retry(func() error {
-		err := self.onFlush(self.queue)
+		err := backoff.Retry(func() error {
+			return self.onFlush(data)
+		}, b)
+
 		if err != nil {
-			return err
+			self.Log.WithError(err).Error("Failed to flush data")
 		}
-		self.queue.Clear()
-		return nil
-	}, b)
-
+	})
 }
 
 // Receives data from the input channel and saves in the database

@@ -71,8 +71,8 @@ func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB, component Componen
 			self.startHeight = state.LastTransactionBlockHeight
 			self.previousBlockIndepHash = state.LastProcessedBlockHash
 		case ComponentContract:
-			self.startHeight = state.LastTransactionBlockHeight
-			self.previousBlockIndepHash = state.LastProcessedBlockHash
+			self.startHeight = int64(state.ContractFinishedHeight)
+			self.previousBlockIndepHash = state.ContractFinishedBlockHash
 		default:
 			panic("unknown component")
 		}

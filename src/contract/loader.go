@@ -155,7 +155,7 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 
 func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, err error) {
 	var ok bool
-	out = new(model.Contract)
+	out = model.NewContract()
 
 	// Source tx id
 	srcTxId, ok := tx.GetTag(smartweave.TagContractSrcTxId)
@@ -227,22 +227,26 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 
 func (self *Loader) getSource(srcId string) (out *model.ContractSource, err error) {
 	var ok bool
-	out = new(model.ContractSource)
+	out = model.NewContractSource()
 
 	srcTx, err := self.client.GetTransactionById(self.Ctx, srcId)
 	if err != nil {
-		self.Log.WithError(err).Error("Failed to get contract source")
+		self.Log.WithError(err).Error("Failed to get contract source transaction")
 		return
 	}
 
 	// Verify tags
-	out.SrcContentType, ok = srcTx.GetTag(smartweave.TagContentType)
+	srcContentType, ok := srcTx.GetTag(smartweave.TagContentType)
 	if !ok {
 		err = errors.New("contract source content type is not set")
 		return
 	}
+	err = out.SrcContentType.Set(srcContentType)
+	if err != nil {
+		return
+	}
 
-	if !slices.Contains(self.Config.Contract.LoaderSupportedContentTypes, out.SrcContentType) {
+	if !slices.Contains(self.Config.Contract.LoaderSupportedContentTypes, out.SrcContentType.String) {
 		err = errors.New("unsupported contract source content type")
 		return
 	}
@@ -256,18 +260,26 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 	// Get source
 	src, err := self.client.GetTransactionDataById(self.Ctx, srcId)
 	if err != nil {
-		self.Log.WithError(err).Error("Failed to get contract source")
+		self.Log.WithError(err).Error("Failed to get source data")
 		return
 	}
 
 	if out.IsJS() {
-		out.Src = src.String()
+		err = out.Src.Set(src.String())
+		if err != nil {
+			return
+		}
 	} else {
-		out.SrcWasmLang, ok = srcTx.GetTag(warp.TagWasmLang)
+		srcWasmLang, ok := srcTx.GetTag(warp.TagWasmLang)
 		if !ok {
 			err = errors.New("WASM contract language is not set")
 			return
 		}
+		err = out.SrcWasmLang.Set(srcWasmLang)
+		if err != nil {
+			return
+		}
+
 		err = out.SrcBinary.Set(src.Bytes())
 		if err != nil {
 			return

@@ -120,6 +120,8 @@ func (self *TransactionDownloader) run() error {
 }
 
 func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (out []*arweave.Transaction, err error) {
+	self.Log.Debug("Start downloading transactions...")
+	defer self.Log.Debug("...Stopped downloading transactions")
 	// Sync between workers
 	var mtx sync.Mutex
 	var wg sync.WaitGroup
@@ -141,6 +143,7 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 				tx, err := self.client.GetTransactionById(self.Ctx, txId)
 				if err != nil {
 					if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
+						// Stopping
 						goto end
 					}
 					self.Log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, retrying after timeout")
@@ -152,13 +155,14 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 
 					time.Sleep(self.Config.ListenerRetryFailedTransactionDownloadInterval)
 					if self.IsStopping.Load() {
+						// Stopping
 						// Neglect this block and close the goroutine
 						self.Log.WithError(err).WithField("txId", txId).Error("Neglect downloading transaction, listener is stopping anyway")
 						goto end
 					}
 
-					continue
 					// FIXME: Inform downstream something's wrong
+					continue
 				}
 
 				// Skip transactions that don't pass the filter

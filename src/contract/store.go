@@ -2,6 +2,7 @@ package contract
 
 import (
 	"errors"
+	"sync"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
@@ -9,7 +10,6 @@ import (
 
 	"time"
 
-	"github.com/gammazero/deque"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -20,12 +20,14 @@ import (
 type Store struct {
 	*task.Processor[*Payload, *ContractData]
 
-	DB *gorm.DB
+	DB  *gorm.DB
+	mtx sync.Mutex
 
 	monitor monitoring.Monitor
 
-	contractFinishedHeight uint64
-	lastProcessedBlockHash []byte
+	savedBlockHeight          uint64
+	contractFinishedHeight    uint64
+	contractFinishedBlockHash []byte
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -56,23 +58,41 @@ func (self *Store) WithDB(v *gorm.DB) *Store {
 }
 
 func (self *Store) process(payload *Payload) (data []*ContractData, err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
 	self.contractFinishedHeight = payload.BlockHeight
-	self.lastProcessedBlockHash = payload.BlockHash
+	self.contractFinishedBlockHash = payload.BlockHash
 	data = payload.Data
 	return
 }
 
-func (self *Store) flush(data deque.Deque[*ContractData]) (err error) {
-	return self.DB.WithContext(self.Ctx).
+func (self *Store) getState(payload *Payload) (savedBlockHeight, contractFinishedHeight uint64, contractFinishedBlockHash []byte) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+	return self.savedBlockHeight, self.contractFinishedHeight, self.contractFinishedBlockHash
+}
+
+func (self *Store) flush(data []*ContractData) (err error) {
+	savedBlockHeight, contractFinishedHeight, contractFinishedBlockHash := self.getState(nil)
+
+	if savedBlockHeight == contractFinishedHeight && len(data) == 0 {
+		// No need to flush, nothing changed
+		return
+	}
+
+	self.Log.WithField("count", len(data)).Info("Flushing contracts")
+	defer self.Log.Info("Flushing contracts done")
+
+	err = self.DB.WithContext(self.Ctx).
 		Transaction(func(tx *gorm.DB) error {
-			if self.contractFinishedHeight <= 0 {
+			if contractFinishedHeight <= 0 {
 				return errors.New("block height too small")
 			}
 
 			state := model.State{
 				Id:                        1,
-				ContractFinishedHeight:    self.contractFinishedHeight,
-				ContractFinishedBlockHash: self.lastProcessedBlockHash,
+				ContractFinishedHeight:    contractFinishedHeight,
+				ContractFinishedBlockHash: contractFinishedBlockHash,
 			}
 			err = tx.WithContext(self.Ctx).
 				Save(&state).
@@ -82,13 +102,12 @@ func (self *Store) flush(data deque.Deque[*ContractData]) (err error) {
 				return err
 			}
 
-			if data.Len() <= 0 {
+			if len(data) <= 0 {
 				// No contract to insert
 				return nil
 			}
 
-			for i := 0; i < data.Len(); i++ {
-				d := data.At(i)
+			for _, d := range data {
 
 				// Insert contract
 				err = tx.WithContext(self.Ctx).
@@ -116,4 +135,13 @@ func (self *Store) flush(data deque.Deque[*ContractData]) (err error) {
 
 			return nil
 		})
+	if err != nil {
+		return
+	}
+
+	// Update saved block height
+	self.mtx.Lock()
+	self.savedBlockHeight = self.contractFinishedHeight
+	self.mtx.Unlock()
+	return
 }

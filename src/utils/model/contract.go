@@ -32,3 +32,24 @@ type Contract struct {
 	DeploymentType      pgtype.Varchar
 	Manifest            pgtype.JSONB
 }
+
+func NewContract() *Contract {
+	return &Contract{
+		SrcTxId:             pgtype.Varchar{Status: pgtype.Null},
+		InitState:           pgtype.JSONB{Status: pgtype.Null},
+		Owner:               pgtype.Varchar{Status: pgtype.Null},
+		Type:                pgtype.Varchar{Status: pgtype.Null},
+		Project:             pgtype.Varchar{Status: pgtype.Null},
+		PstTicker:           pgtype.Varchar{Status: pgtype.Null},
+		PstName:             pgtype.Varchar{Status: pgtype.Null},
+		ContentType:         pgtype.Varchar{Status: pgtype.Null},
+		BundlerContractTxId: pgtype.Varchar{Status: pgtype.Null},
+		BundlerContractNode: pgtype.Varchar{Status: pgtype.Null},
+		ContractTx:          pgtype.JSONB{Status: pgtype.Null},
+		BundlerContractTags: pgtype.JSONB{Status: pgtype.Null},
+		Testnet:             pgtype.Varchar{Status: pgtype.Null},
+		BundlerResponse:     pgtype.Varchar{Status: pgtype.Null},
+		DeploymentType:      pgtype.Varchar{Status: pgtype.Null},
+		Manifest:            pgtype.JSONB{Status: pgtype.Null},
+	}
+}
