@@ -52,7 +52,7 @@ func (self *SinkTask[T]) WithOnFlush(interval time.Duration, f func([]T) error) 
 	self.onFlush = f
 	self.Task = self.Task.
 		WithPeriodicSubtaskFunc(interval, func() error {
-			self.SubmitToWorkerIfEmpty(func() { self.flush() })
+			self.SubmitToWorker(func() { self.flush() })
 			return nil
 		})
 	return self
@@ -74,7 +74,7 @@ func (self *SinkTask[T]) receive() error {
 		self.mtx.Unlock()
 
 		if isBatchReady {
-			self.SubmitToWorkerIfEmpty(func() { self.flush() })
+			self.SubmitToWorker(func() { self.flush() })
 		}
 	}
 	return nil

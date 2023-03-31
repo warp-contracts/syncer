@@ -198,6 +198,7 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 				goto end
 			}
 
+			// Add to output
 			mtx.Lock()
 			out = append(out, tx)
 			mtx.Unlock()
