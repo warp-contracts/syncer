@@ -46,6 +46,14 @@ type Bundler struct {
 	// How often are states updated in the database
 	ConfirmerInterval time.Duration
 
+	// Max time confirmer will try to insert a batch of data to the database
+	// 0 means no limit
+	// This should be 0,
+	ConfirmerBackoffMaxElapsedTime time.Duration
+
+	// Max time between retries to insert a batch of confirmations to  the database
+	ConfirmerBackoffMaxInterval time.Duration
+
 	// Number of workers that send bundles in parallel
 	BundlerNumBundlingWorkers int
 }
@@ -65,4 +73,6 @@ func setBundlerDefaults() {
 	viper.SetDefault("Bundler.NotifierWorkerQueueSize", "100")
 	viper.SetDefault("Bundler.ConfirmerBatchSize", "100")
 	viper.SetDefault("Bundler.ConfirmerInterval", "1s")
+	viper.SetDefault("Bundler.ConfirmerBackoffMaxElapsedTime", "0")
+	viper.SetDefault("Bundler.ConfirmerBackoffMaxInterval", "8s")
 }

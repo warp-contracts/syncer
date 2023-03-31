@@ -32,7 +32,8 @@ func NewConfirmer(config *config.Config) (self *Confirmer) {
 
 	self.SinkTask = task.NewSinkTask[*Confirmation](config, "confirmer").
 		WithBatchSize(config.Bundler.ConfirmerBatchSize).
-		WithOnFlush(config.Bundler.ConfirmerInterval, self.save)
+		WithOnFlush(config.Bundler.ConfirmerInterval, self.save).
+		WithBackoff(config.Bundler.ConfirmerBackoffMaxElapsedTime, config.Bundler.ConfirmerBackoffMaxInterval)
 
 	return
 }

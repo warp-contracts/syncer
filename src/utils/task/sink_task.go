@@ -1,115 +1,131 @@
 package task
 
 import (
-	"sync"
+	"math"
 	"syncer/src/utils/config"
+
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/gammazero/deque"
 )
 
-// Task that receives data through a channel and periodically pushes to the database
-type SinkTask[T comparable] struct {
+// Store handles saving data to the database in na robust way.
+// - groups incoming Interactions into batches,
+// - ensures data isn't stuck even if a batch isn't big enough
+type SinkTask[In any] struct {
 	*Task
 
-	// For synchronizing access to the queue
-	mtx sync.RWMutex
+	// Channel for the data to be processed
+	input chan In
 
-	// Batch size
+	// Periodically called to handle a batch of processed data
+	onFlush func([]In) error
+
+	// Queue for the processed data
+	queue deque.Deque[In]
+
+	// Batch size that will trigger the onFlush function
 	batchSize int
 
-	// Periodically called callback that processes a batch of data
-	onFlush func([]T) error
+	// Flush interval
+	flushInterval time.Duration
 
-	// Data about the interactions that need to be bundled
-	input chan T
+	// Max time flush should be retried. 0 means no limit.
+	maxElapsedTime time.Duration
 
-	// Data that will be passed to onFlush callback
-	queue deque.Deque[T]
+	// Max times between flush retries
+	maxInterval time.Duration
 }
 
-func NewSinkTask[T comparable](config *config.Config, name string) (self *SinkTask[T]) {
-	self = new(SinkTask[T])
+func NewSinkTask[In any](config *config.Config, name string) (self *SinkTask[In]) {
+	self = new(SinkTask[In])
+
+	// Defaults
+	self.maxElapsedTime = 0
+	self.maxInterval = 15 * time.Second
+
 	self.Task = NewTask(config, name).
-		WithSubtaskFunc(self.receive).
-		WithWorkerPool(1, 5)
+		WithSubtaskFunc(self.run).
+		WithWorkerPool(1, 0)
 
 	return
 }
 
-func (self *SinkTask[T]) WithBatchSize(batchSize int) *SinkTask[T] {
-	self.queue.SetMinCapacity(2 * uint(batchSize))
+func (self *SinkTask[In]) WithBatchSize(batchSize int) *SinkTask[In] {
 	self.batchSize = batchSize
+	self.queue.SetMinCapacity(uint(math.Round(1.5 * float64(batchSize))))
 	return self
 }
 
-func (self *SinkTask[T]) WithInputChannel(input chan T) *SinkTask[T] {
-	self.input = input
+func (self *SinkTask[In]) WithInputChannel(v chan In) *SinkTask[In] {
+	self.input = v
 	return self
 }
 
-func (self *SinkTask[T]) WithOnFlush(interval time.Duration, f func([]T) error) *SinkTask[T] {
+func (self *SinkTask[In]) WithOnFlush(interval time.Duration, f func([]In) error) *SinkTask[In] {
+	self.flushInterval = interval
 	self.onFlush = f
-	self.Task = self.Task.
-		WithPeriodicSubtaskFunc(interval, func() error {
-			self.SubmitToWorker(func() { self.flush() })
-			return nil
-		})
 	return self
 }
 
-func (self *SinkTask[T]) numPendingConfirmation() int {
-	self.mtx.RLock()
-	defer self.mtx.RUnlock()
-	return self.queue.Len()
+func (self *SinkTask[In]) WithBackoff(maxElapsedTime, maxInterval time.Duration) *SinkTask[In] {
+	self.maxElapsedTime = maxElapsedTime
+	self.maxInterval = maxInterval
+	return self
 }
 
-// Puts data into the queue
-func (self *SinkTask[T]) receive() error {
-	var isBatchReady bool
-	for data := range self.input {
-		self.mtx.Lock()
-		self.queue.PushBack(data)
-		isBatchReady = self.queue.Len() >= self.batchSize
-		self.mtx.Unlock()
-
-		if isBatchReady {
-			self.SubmitToWorker(func() { self.flush() })
-		}
-	}
-	return nil
-}
-
-func (self *SinkTask[T]) flush() error {
-	if self.numPendingConfirmation() > 10000 {
-		self.Log.WithField("len", self.queue.Len()).Warn("Too many data in queue")
+func (self *SinkTask[In]) flush() {
+	// Copy data to avoid locking for too long
+	data := make([]In, 0, self.queue.Len())
+	for i := 0; i < self.queue.Len(); i++ {
+		data = append(data, self.queue.PopFront())
 	}
 
-	// Repeat while there's still data in the queue
-	for {
-		self.mtx.Lock()
-		size := self.queue.Len()
-		if size == 0 {
-			// No data left, break the infinite loop
-			self.mtx.Unlock()
-			break
-		}
+	self.SubmitToWorker(func() {
+		// Expotentially increase the interval between retries
+		// Never stop retrying
+		// Wait at most maxBackoffInterval between retries
+		b := backoff.NewExponentialBackOff()
+		b.MaxElapsedTime = self.maxElapsedTime
+		b.MaxInterval = self.maxInterval
 
-		if size > self.batchSize {
-			size = self.batchSize
-		}
+		err := backoff.Retry(func() error {
+			return self.onFlush(data)
+		}, b)
 
-		// Copy data to avoid locking for too long
-		batch := make([]T, 0, size)
-		for i := 0; i < size; i++ {
-			batch = append(batch, self.queue.PopFront())
-		}
-		self.mtx.Unlock()
-
-		err := self.onFlush(batch)
 		if err != nil {
-			return err
+			self.Log.WithError(err).Error("Failed to flush data")
+		}
+	})
+}
+
+// Receives data from the input channel and saves in the database
+func (self *SinkTask[In]) run() (err error) {
+	// Used to ensure data isn't stuck in Processor for too long
+	timer := time.NewTimer(self.flushInterval)
+
+	for {
+		select {
+		case in, ok := <-self.input:
+			if !ok {
+				// The only way input channel is closed is that the Processor's source is stopping
+				// There will be no more data, flush everything there is and quit.
+				self.flush()
+
+				return
+			}
+
+			self.queue.PushBack(in)
+
+			if self.queue.Len() >= self.batchSize {
+				self.flush()
+			}
+
+		case <-timer.C:
+			// Flush is called even if the queue is empty
+			self.flush()
+			timer = time.NewTimer(self.flushInterval)
 		}
 	}
-	return nil
 }
