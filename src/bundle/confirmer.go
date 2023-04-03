@@ -59,6 +59,8 @@ func (self *Confirmer) WithNetworkMonitor(v *listener.NetworkMonitor) *Confirmer
 }
 
 func (self *Confirmer) save(confirmations []*Confirmation) error {
+	self.Log.WithField("len", len(confirmations)).Error("Saving confirmations to DB")
+
 	// Network manager updates this value
 	// NOTE: This can potentially block if NetworkMonitor can't get the first height
 	currentBlockHeight := self.networkMonitor.GetLastNetworkInfo().Height
@@ -93,7 +95,7 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 		return nil
 	})
 	if err != nil {
-		self.Log.WithError(err).Error("Failed to save bundle items")
+		self.Log.WithError(err).Error("Failed to save bundle items, retrying...")
 
 		// Update monitoring
 		self.monitor.GetReport().Bundler.Errors.ConfirmationsSavedToDbError.Inc()
