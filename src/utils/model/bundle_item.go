@@ -7,6 +7,10 @@ import (
 	"github.com/jackc/pgtype"
 )
 
+const (
+	TableBundleItem = "bundle_items"
+)
+
 // CREATE TABLE "bundle_items" ("interaction_id" bigserial NOT NULL,"state"  bundle_state NOT NULL,"block_height" bigint,"updated_at" timestamptz,PRIMARY KEY ("interaction_id"),CONSTRAINT "fk_bundle_items_interaction" FOREIGN KEY ("interaction_id") REFERENCES "interactions"("id"))
 // CREATE INDEX IF NOT EXISTS "idx_bundle_items_block_height" ON "bundle_items" USING btree("block_height" desc) WHERE state != 'ON_ARWEAVE'
 type BundleItem struct {

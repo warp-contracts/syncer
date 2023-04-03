@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgtype"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Periodically saves the confirmation state of the bundlet interactions
@@ -72,6 +73,12 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 		return a.InteractionID < b.InteractionID
 	})
 
+	// Prepare ids
+	ids := make([]int, len(confirmations))
+	for i, confirmation := range confirmations {
+		ids[i] = confirmation.InteractionID
+	}
+
 	// Network manager updates this value
 	// NOTE: This can potentially block if NetworkMonitor can't get the first height
 	currentBlockHeight := self.networkMonitor.GetLastNetworkInfo().Height
@@ -80,6 +87,18 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 	// NOTE: It still uses many requests to the database,
 	// it should be possible to combine updates into batches, but it's not a priority for now.
 	err := self.db.Transaction(func(tx *gorm.DB) (err error) {
+		err = tx.Table(model.TableInteraction).
+			Select("1").
+			Where("id IN ?", ids).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Error
+
+		err = tx.Table(model.TableBundleItem).
+			Select("1").
+			Where("interaction_id IN ?", ids).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Error
+
 		for _, confirmation := range confirmations {
 			err := tx.Model(&model.BundleItem{
 				InteractionID: confirmation.InteractionID,
