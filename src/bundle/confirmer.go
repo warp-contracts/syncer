@@ -59,7 +59,12 @@ func (self *Confirmer) WithNetworkMonitor(v *listener.NetworkMonitor) *Confirmer
 }
 
 func (self *Confirmer) save(confirmations []*Confirmation) error {
-	self.Log.WithField("len", len(confirmations)).Error("Saving confirmations to DB")
+	if len(confirmations) == 0 {
+		// Nothing to save
+		return nil
+	}
+
+	self.Log.WithField("len", len(confirmations)).Info("Saving confirmations to DB")
 
 	// Network manager updates this value
 	// NOTE: This can potentially block if NetworkMonitor can't get the first height
