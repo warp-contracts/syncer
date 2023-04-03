@@ -2,6 +2,7 @@ package bundle
 
 import (
 	"context"
+	"fmt"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
@@ -80,14 +81,14 @@ func (self *Poller) check() {
 			(
 				SELECT interaction_id
 				FROM bundle_items
-				WHERE state = 'UPLOADING'::bundle_state AND updated_at < NOW() - INTERVAL '? SECONDS'
+				WHERE state = 'UPLOADING'::bundle_state AND updated_at < NOW() - ?::interval
 				LIMIT ?
 			)
 		)
 		UPDATE bundle_items
 		SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
 		WHERE interaction_id IN (SELECT interaction_id FROM rows)
-		RETURNING *`, self.Config.Bundler.PollerMaxBatchSize, self.Config.Bundler.PollerRetryBundleAfter.Seconds(), self.Config.Bundler.PollerMaxBatchSize).
+		RETURNING *`, self.Config.Bundler.PollerMaxBatchSize, fmt.Sprintf("%d seconds", int((self.Config.Bundler.PollerRetryBundleAfter.Seconds()))), self.Config.Bundler.PollerMaxBatchSize).
 		Scan(&bundleItems).Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get interactions")
