@@ -2,6 +2,7 @@ package bundle
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
@@ -70,26 +71,29 @@ func (self *Poller) check() {
 	// Inserts interactions that weren't yet bundled into bundle_items table
 	var bundleItems []model.BundleItem
 	err := self.db.WithContext(ctx).
-		Raw(`WITH rows AS (
-			(
-				SELECT interaction_id
-				FROM bundle_items
-				WHERE state = 'PENDING'::bundle_state
-				LIMIT ?
+		Transaction(func(tx *gorm.DB) error {
+			return tx.Raw(`WITH rows AS (
+				(
+					SELECT interaction_id
+					FROM bundle_items
+					WHERE state = 'PENDING'::bundle_state
+					LIMIT ?
+				)
+				UNION
+				(
+					SELECT interaction_id
+					FROM bundle_items
+					WHERE state = 'UPLOADING'::bundle_state AND updated_at < NOW() - ?::interval
+					LIMIT ?
+				)
 			)
-			UNION
-			(
-				SELECT interaction_id
-				FROM bundle_items
-				WHERE state = 'UPLOADING'::bundle_state AND updated_at < NOW() - ?::interval
-				LIMIT ?
-			)
-		)
-		UPDATE bundle_items
-		SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
-		WHERE interaction_id IN (SELECT interaction_id FROM rows)
-		RETURNING *`, self.Config.Bundler.PollerMaxBatchSize, fmt.Sprintf("%d seconds", int((self.Config.Bundler.PollerRetryBundleAfter.Seconds()))), self.Config.Bundler.PollerMaxBatchSize).
-		Scan(&bundleItems).Error
+			UPDATE bundle_items
+			SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
+			WHERE interaction_id IN (SELECT interaction_id FROM rows)
+			RETURNING *`, self.Config.Bundler.PollerMaxBatchSize, fmt.Sprintf("%d seconds", int((self.Config.Bundler.PollerRetryBundleAfter.Seconds()))), self.Config.Bundler.PollerMaxBatchSize).
+				Scan(&bundleItems).Error
+		}, &sql.TxOptions{Isolation: sql.LevelReadUncommitted})
+
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get interactions")
 	}
