@@ -16,6 +16,12 @@ type Contract struct {
 	// Possible contract source content types
 	LoaderSupportedContentTypes []string
 
+	// Max time confirmer will try to insert a batch of data to the database. 0 means no limit
+	LoaderBackoffMaxElapsedTime time.Duration
+
+	// Max time between retries to insert a batch of confirmations to  the database
+	LoaderBackoffMaxInterval time.Duration
+
 	// Max time for a transaction to be downloaded. 0 means no limit
 	TransactionMaxElapsedTime time.Duration
 
@@ -41,6 +47,8 @@ func setContractDefaults() {
 	viper.SetDefault("Contract.LoaderWorkerPoolSize", "50")
 	viper.SetDefault("Contract.LoaderWorkerQueueSize", "100")
 	viper.SetDefault("Contract.LoaderSupportedContentTypes", []string{"application/javascript", "application/wasm"})
+	viper.SetDefault("Contract.LoaderBackoffMaxElapsedTime", "120s")
+	viper.SetDefault("Contract.LoaderBackoffMaxInterval", "15s")
 	viper.SetDefault("Contract.TransactionMaxElapsedTime", "5m")
 	viper.SetDefault("Contract.TransactionMaxInterval", "15s")
 	viper.SetDefault("Contract.StoreBatchSize", "10")

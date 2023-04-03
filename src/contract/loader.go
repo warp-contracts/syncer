@@ -13,6 +13,7 @@ import (
 	"syncer/src/utils/task"
 	"syncer/src/utils/warp"
 
+	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/exp/slices"
 )
 
@@ -94,16 +95,32 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 	for _, tx := range transactions {
 		tx := tx
 		self.SubmitToWorker(func() {
-			contractData, err := self.load(tx)
+			b := backoff.NewExponentialBackOff()
+			b.MaxElapsedTime = self.Config.Contract.LoaderBackoffMaxElapsedTime
+			b.MaxInterval = self.Config.Contract.LoaderBackoffMaxInterval
+
+			var contractData *ContractData
+
+			// Retry loading contract upon error
+			// Skip contract after LoaderBackoffMaxElapsedTime
+			err := backoff.Retry(func() (err error) {
+				contractData, err = self.load(tx)
+				if err != nil {
+					// FIXME: Monitor errors
+					self.Log.WithError(err).WithField("id", tx.ID).Warn("Failed to load contract, retrying after timeout...")
+				}
+				return
+			}, b)
 			if err != nil {
 				// FIXME: Monitor errors
-				self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract")
+				self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, stopped trying!")
 				goto done
 			}
 
 			mtx.Lock()
 			out = append(out, contractData)
 			mtx.Unlock()
+
 		done:
 			wg.Done()
 		})
