@@ -92,12 +92,17 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 			Where("id IN ?", ids).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			Error
-
+		if err != nil {
+			return
+		}
 		err = tx.Table(model.TableBundleItem).
 			Select("1").
 			Where("interaction_id IN ?", ids).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			Error
+		if err != nil {
+			return
+		}
 
 		for _, confirmation := range confirmations {
 			err := tx.Model(&model.BundleItem{
