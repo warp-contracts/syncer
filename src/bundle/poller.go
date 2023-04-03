@@ -72,8 +72,7 @@ func (self *Poller) check() {
 	var bundleItems []model.BundleItem
 	err := self.db.WithContext(ctx).
 		Transaction(func(tx *gorm.DB) error {
-			return tx.Raw(`WITH rows AS (
-				SELECT interaction_id FROM (
+			return tx.Raw(`WITH rows AS ( SELECT interaction_id FROM (
 				(
 					SELECT interaction_id
 					FROM bundle_items

@@ -88,9 +88,18 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 	// Uses one transaction to do all the updates
 	// NOTE: It still uses many requests to the database,
 	// it should be possible to combine updates into batches, but it's not a priority for now.
-	err := self.db.Transaction(func(tx *gorm.DB) error {
-		tx.Clauses(clause.Locking{Strength: "UPDATE"}).Find(bundleItems)
-		tx.Clauses(clause.Locking{Strength: "UPDATE"}).Find(interactions)
+	err := self.db.Transaction(func(tx *gorm.DB) (err error) {
+		err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).Find(bundleItems).
+			Error
+		if err != nil {
+			return err
+		}
+
+		err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).Find(interactions).
+			Error
+		if err != nil {
+			return err
+		}
 
 		for _, confirmation := range confirmations {
 			err := tx.Model(&model.BundleItem{
