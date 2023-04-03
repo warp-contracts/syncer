@@ -125,7 +125,7 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 			}
 		}
 		return nil
-	}, &sql.TxOptions{Isolation: sql.LevelReadUncommitted})
+	})
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to save bundle items, retrying...")
 

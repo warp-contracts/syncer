@@ -2,7 +2,6 @@ package bundle
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
@@ -94,7 +93,7 @@ func (self *Poller) check() {
 			WHERE interaction_id IN (SELECT interaction_id FROM rows)
 			RETURNING *`, self.Config.Bundler.PollerMaxBatchSize, fmt.Sprintf("%d seconds", int((self.Config.Bundler.PollerRetryBundleAfter.Seconds()))), self.Config.Bundler.PollerMaxBatchSize).
 				Scan(&bundleItems).Error
-		}, &sql.TxOptions{Isolation: sql.LevelReadUncommitted})
+		})
 
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get interactions")
