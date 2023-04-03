@@ -9,6 +9,7 @@ import (
 	monitor_syncer "syncer/src/utils/monitoring/syncer"
 	"syncer/src/utils/peer_monitor"
 	"syncer/src/utils/task"
+	"syncer/src/utils/warp"
 )
 
 type Controller struct {
@@ -34,7 +35,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			panic(err)
 		}
 
-		client := arweave.NewClient(self.Ctx, config)
+		client := arweave.NewClient(self.Ctx, config).
+			WithTagValidator(warp.ValidateTag)
 
 		peerMonitor := peer_monitor.NewPeerMonitor(config).
 			WithClient(client).

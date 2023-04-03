@@ -260,13 +260,14 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 		err = errors.New("contract source content type is not set")
 		return
 	}
-	err = out.SrcContentType.Set(srcContentType)
-	if err != nil {
+
+	if !slices.Contains(self.Config.Contract.LoaderSupportedContentTypes, srcContentType) {
+		err = errors.New("unsupported contract source content type")
 		return
 	}
 
-	if !slices.Contains(self.Config.Contract.LoaderSupportedContentTypes, out.SrcContentType.String) {
-		err = errors.New("unsupported contract source content type")
+	err = out.SrcContentType.Set(srcContentType)
+	if err != nil {
 		return
 	}
 
@@ -276,7 +277,7 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 		return
 	}
 
-	// Get source
+	// Get source from transaction's data
 	src, err := self.client.GetTransactionDataById(self.Ctx, srcId)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get source data")
