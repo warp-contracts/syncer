@@ -34,8 +34,11 @@ type Processor[In any, Out any] struct {
 	// Flush interval
 	flushInterval time.Duration
 
+	// Max time flush should be retried. 0 means no limit.
+	maxElapsedTime time.Duration
+
 	// Max times between flush retries
-	maxBackoffInterval time.Duration
+	maxInterval time.Duration
 }
 
 func NewProcessor[In any, Out any](config *config.Config, name string) (self *Processor[In, Out]) {
@@ -70,8 +73,9 @@ func (self *Processor[In, Out]) WithOnProcess(f func(In) ([]Out, error)) *Proces
 	return self
 }
 
-func (self *Processor[In, Out]) WithMaxBackoffInterval(v time.Duration) *Processor[In, Out] {
-	self.maxBackoffInterval = v
+func (self *Processor[In, Out]) WithBackoff(maxElapsedTime, maxInterval time.Duration) *Processor[In, Out] {
+	self.maxElapsedTime = maxElapsedTime
+	self.maxInterval = maxInterval
 	return self
 }
 
@@ -87,8 +91,8 @@ func (self *Processor[In, Out]) flush() {
 		// Never stop retrying
 		// Wait at most maxBackoffInterval between retries
 		b := backoff.NewExponentialBackOff()
-		b.MaxElapsedTime = 0
-		b.MaxInterval = self.maxBackoffInterval
+		b.MaxElapsedTime = self.maxElapsedTime
+		b.MaxInterval = self.maxInterval
 
 		err := backoff.Retry(func() error {
 			return self.onFlush(data)

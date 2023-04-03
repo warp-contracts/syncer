@@ -87,7 +87,9 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 		mtx sync.Mutex
 	)
 
+	// Wait for all the contracts to be processed
 	wg.Add(len(transactions))
+
 	out = make([]*ContractData, 0, len(transactions))
 	for _, tx := range transactions {
 		tx := tx

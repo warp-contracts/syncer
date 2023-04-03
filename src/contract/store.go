@@ -8,8 +8,6 @@ import (
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 
-	"time"
-
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -35,9 +33,9 @@ func NewStore(config *config.Config) (self *Store) {
 
 	self.Processor = task.NewProcessor[*Payload, *ContractData](config, "store-contract").
 		WithBatchSize(config.Contract.StoreBatchSize).
-		WithOnFlush(time.Second, self.flush).
+		WithOnFlush(config.Contract.StoreInterval, self.flush).
 		WithOnProcess(self.process).
-		WithMaxBackoffInterval(15 * time.Second)
+		WithBackoff(config.Contract.StoreBackoffMaxElapsedTime, config.Contract.StoreBackoffMaxInterval)
 
 	return
 }
