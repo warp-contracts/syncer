@@ -73,6 +73,7 @@ func (self *Poller) check() {
 	err := self.db.WithContext(ctx).
 		Transaction(func(tx *gorm.DB) error {
 			return tx.Raw(`WITH rows AS (
+				SELECT interaction_id FROM (
 				(
 					SELECT interaction_id
 					FROM bundle_items
@@ -86,6 +87,8 @@ func (self *Poller) check() {
 					WHERE state = 'UPLOADING'::bundle_state AND updated_at < NOW() - ?::interval
 					LIMIT ?
 				)
+			) a
+			ORDER BY interaction_id ASC
 			)
 			UPDATE bundle_items
 			SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
