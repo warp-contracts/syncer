@@ -89,6 +89,7 @@ func (self *Bundler) run() (err error) {
 
 			// Anchor is needed to avoid problem with same data being uploaded multiple times in Data field
 			// Bundlr rejects such transaction with error like "Transaction ... already received"
+			bundleItem.Anchor = make([]byte, 4)
 			binary.BigEndian.PutUint32(bundleItem.Anchor, rand.Uint32())
 
 			data, err := item.Transaction.MarshalJSON()
