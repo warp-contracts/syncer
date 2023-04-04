@@ -33,12 +33,13 @@ func NewPoller(config *config.Config) (self *Poller) {
 	}
 
 	self.Task = task.NewTask(config, "poller").
-		WithPeriodicSubtaskFunc(config.Bundler.PollerInterval, self.runPeriodically).
+		WithPeriodicSubtaskFunc(config.Bundler.PollerInterval, self.handleNewTransactions).
+		WithPeriodicSubtaskFunc(config.Bundler.PollerInterval, self.handleRetrying)
 		// Worker pool for downloading interactions in parallel
 		// Pool of workers that actually do the check.
 		// It's possible to run multiple requests in parallel.
 		// We're limiting the number of parallel requests with the number of workers.
-		WithWorkerPool(config.InteractionManagerMaxParallelQueries, 1)
+		// WithWorkerPool(config.InteractionManagerMaxParallelQueries, 1)
 
 	return
 }
@@ -58,63 +59,97 @@ func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
 	return self
 }
 
-func (self *Poller) runPeriodically() error {
-	self.SubmitToWorker(self.check)
-	return nil
-}
+func (self *Poller) handleNewTransactions() error {
+	// Repeat until there are no more interactions to fetch
+	for {
+		ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Bundler.PollerTimeout)
+		defer cancel()
 
-func (self *Poller) check() {
-	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Bundler.PollerTimeout)
-	defer cancel()
-
-	// Inserts interactions that weren't yet bundled into bundle_items table
-	var bundleItems []model.BundleItem
-	err := self.db.WithContext(ctx).
-		Transaction(func(tx *gorm.DB) error {
-			return tx.Raw(`WITH rows AS ( SELECT interaction_id FROM (
-				(
-					SELECT interaction_id
-					FROM bundle_items
-					WHERE state = 'PENDING'::bundle_state
-					LIMIT ?
-				)
-				UNION
-				(
-					SELECT interaction_id
-					FROM bundle_items
-					WHERE state = 'UPLOADING'::bundle_state AND updated_at < NOW() - ?::interval
-					LIMIT ?
-				)
-			) a
-			ORDER BY interaction_id ASC
-			)
-			UPDATE bundle_items
+		// Inserts interactions that weren't yet bundled into bundle_items table
+		var bundleItems []model.BundleItem
+		err := self.db.WithContext(ctx).
+			Transaction(func(tx *gorm.DB) error {
+				return tx.Raw(`UPDATE bundle_items
 			SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
-			WHERE interaction_id IN (SELECT interaction_id FROM rows)
-			RETURNING *`, self.Config.Bundler.PollerMaxBatchSize, fmt.Sprintf("%d seconds", int((self.Config.Bundler.PollerRetryBundleAfter.Seconds()))), self.Config.Bundler.PollerMaxBatchSize).
-				Scan(&bundleItems).Error
-		})
+			WHERE interaction_id IN (SELECT interaction_id
+				FROM bundle_items
+				WHERE state = 'PENDING'::bundle_state
+				ORDER BY interaction_id ASC
+				LIMIT ?
+				FOR UPDATE SKIP LOCKED)
+			RETURNING *`, self.Config.Bundler.PollerMaxBatchSize).
+					Scan(&bundleItems).Error
+			})
 
-	if err != nil {
-		self.Log.WithError(err).Error("Failed to get interactions")
-	}
-
-	self.Log.WithField("count", len(bundleItems)).Trace("Polled bundle items")
-
-	for i := range bundleItems {
-		select {
-		case <-self.StopChannel:
-			return
-		case self.output <- &bundleItems[i]:
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to get interactions")
 		}
 
-		// Update metrics
-		self.monitor.GetReport().Bundler.State.BundlesFromSelects.Inc()
-	}
+		self.Log.WithField("count", len(bundleItems)).Trace("Polled new bundle items")
 
-	// Start another check if there can be more items to fetch
-	// Skip this if another check is scheduled
-	if len(bundleItems) == self.Config.Bundler.PollerMaxBatchSize {
-		self.SubmitToWorkerIfEmpty(self.check)
+		for i := range bundleItems {
+			select {
+			case <-self.StopChannel:
+				return nil
+			case self.output <- &bundleItems[i]:
+			}
+
+			// Update metrics
+			self.monitor.GetReport().Bundler.State.BundlesFromSelects.Inc()
+		}
+
+		// Start another check if there can be more items to fetch
+		// Skip this if another check is scheduled
+		if len(bundleItems) != self.Config.Bundler.PollerMaxBatchSize {
+			return nil
+		}
+	}
+}
+
+func (self *Poller) handleRetrying() error {
+	// Repeat until there are no more interactions to fetch
+	for {
+		ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Bundler.PollerTimeout)
+		defer cancel()
+
+		// Inserts interactions that weren't yet bundled into bundle_items table
+		var bundleItems []model.BundleItem
+		err := self.db.WithContext(ctx).
+			Transaction(func(tx *gorm.DB) error {
+				return tx.Raw(`UPDATE bundle_items
+			SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
+			WHERE interaction_id IN (
+				SELECT interaction_id
+				FROM bundle_items
+				WHERE state = 'UPLOADING'::bundle_state AND updated_at < NOW() - ?::interval
+				ORDER BY interaction_id ASC
+				LIMIT ?
+				FOR UPDATE SKIP LOCKED)
+			RETURNING *`, fmt.Sprintf("%d seconds", int((self.Config.Bundler.PollerRetryBundleAfter.Seconds()))), self.Config.Bundler.PollerMaxBatchSize).
+					Scan(&bundleItems).Error
+			})
+
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to get interactions")
+		}
+
+		self.Log.WithField("count", len(bundleItems)).Trace("Polled new bundle items")
+
+		for i := range bundleItems {
+			select {
+			case <-self.StopChannel:
+				return nil
+			case self.output <- &bundleItems[i]:
+			}
+
+			// Update metrics
+			self.monitor.GetReport().Bundler.State.BundlesFromSelects.Inc()
+		}
+
+		// Start another check if there can be more items to fetch
+		// Skip this if another check is scheduled
+		if len(bundleItems) != self.Config.Bundler.PollerMaxBatchSize {
+			return nil
+		}
 	}
 }
