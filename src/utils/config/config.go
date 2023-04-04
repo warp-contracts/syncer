@@ -117,12 +117,6 @@ type Config struct {
 	// Max time between failed retries to save data.
 	StoreMaxBackoffInterval time.Duration
 
-	// How often is IM pooling the database
-	InteractionManagerInterval time.Duration
-
-	// How long does it wait for the query response
-	InteractionManagerTimeout time.Duration
-
 	Bundler  Bundler
 	Bundlr   Bundlr
 	Checker  Checker
