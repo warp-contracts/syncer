@@ -143,7 +143,7 @@ func (self *Poller) handleRetrying() error {
 			}
 
 			// Update metrics
-			self.monitor.GetReport().Bundler.State.BundlesFromSelects.Inc()
+			self.monitor.GetReport().Bundler.State.RetriedBundlesFromSelects.Inc()
 		}
 
 		// Start another check if there can be more items to fetch

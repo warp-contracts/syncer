@@ -11,6 +11,7 @@ type Collector struct {
 	BundlesFromNotifications    *prometheus.Desc
 	AdditionalFetches           *prometheus.Desc
 	BundlesFromSelects          *prometheus.Desc
+	RetriedBundlesFromSelects   *prometheus.Desc
 	AllBundlesFromDb            *prometheus.Desc
 	BundlrSuccess               *prometheus.Desc
 	ConfirmationsSavedToDb      *prometheus.Desc
@@ -30,6 +31,7 @@ func NewCollector() *Collector {
 		BundlesFromNotifications:    prometheus.NewDesc("bundles_from_notifications", "", nil, labels),
 		AdditionalFetches:           prometheus.NewDesc("additional_fetches", "", nil, labels),
 		BundlesFromSelects:          prometheus.NewDesc("bundles_from_selects", "", nil, labels),
+		RetriedBundlesFromSelects:   prometheus.NewDesc("retried_bundles_from_selects", "", nil, labels),
 		AllBundlesFromDb:            prometheus.NewDesc("all_bundles_from_db", "", nil, labels),
 		BundlrSuccess:               prometheus.NewDesc("bundlr_success", "", nil, labels),
 		ConfirmationsSavedToDb:      prometheus.NewDesc("confirmations_saved_to_db", "", nil, labels),
@@ -49,6 +51,7 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.PendingBundleItems
 	ch <- self.BundlesFromNotifications
 	ch <- self.BundlesFromSelects
+	ch <- self.RetriedBundlesFromSelects
 	ch <- self.AdditionalFetches
 	ch <- self.AllBundlesFromDb
 	ch <- self.BundlrSuccess
@@ -66,6 +69,7 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.BundlesFromNotifications, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlesFromNotifications.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AdditionalFetches, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.AdditionalFetches.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundlesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlesFromSelects.Load()))
+	ch <- prometheus.MustNewConstMetric(self.RetriedBundlesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlesFromSelects.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AllBundlesFromDb, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.AllBundlesFromDb.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundlrSuccess, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlrSuccess.Load()))
 	ch <- prometheus.MustNewConstMetric(self.ConfirmationsSavedToDb, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.ConfirmationsSavedToDb.Load()))

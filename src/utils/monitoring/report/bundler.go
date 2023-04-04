@@ -16,10 +16,11 @@ type BundlerState struct {
 	PendingBundleItems atomic.Int64 `json:"pending_bundle_items"`
 
 	// Counting bundles that come from the database
-	BundlesFromNotifications atomic.Uint64 `json:"bundles_from_notifications"`
-	AdditionalFetches        atomic.Uint64 `json:"additional_fetches"`
-	BundlesFromSelects       atomic.Uint64 `json:"bundles_from_selects"`
-	AllBundlesFromDb         atomic.Uint64 `json:"all_bundles_from_db"`
+	BundlesFromNotifications  atomic.Uint64 `json:"bundles_from_notifications"`
+	AdditionalFetches         atomic.Uint64 `json:"additional_fetches"`
+	BundlesFromSelects        atomic.Uint64 `json:"bundles_from_selects"`
+	RetriedBundlesFromSelects atomic.Uint64 `json:"retried_bundles_from_selects"`
+	AllBundlesFromDb          atomic.Uint64 `json:"all_bundles_from_db"`
 
 	// Counting bundles sent to bundlr.network
 	BundlrSuccess atomic.Uint64 `json:"bundlr_success"`
