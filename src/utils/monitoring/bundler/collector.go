@@ -7,6 +7,7 @@ import (
 type Collector struct {
 	monitor *Monitor
 
+	PendingBundleItems          *prometheus.Desc
 	BundlesFromNotifications    *prometheus.Desc
 	AdditionalFetches           *prometheus.Desc
 	BundlesFromSelects          *prometheus.Desc
@@ -24,6 +25,7 @@ func NewCollector() *Collector {
 	}
 
 	return &Collector{
+		PendingBundleItems:          prometheus.NewDesc("pending_bundle_items", "", nil, labels),
 		BundlesFromNotifications:    prometheus.NewDesc("bundles_from_notifications", "", nil, labels),
 		AdditionalFetches:           prometheus.NewDesc("additional_fetches", "", nil, labels),
 		BundlesFromSelects:          prometheus.NewDesc("bundles_from_selects", "", nil, labels),
@@ -42,6 +44,7 @@ func (self *Collector) WithMonitor(m *Monitor) *Collector {
 }
 
 func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- self.PendingBundleItems
 	ch <- self.BundlesFromNotifications
 	ch <- self.BundlesFromSelects
 	ch <- self.AdditionalFetches
@@ -57,6 +60,7 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements required collect function for all promehteus collectors
 func (self *Collector) Collect(ch chan<- prometheus.Metric) {
+	ch <- prometheus.MustNewConstMetric(self.PendingBundleItems, prometheus.GaugeValue, float64(self.monitor.Report.Bundler.State.PendingBundleItems.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundlesFromNotifications, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlesFromNotifications.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AdditionalFetches, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.AdditionalFetches.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundlesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlesFromSelects.Load()))

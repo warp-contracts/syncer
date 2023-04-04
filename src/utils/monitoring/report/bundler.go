@@ -11,6 +11,9 @@ type BundlerErrors struct {
 }
 
 type BundlerState struct {
+	// Transactions that are pending, waiting to be bundled in the database
+	PendingBundleItems atomic.Int64 `json:"pending_bundle_items"`
+
 	// Counting bundles that come from the database
 	BundlesFromNotifications atomic.Uint64 `json:"bundles_from_notifications"`
 	AdditionalFetches        atomic.Uint64 `json:"additional_fetches"`
