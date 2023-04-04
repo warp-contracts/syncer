@@ -47,6 +47,9 @@ type Task struct {
 	onAfterStop   []func()
 	subtasksFunc  []func() error
 	subtasks      []*Task
+
+	// Enabled
+	isEnabled bool
 }
 
 func NewTask(config *config.Config, name string) (self *Task) {
@@ -85,6 +88,18 @@ func (self *Task) WithOnAfterStop(f func()) *Task {
 func (self *Task) WithOnStop(f func()) *Task {
 	self.onStop = append(self.onStop, f)
 	return self
+}
+
+func (self *Task) WithEnable(v bool) *Task {
+	self.isEnabled = v
+	return self
+}
+
+func (self *Task) WithConditionalSubtask(isEnabled bool, t *Task) *Task {
+	if !isEnabled {
+		return self
+	}
+	return self.WithSubtask(t)
 }
 
 func (self *Task) WithSubtask(t *Task) *Task {

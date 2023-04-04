@@ -77,18 +77,19 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithNetworkMonitor(networkMonitor).
 		WithInputChannel(bundler.Output)
 
+	// Periodically run queries. Results stored in the monitor.
 	dbPoller := monitoring.NewDbPoller(config).
 		WithDB(db).
 		WithQuery(config.Bundler.DBPollerInterval, &monitor.GetReport().Bundler.State.PendingBundleItems, "SELECT count(1) FROM bundle_items WHERE state='PENDING'")
 
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
+		WithConditionalSubtask(!config.Bundler.NotifierDisabled && config.Bundler.PollerDisabled, dbPoller.Task).
 		WithSubtask(confirmer.Task).
 		WithSubtask(bundler.Task).
 		WithSubtask(monitor.Task).
 		WithSubtask(networkMonitor.Task).
 		WithSubtask(server.Task).
-		WithSubtask(dbPoller.Task).
 		WithSubtask(collector.Task)
 	return
 }
