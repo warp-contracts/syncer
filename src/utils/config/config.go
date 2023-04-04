@@ -123,9 +123,6 @@ type Config struct {
 	// How long does it wait for the query response
 	InteractionManagerTimeout time.Duration
 
-	// Maksimum number of requests run in parallel
-	InteractionManagerMaxParallelQueries int
-
 	Bundler  Bundler
 	Bundlr   Bundlr
 	Checker  Checker

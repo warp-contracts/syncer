@@ -35,11 +35,6 @@ func NewPoller(config *config.Config) (self *Poller) {
 	self.Task = task.NewTask(config, "poller").
 		WithPeriodicSubtaskFunc(config.Bundler.PollerInterval, self.handleNewTransactions).
 		WithPeriodicSubtaskFunc(config.Bundler.PollerInterval, self.handleRetrying)
-		// Worker pool for downloading interactions in parallel
-		// Pool of workers that actually do the check.
-		// It's possible to run multiple requests in parallel.
-		// We're limiting the number of parallel requests with the number of workers.
-		// WithWorkerPool(config.InteractionManagerMaxParallelQueries, 1)
 
 	return
 }
