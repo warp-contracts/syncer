@@ -109,8 +109,20 @@ func (self *Bundler) run() (err error) {
 			// Send the bundle item to bundlr
 			uploadResponse, resp, err := self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
 			if err != nil {
-				self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to upload interaction to Bundlr")
-
+				if resp != nil {
+					self.Log.WithError(err).
+						WithField("id", item.InteractionID).
+						WithField("resp", string(resp.Body())).
+						WithField("req", resp.Request.Body).
+						WithField("url", resp.Request.URL).
+						Error("Failed to upload interaction to Bundlr")
+				} else {
+					self.Log.WithError(err).
+						WithField("id", item.InteractionID).
+						WithField("req", resp.Request.Body).
+						WithField("url", resp.Request.URL).
+						Error("Failed to upload interaction to Bundlr, no response")
+				}
 				// Update stats
 				self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
 
