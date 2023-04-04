@@ -99,7 +99,7 @@ func (self *Poller) check() {
 		self.Log.WithError(err).Error("Failed to get interactions")
 	}
 
-	self.Log.WithField("count", len(bundleItems)).Debug("Polled bundle items")
+	self.Log.WithField("count", len(bundleItems)).Trace("Polled bundle items")
 
 	for i := range bundleItems {
 		select {

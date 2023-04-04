@@ -66,7 +66,7 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 		return nil
 	}
 
-	self.Log.WithField("len", len(confirmations)).Info("Saving confirmations to DB")
+	self.Log.WithField("len", len(confirmations)).Trace("Saving confirmations to DB")
 
 	// Sort confirmations by interaction ID to minimize deadlocks
 	slices.SortFunc(confirmations, func(a, b *Confirmation) bool {

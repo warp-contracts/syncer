@@ -6,6 +6,7 @@ import (
 
 type BundlerErrors struct {
 	BundrlError                 atomic.Uint64 `json:"bundrl_error"`
+	BundrlMarshalError          atomic.Uint64 `json:"bundrl_marshal_error"`
 	ConfirmationsSavedToDbError atomic.Uint64 `json:"confirmations_saved_to_db_error"`
 	AdditionalFetchError        atomic.Uint64 `json:"additional_fetch_error"`
 }

@@ -105,7 +105,7 @@ func (self *Bundler) run() (err error) {
 				return
 			}
 
-			// self.Log.WithField("id", item.InteractionID).Debug("Sending interaction to Bundlr")
+			// self.Log.WithField("id", item.InteractionID).Trace("Sending interaction to Bundlr")
 			// Send the bundle item to bundlr
 			uploadResponse, resp, err := self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
 			if err != nil {
@@ -135,6 +135,7 @@ func (self *Bundler) run() (err error) {
 			// We'll store the JSON response
 			response, err := json.Marshal(uploadResponse)
 			if err != nil {
+				self.monitor.GetReport().Bundler.Errors.BundrlMarshalError.Inc()
 				self.Log.WithError(err).Error("Failed to marshal response")
 				return
 			}
