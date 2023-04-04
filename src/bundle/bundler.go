@@ -1,7 +1,9 @@
 package bundle
 
 import (
+	"encoding/binary"
 	"encoding/json"
+	"math/rand"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/bundlr"
 	"syncer/src/utils/config"
@@ -84,6 +86,10 @@ func (self *Bundler) run() (err error) {
 				// Mark it as uploaded, so it's not processed again
 				return
 			}
+
+			// Anchor is needed to avoid problem with same data being uploaded multiple times in Data field
+			// Bundlr rejects such transaction with error like "Transaction ... already received"
+			binary.BigEndian.PutUint32(bundleItem.Anchor, rand.Uint32())
 
 			data, err := item.Transaction.MarshalJSON()
 			if err != nil {
