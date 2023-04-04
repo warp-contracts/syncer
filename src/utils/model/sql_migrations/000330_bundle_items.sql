@@ -6,8 +6,7 @@ DROP INDEX IF EXISTS idx_bundle_items_poller_malformed_updated_at;
 -- +migrate Up
 -- This index is used to find pending bundles
 CREATE INDEX IF NOT EXISTS idx_bundle_items_poller_pending_state ON bundle_items 
-USING btree(state)
-INCLUDE (interaction_id)
+USING btree(interaction_id)
 WHERE state = 'PENDING'::bundle_state;
 
 -- This index shouldn't get too big since it's used only for retrying failed bundles
