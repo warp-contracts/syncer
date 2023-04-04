@@ -105,9 +105,8 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 		}
 
 		for _, confirmation := range confirmations {
-			err := tx.Model(&model.BundleItem{
-				InteractionID: confirmation.InteractionID,
-			}).
+			err := tx.Table(model.TableBundleItem).
+				Where("interaction_id = ?", confirmation.InteractionID).
 				Where("state = ?", model.BundleStateUploading).
 				Updates(model.BundleItem{
 					State:          model.BundleStateUploaded,
@@ -119,7 +118,7 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 				return err
 			}
 
-			err = tx.Model(&model.Interaction{}).
+			err = tx.Table(model.TableInteraction).
 				Where("id = ?", confirmation.InteractionID).
 				Update("bundler_tx_id", confirmation.BundlerTxID).
 				Error
