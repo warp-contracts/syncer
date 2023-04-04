@@ -19,6 +19,7 @@ type Collector struct {
 	BundrlMarshalError          *prometheus.Desc
 	ConfirmationsSavedToDbError *prometheus.Desc
 	AdditionalFetchError        *prometheus.Desc
+	PollerFetchError            *prometheus.Desc
 }
 
 func NewCollector() *Collector {
@@ -39,6 +40,7 @@ func NewCollector() *Collector {
 		BundrlMarshalError:          prometheus.NewDesc("bundrl_marshal_error", "", nil, labels),
 		ConfirmationsSavedToDbError: prometheus.NewDesc("confirmations_saved_to_db_error", "", nil, labels),
 		AdditionalFetchError:        prometheus.NewDesc("additional_fetch_error", "", nil, labels),
+		PollerFetchError:            prometheus.NewDesc("poller_fetch_error", "", nil, labels),
 	}
 }
 
@@ -61,6 +63,7 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.BundrlError
 	ch <- self.ConfirmationsSavedToDbError
 	ch <- self.AdditionalFetchError
+	ch <- self.PollerFetchError
 }
 
 // Collect implements required collect function for all promehteus collectors
@@ -69,7 +72,7 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.BundlesFromNotifications, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlesFromNotifications.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AdditionalFetches, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.AdditionalFetches.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundlesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlesFromSelects.Load()))
-	ch <- prometheus.MustNewConstMetric(self.RetriedBundlesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlesFromSelects.Load()))
+	ch <- prometheus.MustNewConstMetric(self.RetriedBundlesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.RetriedBundlesFromSelects.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AllBundlesFromDb, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.AllBundlesFromDb.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundlrSuccess, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlrSuccess.Load()))
 	ch <- prometheus.MustNewConstMetric(self.ConfirmationsSavedToDb, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.ConfirmationsSavedToDb.Load()))
@@ -77,4 +80,5 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.BundrlMarshalError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.BundrlMarshalError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.ConfirmationsSavedToDbError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.ConfirmationsSavedToDbError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AdditionalFetchError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.AdditionalFetchError.Load()))
+	ch <- prometheus.MustNewConstMetric(self.PollerFetchError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.PollerFetchError.Load()))
 }

@@ -9,6 +9,7 @@ type BundlerErrors struct {
 	BundrlMarshalError          atomic.Uint64 `json:"bundrl_marshal_error"`
 	ConfirmationsSavedToDbError atomic.Uint64 `json:"confirmations_saved_to_db_error"`
 	AdditionalFetchError        atomic.Uint64 `json:"additional_fetch_error"`
+	PollerFetchError            atomic.Uint64 `json:"poller_fetch_error"`
 }
 
 type BundlerState struct {

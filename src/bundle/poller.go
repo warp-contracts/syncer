@@ -82,10 +82,16 @@ func (self *Poller) handleNewTransactions() error {
 			})
 
 		if err != nil {
-			self.Log.WithError(err).Error("Failed to get interactions")
+			if err != gorm.ErrRecordNotFound {
+				self.Log.WithError(err).Error("Failed to get new interactions")
+				self.monitor.GetReport().Bundler.Errors.PollerFetchError.Inc()
+			}
+			return nil
 		}
 
-		self.Log.WithField("count", len(bundleItems)).Trace("Polled new bundle items")
+		if len(bundleItems) > 0 {
+			self.Log.WithField("count", len(bundleItems)).Debug("Polled new bundle items")
+		}
 
 		for i := range bundleItems {
 			select {
@@ -130,10 +136,16 @@ func (self *Poller) handleRetrying() error {
 			})
 
 		if err != nil {
-			self.Log.WithError(err).Error("Failed to get interactions")
+			if err != gorm.ErrRecordNotFound {
+				self.Log.WithError(err).Error("Failed to get interactions for retrying")
+				self.monitor.GetReport().Bundler.Errors.PollerFetchError.Inc()
+			}
+			return nil
 		}
 
-		self.Log.WithField("count", len(bundleItems)).Trace("Polled new bundle items")
+		if len(bundleItems) > 0 {
+			self.Log.WithField("count", len(bundleItems)).Trace("Polled bundle items for retrying")
+		}
 
 		for i := range bundleItems {
 			select {

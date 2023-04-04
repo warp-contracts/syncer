@@ -65,7 +65,7 @@ func (self *Store) save(payloads []*Payload) error {
 		return
 	})
 
-	self.Log.WithField("len", len(payloads)).Info("Saved payloads")
+	// self.Log.WithField("len", len(payloads)).Info("Saved payloads")
 
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to save interaction")
