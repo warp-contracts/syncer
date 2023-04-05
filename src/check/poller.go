@@ -54,6 +54,7 @@ func (self *Poller) run() error {
 	// Blocks waiting for the next network height
 	// Quits when the channel is closed
 	for networkInfo := range self.input {
+		self.Log.Info("Got network height: ", networkInfo.Height)
 		// Bundlr.network says it may takie 50 blocks for the tx to be finalized,
 		// no need to check it sooner
 		minHeightToCheck := networkInfo.Height - self.Config.Checker.MinConfirmationBlocks
@@ -74,8 +75,8 @@ func (self *Poller) run() error {
 				Where("bundle_items.state = ?", model.BundleStateUploaded).
 				Order("bundle_items.block_height ASC").
 				Limit(self.Config.Checker.MaxBundlesPerRun).
-				Preload("Interaction").
-				Scan(&interactions).Error
+				Scan(&interactions).
+				Error
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to get bundles to check")
 				return nil
@@ -86,6 +87,8 @@ func (self *Poller) run() error {
 				// break the infite loop
 				break
 			}
+
+			self.Log.WithField("len", len(interactions)).Debug("Confirming uploaded bundles")
 
 			for _, interaction := range interactions {
 				select {
