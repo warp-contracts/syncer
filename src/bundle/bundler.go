@@ -19,9 +19,12 @@ import (
 type Bundler struct {
 	*task.Task
 	db      *gorm.DB
-	rand    *rand.Rand
 	input   chan *model.BundleItem
 	monitor monitoring.Monitor
+
+	// Mutex for accessing the random generator
+	seedingTime time.Time
+	rand        *rand.Rand
 
 	// Bundling and signing
 	bundlrClient *bundlr.Client
@@ -36,6 +39,8 @@ func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 	self = new(Bundler)
 	self.db = db
 	self.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	self.seedingTime = time.Now()
+
 	self.Output = make(chan *Confirmation)
 
 	self.Task = task.NewTask(config, "bundler").
@@ -43,11 +48,6 @@ func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 		// It's possible to run multiple requests in parallel.
 		// We're limiting the number of parallel requests with the number of workers.
 		WithWorkerPool(config.Bundler.BundlerNumBundlingWorkers, config.Bundler.WorkerPoolQueueSize).
-		WithPeriodicSubtaskFunc(23*time.Minute, func() error {
-			// Periodically reseed the random generator
-			self.rand.Seed(time.Now().UnixNano())
-			return nil
-		}).
 		WithSubtaskFunc(self.run)
 
 	var err error
@@ -79,6 +79,12 @@ func (self *Bundler) run() (err error) {
 	// Finishes when when the source of items is closed
 	// It should be safe to assume all pending items are processed
 	for item := range self.input {
+		// Re-seed random generator
+		if time.Since(self.seedingTime) > 24*time.Minute {
+			self.rand.Seed(time.Now().UnixNano())
+			self.seedingTime = time.Now()
+		}
+
 		// Update stats
 		self.monitor.GetReport().Bundler.State.AllBundlesFromDb.Inc()
 
