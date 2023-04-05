@@ -106,7 +106,7 @@ func (self *Poller) handleCheck(minHeightToCheck int64) (repeat bool, err error)
 	}
 
 	if len(interactions) > 0 {
-		self.Log.WithField("count", len(interactions)).Debug("Polled interactions for checking")
+		self.Log.WithField("len", len(interactions)).Debug("Polled interactions for checking")
 	}
 
 	for _, interaction := range interactions {
@@ -208,7 +208,7 @@ func (self *Poller) handleRetrying() (repeat bool, err error) {
 	}
 
 	if len(interactions) > 0 {
-		self.Log.WithField("count", len(interactions)).Debug("Polled interactions for re-checking")
+		self.Log.WithField("len", len(interactions)).Debug("Polled interactions for re-checking")
 	}
 
 	for _, interaction := range interactions {

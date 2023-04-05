@@ -31,6 +31,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	// Monitoring
 	monitor := monitor_checker.NewMonitor()
+
 	server := monitoring.NewServer(config).
 		WithMonitor(monitor)
 
@@ -67,6 +68,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(server.Task).
 		WithSubtask(store.Task).
 		WithSubtask(networkMonitor.Task).
+		WithSubtask(monitor.Task).
 		WithSubtask(poller.Task).
 		WithSubtask(checker.Task)
 	return

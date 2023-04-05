@@ -60,6 +60,7 @@ func (self *Checker) run() error {
 		payload := payload
 
 		self.SubmitToWorker(func() {
+			self.Log.WithField("id", payload.BundlerTxId).Debug("Checking status")
 			// Check if the bundle is finalized
 			status, err := self.bundlrClient.GetStatus(self.Ctx, payload.BundlerTxId)
 			if err != nil {

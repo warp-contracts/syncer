@@ -9,6 +9,7 @@ const (
 	BundleStatePending   BundleState = "PENDING"
 	BundleStateUploading BundleState = "UPLOADING"
 	BundleStateUploaded  BundleState = "UPLOADED"
+	BundleStateChecking  BundleState = "CHECKING"
 	BundleStateOnBundler BundleState = "ON_BUNDLER"
 	BundleStateOnArweave BundleState = "ON_ARWEAVE"
 	BundleStateMalformed BundleState = "MALFORMED"
