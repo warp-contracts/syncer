@@ -67,7 +67,7 @@ func (self *Poller) run() error {
 
 			// Get bundles that are not finalized yet
 			var interactions []model.Interaction
-			err := self.db.Model(&model.Interaction{}).
+			err := self.db.Table(model.TableInteraction).
 				Select("id", "bundler_tx_id").
 				Joins("JOIN bundle_items ON interactions.id = bundle_items.interaction_id").
 				Where("bundle_items.block_height < ?", minHeightToCheck).

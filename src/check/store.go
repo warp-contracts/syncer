@@ -46,7 +46,7 @@ func (self *Store) WithMonitor(monitor monitoring.Monitor) *Store {
 
 func (self *Store) save(ids []int) error {
 	err := self.db.Model(&model.BundleItem{}).
-		Where("id IN ?", ids).
+		Where("interaction_id IN ?", ids).
 		Update("state", model.BundleStateOnBundler).
 		Error
 	if err != nil {
