@@ -59,6 +59,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Updates states of the finalized
 	store := NewStore(config).
 		WithDB(db).
+		WithInputChannel(checker.Output).
 		WithMonitor(monitor)
 
 	// Setup everything, will start upon calling Controller.Start()
