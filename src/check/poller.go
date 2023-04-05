@@ -94,6 +94,7 @@ func (self *Poller) handleCheck(minHeightToCheck int64) (repeat bool, err error)
 				Select("id", "bundler_tx_id").
 				Where("id IN ?", ids).
 				Where("bundler_tx_id IS NOT NULL").
+				Where("bundler_tx_id <> ''").
 				Scan(&interactions).
 				Error
 			if err != nil {
@@ -198,6 +199,7 @@ func (self *Poller) handleRetrying() (repeat bool, err error) {
 				Select("id", "bundler_tx_id").
 				Where("id IN ?", ids).
 				Where("bundler_tx_id IS NOT NULL").
+				Where("bundler_tx_id <> ''").
 				Scan(&interactions).
 				Error
 			if err != nil {

@@ -4,6 +4,7 @@ import (
 	crypto_rand "crypto/rand"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"math/rand"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/bundlr"
@@ -169,6 +170,13 @@ func (self *Bundler) run() (err error) {
 					}
 				}
 
+				return
+			}
+			// Check if the response is valid
+			if len(uploadResponse.Id) == 0 {
+				err = errors.New("Bundlr response has empty ID")
+				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Bad bundlr response")
+				self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
 				return
 			}
 
