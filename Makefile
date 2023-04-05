@@ -68,10 +68,6 @@ contract: build-race | ; $(info $(M) starting synchronizing contracts with defau
 bundle: build-race | ; $(info $(M) starting bundling with default params…)
 	bin/$(PACKAGE) bundle
 
-.PHONY: bundle
-bundle: build-race | ; $(info $(M) loading transactions…)
-	bin/$(PACKAGE) load
-
 .PHONY: check
 check: build-race | ; $(info $(M) starting checking with default params…)
 	bin/$(PACKAGE) check

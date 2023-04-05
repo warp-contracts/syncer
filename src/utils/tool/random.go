@@ -1,6 +1,7 @@
 package tool
 
 import (
+	crypto_rand "crypto/rand"
 	"math/rand"
 	"time"
 )
@@ -17,4 +18,12 @@ func RandomString(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+func CryptoRandomBytes(n int) []byte {
+	b := make([]byte, n)
+	_, err := crypto_rand.Read(b)
+	if err != nil {
+		return []byte{}
+	}
+	return b
 }
