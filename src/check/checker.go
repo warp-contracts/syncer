@@ -54,6 +54,8 @@ func (self *Checker) run() error {
 	// Blocks waiting for the next network height
 	// Quits when the channel is closed
 	for payload := range self.input {
+		self.Log.WithField("id", payload.BundlerTxId).Debug("Got bundle to check")
+
 		// Update monitoring
 		self.monitor.GetReport().Checker.State.AllCheckedBundles.Inc()
 

@@ -45,6 +45,9 @@ func (self *Store) WithMonitor(monitor monitoring.Monitor) *Store {
 }
 
 func (self *Store) save(ids []int) error {
+	if len(ids) == 0 {
+		return nil
+	}
 	self.Log.WithField("len", len(ids)).Debug("Saving checked states")
 
 	err := self.db.Model(&model.BundleItem{}).
