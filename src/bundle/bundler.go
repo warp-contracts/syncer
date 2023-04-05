@@ -102,7 +102,8 @@ func (self *Bundler) run() (err error) {
 			// Anchor is needed to avoid problem with same data being uploaded multiple times in Data field
 			// Bundlr rejects such transaction with error like "Transaction ... already received"
 			bundleItem.Anchor = make([]byte, 32)
-			n, err := self.rand.Read(bundleItem.Anchor)
+			n, err := crypto_rand.Read(bundleItem.Anchor)
+			// n, err := self.rand.Read(bundleItem.Anchor)
 			if n != 32 {
 				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to generate anchor, will retry later.")
 				return

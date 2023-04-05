@@ -19,7 +19,7 @@ type Generator struct {
 func NewGenerator(config *config.Config) (self *Generator) {
 	self = new(Generator)
 
-	self.v = []byte(tool.RandomString(10000))
+	self.v = []byte(tool.RandomString(100))
 	self.Output = make(chan *arweave.Transaction)
 
 	self.Task = task.NewTask(config, "generator").
@@ -50,7 +50,7 @@ func (self *Generator) fakeTransaction() *arweave.Transaction {
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(43))},
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(10))},
 		},
-		Data: self.v,
+		Data: arweave.Base64String(tool.CryptoRandomBytes(100)),
 		ID:   arweave.Base64String(tool.CryptoRandomBytes(43)).Base64(),
 	}
 }
