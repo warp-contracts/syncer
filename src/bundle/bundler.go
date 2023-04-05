@@ -1,7 +1,6 @@
 package bundle
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"math/rand"
 	"syncer/src/utils/arweave"
@@ -11,6 +10,7 @@ import (
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"syncer/src/utils/tool"
+	"time"
 
 	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
@@ -19,6 +19,7 @@ import (
 type Bundler struct {
 	*task.Task
 	db      *gorm.DB
+	rand    *rand.Rand
 	input   chan *model.BundleItem
 	monitor monitoring.Monitor
 
@@ -34,6 +35,7 @@ type Bundler struct {
 func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 	self = new(Bundler)
 	self.db = db
+	self.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 	self.Output = make(chan *Confirmation)
 
 	self.Task = task.NewTask(config, "bundler").
@@ -41,6 +43,11 @@ func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 		// It's possible to run multiple requests in parallel.
 		// We're limiting the number of parallel requests with the number of workers.
 		WithWorkerPool(config.Bundler.BundlerNumBundlingWorkers, config.Bundler.WorkerPoolQueueSize).
+		WithPeriodicSubtaskFunc(23*time.Minute, func() error {
+			// Periodically reseed the random generator
+			self.rand.Seed(time.Now().UnixNano())
+			return nil
+		}).
 		WithSubtaskFunc(self.run)
 
 	var err error
@@ -89,15 +96,23 @@ func (self *Bundler) run() (err error) {
 
 			// Anchor is needed to avoid problem with same data being uploaded multiple times in Data field
 			// Bundlr rejects such transaction with error like "Transaction ... already received"
-			bundleItem.Anchor = make([]byte, 4)
-			binary.BigEndian.PutUint32(bundleItem.Anchor, rand.Uint32())
+			bundleItem.Anchor = make([]byte, 32)
+			n, err := self.rand.Read(bundleItem.Anchor)
+			if n != 32 {
+				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to generate anchor, will retry later.")
+				return
+			}
+			if err != nil {
+				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Error when generating anchor, will retry later.")
+				return
+			}
 
+			// Put transaction into the data field
 			data, err := item.Transaction.MarshalJSON()
 			if err != nil {
 				self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to get interaction data")
 				return
 			}
-
 			bundleItem.Data = arweave.Base64String(tool.MinifyJSON(data))
 
 			tagBytes, err := item.Tags.MarshalJSON()

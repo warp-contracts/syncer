@@ -63,7 +63,7 @@ func (self *Client) GetStatus(ctx context.Context, id string) (out *responses.St
 		SetResult(&responses.Status{}).
 		ForceContentType("application/json").
 		SetPathParam("tx_id", id).
-		Post("/tx/{tx_id}/status")
+		Get("/tx/{tx_id}/status")
 	if err != nil {
 		return
 	}

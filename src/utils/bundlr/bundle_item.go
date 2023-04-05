@@ -90,7 +90,7 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 		out.WriteByte(0)
 	} else {
 		out.WriteByte(1)
-		out.Write([]byte(self.Anchor.Base64()))
+		out.Write(self.Anchor)
 	}
 
 	out.Write(LongTo8ByteArray(len(self.Tags)))
