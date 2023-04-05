@@ -32,6 +32,8 @@ type Payload struct {
 func NewPoller(config *config.Config) (self *Poller) {
 	self = new(Poller)
 
+	self.Output = make(chan *Payload)
+
 	self.Task = task.NewTask(config, "poller").
 		WithSubtaskFunc(self.run).
 		WithRepeatedSubtaskFunc(config.Checker.PollerInterval, self.handleRetrying)
@@ -91,6 +93,7 @@ func (self *Poller) handleCheck(minHeightToCheck int64) (repeat bool, err error)
 			err := tx.Table(model.TableInteraction).
 				Select("id", "bundler_tx_id").
 				Where("id IN ?", ids).
+				Where("bundler_tx_id IS NOT NULL").
 				Scan(&interactions).
 				Error
 			if err != nil {
@@ -194,6 +197,7 @@ func (self *Poller) handleRetrying() (repeat bool, err error) {
 			err := tx.Table(model.TableInteraction).
 				Select("id", "bundler_tx_id").
 				Where("id IN ?", ids).
+				Where("bundler_tx_id IS NOT NULL").
 				Scan(&interactions).
 				Error
 			if err != nil {

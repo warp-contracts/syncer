@@ -56,6 +56,11 @@ func (self *Client) Upload(ctx context.Context, signer *Signer, item *BundleItem
 }
 
 func (self *Client) GetStatus(ctx context.Context, id string) (out *responses.Status, err error) {
+	if len(id) == 0 {
+		err = ErrIdEmpty
+		return
+	}
+
 	req, cancel := self.Request(ctx)
 	defer cancel()
 

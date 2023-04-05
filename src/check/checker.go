@@ -68,7 +68,7 @@ func (self *Checker) run() error {
 			if err != nil {
 				// Update monitoring
 				self.monitor.GetReport().Checker.Errors.BundrlGetStatusError.Inc()
-				self.Log.WithError(err).Error("Failed to get bundle status")
+				self.Log.WithField("interaction_id", payload.InteractionId).WithError(err).Error("Failed to get bundle status")
 			}
 
 			if status.Status != "FINALIZED" {
