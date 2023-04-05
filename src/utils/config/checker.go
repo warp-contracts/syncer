@@ -21,6 +21,12 @@ type Checker struct {
 
 	// Size of the queue for workers
 	WorkerQueueSize int
+
+	// How often for unfinished checks
+	PollerInterval time.Duration
+
+	// After this time retry checking the bundle
+	PollerRetryCheckAfter time.Duration
 }
 
 func setCheckerDefaults() {
@@ -29,4 +35,6 @@ func setCheckerDefaults() {
 	viper.SetDefault("Checker.MaxBundlesPerRun", "50")
 	viper.SetDefault("Checker.WorkerPoolSize", "50")
 	viper.SetDefault("Checker.WorkerQueueSize", "150")
+	viper.SetDefault("Checker.PollerInterval", "1m")
+	viper.SetDefault("Checker.PollerRetryCheckAfter", "60m")
 }

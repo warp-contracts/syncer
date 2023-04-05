@@ -119,6 +119,25 @@ func (self *Task) WithSubtaskFunc(f func() error) *Task {
 	return self
 }
 
+// Callback is run again and again until it returns false or an error. Rerun after period.
+func (self *Task) WithRepeatedSubtaskFunc(period time.Duration, f func() (repeat bool, err error)) *Task {
+	return self.WithPeriodicSubtaskFunc(period, func() error {
+		for {
+			repeat, err := f()
+			if err != nil {
+				return err
+			}
+			if !repeat {
+				return nil
+			}
+			if self.IsStopping.Load() {
+				return nil
+			}
+		}
+	})
+}
+
+// Repeatedly run the callback with a period.
 func (self *Task) WithPeriodicSubtaskFunc(period time.Duration, f func() error) *Task {
 	self.subtasksFunc = append(self.subtasksFunc, func() error {
 		var timer *time.Timer
