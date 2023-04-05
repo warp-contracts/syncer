@@ -1,6 +1,8 @@
 package bundle
 
 import (
+	crypto_rand "crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"math/rand"
 	"syncer/src/utils/arweave"
@@ -10,7 +12,6 @@ import (
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"syncer/src/utils/tool"
-	"time"
 
 	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
@@ -18,13 +19,10 @@ import (
 
 type Bundler struct {
 	*task.Task
+	rand    *rand.Rand
 	db      *gorm.DB
 	input   chan *model.BundleItem
 	monitor monitoring.Monitor
-
-	// Mutex for accessing the random generator
-	seedingTime time.Time
-	rand        *rand.Rand
 
 	// Bundling and signing
 	bundlrClient *bundlr.Client
@@ -36,10 +34,18 @@ type Bundler struct {
 
 // Receives bundle items from the input channel and sends them to bundlr
 func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
+	var err error
+
 	self = new(Bundler)
 	self.db = db
-	self.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
-	self.seedingTime = time.Now()
+
+	// Seed random generator
+	var b [8]byte
+	_, err = crypto_rand.Read(b[:])
+	if err != nil {
+		self.Log.WithError(err).Panic("Cannot seed math/rand package with cryptographically secure random number generator")
+	}
+	self.rand = rand.New(rand.NewSource(int64(binary.LittleEndian.Uint64(b[:]))))
 
 	self.Output = make(chan *Confirmation)
 
@@ -50,7 +56,6 @@ func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 		WithWorkerPool(config.Bundler.BundlerNumBundlingWorkers, config.Bundler.WorkerPoolQueueSize).
 		WithSubtaskFunc(self.run)
 
-	var err error
 	self.signer, err = bundlr.NewSigner(config.Bundlr.Wallet)
 	if err != nil {
 		self.Log.WithError(err).Panic("Failed to create bundlr signer")
@@ -79,12 +84,6 @@ func (self *Bundler) run() (err error) {
 	// Finishes when when the source of items is closed
 	// It should be safe to assume all pending items are processed
 	for item := range self.input {
-		// Re-seed random generator
-		if time.Since(self.seedingTime) > 24*time.Minute {
-			self.rand.Seed(time.Now().UnixNano())
-			self.seedingTime = time.Now()
-		}
-
 		// Update stats
 		self.monitor.GetReport().Bundler.State.AllBundlesFromDb.Inc()
 
