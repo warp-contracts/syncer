@@ -3,8 +3,8 @@ package check
 import (
 	"context"
 	"fmt"
-	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
+	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
@@ -19,8 +19,8 @@ type Poller struct {
 	db      *gorm.DB
 	monitor monitoring.Monitor
 
-	input  chan *arweave.NetworkInfo
-	Output chan *Payload
+	networkMonitor *listener.NetworkMonitor
+	Output         chan *Payload
 }
 
 type Payload struct {
@@ -35,7 +35,7 @@ func NewPoller(config *config.Config) (self *Poller) {
 	self.Output = make(chan *Payload)
 
 	self.Task = task.NewTask(config, "poller").
-		WithSubtaskFunc(self.run).
+		WithRepeatedSubtaskFunc(config.Checker.PollerInterval, self.handleCheck).
 		WithRepeatedSubtaskFunc(config.Checker.PollerInterval, self.handleRetrying)
 
 	return
@@ -46,8 +46,8 @@ func (self *Poller) WithDB(db *gorm.DB) *Poller {
 	return self
 }
 
-func (self *Poller) WithInputChannel(input chan *arweave.NetworkInfo) *Poller {
-	self.input = input
+func (self *Poller) WithNetworkMonitor(v *listener.NetworkMonitor) *Poller {
+	self.networkMonitor = v
 	return self
 }
 
@@ -56,7 +56,11 @@ func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
 	return self
 }
 
-func (self *Poller) handleCheck(minHeightToCheck int64) (repeat bool, err error) {
+func (self *Poller) handleCheck() (repeat bool, err error) {
+	// Get the current network height
+	networkInfo := self.networkMonitor.GetLastNetworkInfo()
+	minHeightToCheck := networkInfo.Height - self.Config.Checker.MinConfirmationBlocks
+
 	// Interrupts longer queries
 	ctx, cancel := context.WithTimeout(self.Ctx, 5*time.Minute)
 	defer cancel()
@@ -132,31 +136,6 @@ func (self *Poller) handleCheck(minHeightToCheck int64) (repeat bool, err error)
 		repeat = true
 	}
 	return
-}
-
-func (self *Poller) run() error {
-	// Blocks waiting for the next network height
-	// Quits when the channel is closed
-	for networkInfo := range self.input {
-		self.Log.Debug("Got network height: ", networkInfo.Height)
-
-		// Bundlr.network says it may takie 50 blocks for the tx to be finalized,
-		// no need to check it sooner
-		minHeightToCheck := networkInfo.Height - self.Config.Checker.MinConfirmationBlocks
-
-		// Each iteration checks a batch of bundles
-		for {
-			repeat, err := self.handleCheck(minHeightToCheck)
-			if err != nil {
-				return err
-			}
-			if !repeat {
-				break
-			}
-		}
-	}
-
-	return nil
 }
 
 func (self *Poller) handleRetrying() (repeat bool, err error) {

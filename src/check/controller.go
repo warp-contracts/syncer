@@ -43,12 +43,13 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithClient(client).
 		WithInterval(config.Checker.Interval).
 		WithMonitor(monitor).
+		WithEnableOutput(false /*disable output channel to avoid blocking*/).
 		WithRequiredConfirmationBlocks(0)
 
 		// Gets interactions that may be finalized from the db
 	poller := NewPoller(config).
 		WithDB(db).
-		WithInputChannel(networkMonitor.Output).
+		WithNetworkMonitor(networkMonitor).
 		WithMonitor(monitor)
 
 	// Checks if bundlr finalized the bundle
