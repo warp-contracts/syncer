@@ -132,7 +132,7 @@ func (self *Poller) handleCheck() (repeat bool, err error) {
 	self.monitor.GetReport().Checker.State.BundlesTakenFromDb.Add(uint64(len(interactions)))
 
 	// If we got the maximum number of elements, we need to repeat the query
-	if len(interactions) == self.Config.Checker.MaxBundlesPerRun {
+	if len(ids) == self.Config.Checker.MaxBundlesPerRun {
 		repeat = true
 	}
 	return
@@ -211,7 +211,7 @@ func (self *Poller) handleRetrying() (repeat bool, err error) {
 	self.monitor.GetReport().Checker.State.BundlesTakenFromDb.Add(uint64(len(interactions)))
 
 	// If we got the maximum number of elements, we need to repeat the query
-	if len(interactions) == self.Config.Checker.MaxBundlesPerRun {
+	if len(ids) == self.Config.Checker.MaxBundlesPerRun {
 		repeat = true
 	}
 	return
