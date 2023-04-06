@@ -73,7 +73,7 @@ func (self *Poller) handleCheck() (repeat bool, err error) {
 		Transaction(func(tx *gorm.DB) error {
 			// Select bundles that will get checked
 			err = tx.Raw(`UPDATE bundle_items
-					SET state = 'CHECKING', updated_at = NOW()
+			SET state = 'CHECKING', updated_at = NOW()
 					WHERE interaction_id IN (
 						SELECT interaction_id 
 						FROM bundle_items 
@@ -81,7 +81,7 @@ func (self *Poller) handleCheck() (repeat bool, err error) {
 						ORDER BY block_height ASC, interaction_id ASC
 						LIMIT ?
 						FOR UPDATE SKIP LOCKED)
-					RETURNING interaction_id`, minHeightToCheck, self.Config.Checker.MaxBundlesPerRun).
+						RETURNING interaction_id`, minHeightToCheck, self.Config.Checker.MaxBundlesPerRun).
 				Scan(&ids).
 				Error
 			if err != nil {

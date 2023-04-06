@@ -8,7 +8,7 @@ import (
 
 type Checker struct {
 	// How often to check for new network info
-	Interval time.Duration
+	NetworkMonitorInterval time.Duration
 
 	// Minimal number of blocks to wait before checking the bundle
 	MinConfirmationBlocks int64
@@ -30,7 +30,7 @@ type Checker struct {
 }
 
 func setCheckerDefaults() {
-	viper.SetDefault("Checker.Interval", "30s")
+	viper.SetDefault("Checker.NetworkMonitorInterval", "30s")
 	viper.SetDefault("Checker.MinConfirmationBlocks", "52")
 	viper.SetDefault("Checker.MaxBundlesPerRun", "50")
 	viper.SetDefault("Checker.WorkerPoolSize", "50")
