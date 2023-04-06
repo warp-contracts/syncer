@@ -5,7 +5,7 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
-	"syncer/src/utils/notify"
+	"syncer/src/utils/streamer"
 	"syncer/src/utils/task"
 
 	"gorm.io/gorm"
@@ -16,7 +16,7 @@ type Notifier struct {
 	*task.Task
 	db *gorm.DB
 
-	streamer *notify.Streamer
+	streamer *streamer.Streamer
 	monitor  monitoring.Monitor
 
 	// Data about the interactions that need to be bundled
@@ -31,7 +31,7 @@ func NewNotifier(config *config.Config) (self *Notifier) {
 		return
 	}
 
-	self.streamer = notify.NewStreamer(config, "bundler-notifier").
+	self.streamer = streamer.NewStreamer(config, "bundler-notifier").
 		WithNotificationChannelName("bundle_items_pending").
 		WithCapacity(10)
 
