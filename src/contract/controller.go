@@ -8,6 +8,7 @@ import (
 	"syncer/src/utils/monitoring"
 	monitor_contract "syncer/src/utils/monitoring/contract"
 	"syncer/src/utils/peer_monitor"
+	"syncer/src/utils/publisher"
 	"syncer/src/utils/task"
 	"syncer/src/utils/warp"
 )
@@ -71,12 +72,21 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithMonitor(monitor).
 			WithDB(db)
 
+		mapper := NewMapper(config).
+			WithInputChannel(store.Output)
+
+		publisher := publisher.NewPublisher[*model.ContractNotification](config, "contract-redis-publisher").
+			WithChannelName(config.Contract.PublisherRedisChannelName).
+			WithInputChannel(mapper.Output)
+
 		return task.NewTask(config, "watched-contract").
 			WithSubtask(peerMonitor.Task).
 			WithSubtask(store.Task).
 			WithSubtask(networkMonitor.Task).
 			WithSubtask(blockDownloader.Task).
 			WithSubtask(transactionDownloader.Task).
+			WithSubtask(mapper.Task).
+			WithSubtask(publisher.Task).
 			WithSubtask(loader.Task)
 	}
 

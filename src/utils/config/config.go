@@ -122,6 +122,7 @@ type Config struct {
 	Checker  Checker
 	Database Database
 	Contract Contract
+	Redis    Redis
 }
 
 func setDefaults() {
@@ -166,6 +167,7 @@ func setDefaults() {
 	setCheckerDefaults()
 	setDatabaseDefaults()
 	setContractDefaults()
+	setRedisDefaults()
 }
 
 func Default() (config *Config) {

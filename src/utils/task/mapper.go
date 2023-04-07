@@ -8,7 +8,7 @@ import (
 type Mapper[In any, Out any] struct {
 	*Task
 
-	process func(in In) (out Out, err error)
+	process func(in In, out chan Out) (err error)
 
 	input  chan In
 	Output chan Out
@@ -33,7 +33,7 @@ func (self *Mapper[In, Out]) WithInputChannel(input chan In) *Mapper[In, Out] {
 	return self
 }
 
-func (self *Mapper[In, Out]) WithMapFunc(f func(in In) (out Out, err error)) *Mapper[In, Out] {
+func (self *Mapper[In, Out]) WithProcessFunc(f func(in In, out chan Out) (err error)) *Mapper[In, Out] {
 	self.process = f
 	return self
 }
@@ -45,15 +45,11 @@ func (self *Mapper[In, Out]) WithWorkerPool(maxWorkers, maxQueueSize int) *Mappe
 
 func (self *Mapper[In, Out]) run() error {
 	for in := range self.input {
+		in := in
 		self.SubmitToWorker(func() {
-			out, err := self.process(in)
+			err := self.process(in, self.Output)
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to process item, skipping")
-			}
-
-			select {
-			case <-self.Ctx.Done():
-			case self.Output <- out:
 			}
 		})
 	}

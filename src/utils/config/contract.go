@@ -41,6 +41,12 @@ type Contract struct {
 
 	// Max time between retries to insert a batch of confirmations to  the database
 	StoreBackoffMaxInterval time.Duration
+
+	// Max size of a message that can be published to Redis, in bytes. 10MB by default
+	PublisherMaxMessageSize int
+
+	// Saved contracts are published on this Redis channel
+	PublisherRedisChannelName string
 }
 
 func setContractDefaults() {
@@ -55,4 +61,6 @@ func setContractDefaults() {
 	viper.SetDefault("Contract.StoreInterval", "1s")
 	viper.SetDefault("Contract.StoreBackoffMaxElapsedTime", "0")
 	viper.SetDefault("Contract.StoreBackoffMaxInterval", "20s")
+	viper.SetDefault("Contract.PublisherMaxMessageSize", "10485760")
+	viper.SetDefault("Contract.PublisherRedisChannelName", "test")
 }

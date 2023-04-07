@@ -39,6 +39,9 @@ type Processor[In any, Out any] struct {
 
 	// Max times between flush retries
 	maxInterval time.Duration
+
+	// Output channel that forwards successfuly processed data
+	Output chan []Out
 }
 
 func NewProcessor[In any, Out any](config *config.Config, name string) (self *Processor[In, Out]) {
@@ -52,6 +55,7 @@ func NewProcessor[In any, Out any](config *config.Config, name string) (self *Pr
 }
 
 func (self *Processor[In, Out]) WithBatchSize(batchSize int) *Processor[In, Out] {
+	self.Output = make(chan []Out)
 	self.batchSize = batchSize
 	self.queue.SetMinCapacity(uint(math.Round(1.5 * float64(batchSize))))
 	return self
@@ -100,6 +104,12 @@ func (self *Processor[In, Out]) flush() {
 
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to flush data")
+			return
+		}
+
+		select {
+		case <-self.Ctx.Done():
+		case self.Output <- data:
 		}
 	})
 }

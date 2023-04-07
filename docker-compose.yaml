@@ -38,6 +38,16 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: warp
 
+  redis:
+    image: redis:6.2.11-alpine3.17
+    restart: unless-stopped
+    volumes:
+      - syncer_redis_volume:/data
+    ports:
+      - 6379:6379
+    command: >
+      --requirepass password
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin
@@ -53,3 +63,4 @@ services:
 
 volumes:
   syncer_db_volume: null
+  syncer_redis_volume: null
