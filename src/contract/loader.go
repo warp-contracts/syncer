@@ -142,7 +142,7 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 
 	out.Contract, err = self.getContract(tx)
 	if err != nil {
-		self.Log.WithError(err).Error("Failed to parse contract")
+		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to parse contract")
 		return
 	}
 
@@ -205,7 +205,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 	// Init state
 	initStateBuffer, err := self.getInitState(tx)
 	if err != nil {
-		self.Log.WithError(err).Error("Failed to get contract init state")
+		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to get contract init state")
 		return
 	}
 	err = out.InitState.Set(initStateBuffer.Bytes())
@@ -216,7 +216,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 	// Try parsing init state as a PST
 	pstInitState, err := warp.ParsePstInitState(initStateBuffer.Bytes())
 	if err != nil {
-		self.Log.WithError(err).Error("Failed to parse init state as JSON")
+		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to parse init state as JSON")
 		return
 	}
 	if !pstInitState.IsPst() {
@@ -330,5 +330,5 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buf
 	}
 
 	// It didn't fit into the data field, fetch chunks
-	return self.client.GetChunks(self.Ctx, initStateTxId)
+	return self.client.GetChunks(self.Ctx, contractTx.ID)
 }
