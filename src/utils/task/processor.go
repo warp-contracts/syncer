@@ -107,9 +107,11 @@ func (self *Processor[In, Out]) flush() {
 			return
 		}
 
-		select {
-		case <-self.Ctx.Done():
-		case self.Output <- data:
+		if len(data) > 0 {
+			select {
+			case <-self.Ctx.Done():
+			case self.Output <- data:
+			}
 		}
 	})
 }

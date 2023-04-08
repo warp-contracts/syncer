@@ -129,6 +129,10 @@ func (self *BaseClient) onStatusToError(c *resty.Client, resp *resty.Response) e
 	if resp.IsSuccess() {
 		return nil
 	}
+	if resp.StatusCode() == http.StatusNotFound {
+		return ErrNotFound
+	}
+
 	if resp.StatusCode() > 399 && resp.StatusCode() < 500 {
 		self.log.WithField("status", resp.StatusCode()).
 			WithField("resp", string(resp.Body())).
@@ -312,7 +316,7 @@ func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (e
 		peer = self.peers[idx]
 		self.mtx.RUnlock()
 
-		self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying request with different peer")
+		self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Trace("Retrying request with different peer")
 
 		//	Make the same request, but change the URL
 		resp.Request.URL = peer + endpoint

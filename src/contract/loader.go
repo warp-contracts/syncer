@@ -83,6 +83,9 @@ func (self *Loader) run() error {
 }
 
 func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*ContractData, err error) {
+	self.Log.Debug("Start loading contracts...")
+	defer self.Log.Debug("...Stopped loading contracts")
+
 	var (
 		wg  sync.WaitGroup
 		mtx sync.Mutex
@@ -95,6 +98,9 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 	for _, tx := range transactions {
 		tx := tx
 		self.SubmitToWorker(func() {
+			self.Log.WithField("id", tx.ID).Debug("Worker loading contract...")
+			defer self.Log.WithField("id", tx.ID).Debug("...Worker loading contract")
+
 			b := backoff.NewExponentialBackOff()
 			b.MaxElapsedTime = self.Config.Contract.LoaderBackoffMaxElapsedTime
 			b.MaxInterval = self.Config.Contract.LoaderBackoffMaxInterval
@@ -106,6 +112,13 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 			err := backoff.Retry(func() (err error) {
 				contractData, err = self.load(tx)
 				if err != nil {
+					if err == arweave.ErrNotFound {
+						// FIXME: Monitor errors
+						// No need to retry if any of the data is not found
+						// Arweave client already retries with multiple peers
+						self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, couldn't download source or init state")
+						return backoff.Permanent(err)
+					}
 					// FIXME: Monitor errors
 					self.Log.WithError(err).WithField("id", tx.ID).Warn("Failed to load contract, retrying after timeout...")
 				}
@@ -132,6 +145,9 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 }
 
 func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error) {
+	self.Log.WithField("id", tx.ID).Debug("Start loading contract...")
+	defer self.Log.WithField("id", tx.ID).Debug("...Stop loading contract")
+
 	out = new(ContractData)
 
 	_, ok := tx.GetTag(warp.TagWarpTestnet)
@@ -173,12 +189,16 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 //	 };
 
 func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, err error) {
+	self.Log.WithField("id", tx.ID).Debug("-> getContract")
+	defer self.Log.WithField("id", tx.ID).Debug("<- getContract")
+
 	var ok bool
 	out = model.NewContract()
 
 	// Source tx id
 	srcTxId, ok := tx.GetTag(smartweave.TagContractSrcTxId)
 	if !ok {
+		err = errors.New("missing contract source tx id")
 		return
 	}
 	err = out.SrcTxId.Set(srcTxId)
@@ -215,11 +235,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 
 	// Try parsing init state as a PST
 	pstInitState, err := warp.ParsePstInitState(initStateBuffer.Bytes())
-	if err != nil {
-		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to parse init state as JSON")
-		return
-	}
-	if !pstInitState.IsPst() {
+	if err != nil || !pstInitState.IsPst() {
 		err = out.Type.Set(model.ContractTypeOther)
 		if err != nil {
 			return
@@ -245,6 +261,9 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 }
 
 func (self *Loader) getSource(srcId string) (out *model.ContractSource, err error) {
+	self.Log.WithField("src_tx_id", srcId).Debug("-> getSource")
+	defer self.Log.WithField("src_tx_id", srcId).Debug("<- getSource")
+
 	var ok bool
 	out = model.NewContractSource()
 
@@ -309,6 +328,10 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 }
 
 func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buffer, err error) {
+	self.Log.WithField("id", contractTx.ID).Debug("--> getSource")
+	defer self.Log.WithField("id", contractTx.ID).Debug("<-- getSource")
+
+	self.Log.WithField("id", contractTx.ID).Debug("1")
 	initState, ok := contractTx.GetTag(warp.TagInitState)
 	if ok {
 		// Init state in tags
@@ -316,6 +339,7 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buf
 		return
 	}
 
+	self.Log.WithField("id", contractTx.ID).Debug("2")
 	initStateTxId, ok := contractTx.GetTag(warp.TagInitStateTx)
 	if ok {
 		// FIXME: Validate tags, eg. this value should be a valid transaction id
@@ -323,12 +347,14 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buf
 		return self.client.GetTransactionDataById(self.Ctx, initStateTxId)
 	}
 
+	self.Log.WithField("id", contractTx.ID).Debug("3")
 	// Init state is the contract's data
 	if len(contractTx.Data) > 0 {
 		out.Write(contractTx.Data)
 		return
 	}
 
+	self.Log.WithField("id", contractTx.ID).Debug("4")
 	// It didn't fit into the data field, fetch chunks
 	return self.client.GetChunks(self.Ctx, contractTx.ID)
 }

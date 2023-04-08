@@ -214,27 +214,38 @@ func (self *Client) getChunk(ctx context.Context, offset big.Int) (out *ChunkDat
 }
 
 func (self *Client) GetChunks(ctx context.Context, id string) (out bytes.Buffer, err error) {
+	self.log.Info("A")
 	// Download chunks
 	info, err := self.GetTransactionOffsetInfo(ctx, id)
 	if err != nil {
 		return
 	}
+	self.log.Info("B")
 
 	zero := big.NewInt(0)
-	for info.Size.Cmp(zero) > 0 {
+	offset := &info.Offset.Int
+	size := &info.Size.Int
+	self.log.WithField("size", size.String()).Info("Downloading")
+
+	for size.Cmp(zero) > 0 {
+		self.log.Info("C")
 		var chunk *ChunkData
-		chunk, err = self.getChunk(ctx, info.Offset.Int)
+		chunk, err = self.getChunk(ctx, *offset)
 		if err != nil {
 			return
 		}
+		self.log.Info("D")
 
 		out.Write(chunk.Chunk.Bytes())
 
+		self.log.Info("E")
 		// Are there more chunks?
 		chunkSize := big.NewInt(int64(len(chunk.Chunk.Bytes())))
-		info.Size.Int.Sub(&info.Size.Int, chunkSize)
-		info.Size.Int.Sub(&info.Offset.Int, chunkSize)
+		size = size.Sub(size, chunkSize)
+		offset = offset.Sub(offset, chunkSize)
+		self.log.WithField("size", size.String()).Info("F")
 	}
+	self.log.Info("G")
 
 	return
 }

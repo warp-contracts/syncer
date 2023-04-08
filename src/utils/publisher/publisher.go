@@ -112,8 +112,9 @@ func (self *Publisher[In]) connect() (err error) {
 // }
 
 func (self *Publisher[In]) run() (err error) {
+	self.Log.Info("Starting publisher")
 	for payload := range self.input {
-		// Serialize to JSON
+		self.Log.Info("Payload")
 		err = self.client.Publish(self.Ctx, self.channelName, payload).Err()
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to publish message")
