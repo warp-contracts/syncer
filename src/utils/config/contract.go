@@ -58,7 +58,7 @@ func setContractDefaults() {
 	viper.SetDefault("Contract.TransactionMaxElapsedTime", "5m")
 	viper.SetDefault("Contract.TransactionMaxInterval", "15s")
 	viper.SetDefault("Contract.StoreBatchSize", "10")
-	viper.SetDefault("Contract.StoreInterval", "1s")
+	viper.SetDefault("Contract.StoreInterval", "10s")
 	viper.SetDefault("Contract.StoreBackoffMaxElapsedTime", "0")
 	viper.SetDefault("Contract.StoreBackoffMaxInterval", "20s")
 	viper.SetDefault("Contract.PublisherMaxMessageSize", "10485760")

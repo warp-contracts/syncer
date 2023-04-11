@@ -64,6 +64,7 @@ func (self *NetworkMonitor) WithInterval(interval time.Duration) *NetworkMonitor
 	self.Task = self.Task.WithPeriodicSubtaskFunc(interval, self.runPeriodically)
 	return self
 }
+
 func (self *NetworkMonitor) WithEnableOutput(v bool) *NetworkMonitor {
 	self.isOutputEnabled = v
 	return self

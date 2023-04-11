@@ -91,26 +91,6 @@ func (self *Publisher[In]) connect() (err error) {
 	return self.client.Ping(ctx).Err()
 }
 
-// func (self *Publisher[In]) reconnect() {
-// 	var err error
-// 	for {
-// 		self.disconnect()
-
-// 		err = self.connect()
-// 		if err == nil {
-// 			// SUCCESS
-// 			self.Log.Info("Connection established")
-// 			return
-// 		}
-
-// 		self.Log.WithError(err).Error("Failed to connect, retrying in 1s")
-// 		time.Sleep(time.Second)
-// 		if self.IsStopping.Load() {
-// 			return
-// 		}
-// 	}
-// }
-
 func (self *Publisher[In]) run() (err error) {
 	self.Log.Info("Starting publisher")
 	for payload := range self.input {
