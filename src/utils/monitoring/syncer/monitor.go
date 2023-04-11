@@ -39,6 +39,9 @@ func NewMonitor() (self *Monitor) {
 		Peer:         &report.PeerReport{},
 	}
 
+	// Initialization
+	self.Report.Run.State.StartTimestamp.Store(time.Now().Unix())
+
 	self.collector = NewCollector().WithMonitor(self)
 
 	self.Task = task.NewTask(nil, "monitor").
@@ -59,7 +62,6 @@ func (self *Monitor) WithMaxHistorySize(maxHistorySize int) *Monitor {
 	self.TransactionCounts = deque.New[uint64](self.historySize)
 	self.InteractionsSaved = deque.New[uint64](self.historySize)
 
-	self.Report.Run.State.StartTimestamp.Store(time.Now().Unix())
 	return self
 }
 

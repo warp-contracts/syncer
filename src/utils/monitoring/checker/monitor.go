@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"syncer/src/utils/monitoring/report"
 	"syncer/src/utils/task"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,6 +27,9 @@ func NewMonitor() (self *Monitor) {
 		NetworkInfo: &report.NetworkInfoReport{},
 	}
 
+	// Initialization
+	self.Report.Run.State.StartTimestamp.Store(time.Now().Unix())
+
 	self.collector = NewCollector().WithMonitor(self)
 
 	self.Task = task.NewTask(nil, "monitor")
@@ -45,6 +49,8 @@ func (self *Monitor) IsOK() bool {
 }
 
 func (self *Monitor) OnGetState(c *gin.Context) {
+	self.Report.Run.State.UpForSeconds.Store(uint64(time.Now().Unix() - self.Report.Run.State.StartTimestamp.Load()))
+
 	c.JSON(http.StatusOK, &self.Report)
 }
 

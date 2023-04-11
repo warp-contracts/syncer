@@ -40,6 +40,9 @@ func NewMonitor() (self *Monitor) {
 		Peer:                  &report.PeerReport{},
 	}
 
+	// Initialization
+	self.Report.Run.State.StartTimestamp.Store(time.Now().Unix())
+
 	self.collector = NewCollector().WithMonitor(self)
 
 	self.Task = task.NewTask(nil, "monitor").
