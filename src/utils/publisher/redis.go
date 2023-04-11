@@ -15,7 +15,7 @@ import (
 )
 
 // Forwards messages to Redis
-type Publisher[In encoding.BinaryMarshaler] struct {
+type RedisPublisher[In encoding.BinaryMarshaler] struct {
 	*task.Task
 
 	client      *redis.Client
@@ -23,8 +23,8 @@ type Publisher[In encoding.BinaryMarshaler] struct {
 	input       chan In
 }
 
-func NewPublisher[In encoding.BinaryMarshaler](config *config.Config, name string) (self *Publisher[In]) {
-	self = new(Publisher[In])
+func NewRedisPublisher[In encoding.BinaryMarshaler](config *config.Config, name string) (self *RedisPublisher[In]) {
+	self = new(RedisPublisher[In])
 
 	self.Task = task.NewTask(config, name).
 		WithSubtaskFunc(self.run).
@@ -34,24 +34,24 @@ func NewPublisher[In encoding.BinaryMarshaler](config *config.Config, name strin
 	return
 }
 
-func (self *Publisher[In]) WithInputChannel(v chan In) *Publisher[In] {
+func (self *RedisPublisher[In]) WithInputChannel(v chan In) *RedisPublisher[In] {
 	self.input = v
 	return self
 }
 
-func (self *Publisher[In]) WithChannelName(v string) *Publisher[In] {
+func (self *RedisPublisher[In]) WithChannelName(v string) *RedisPublisher[In] {
 	self.channelName = v
 	return self
 }
 
-func (self *Publisher[In]) disconnect() {
+func (self *RedisPublisher[In]) disconnect() {
 	err := self.client.Close()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to close connection")
 	}
 }
 
-func (self *Publisher[In]) connect() (err error) {
+func (self *RedisPublisher[In]) connect() (err error) {
 	opts := redis.Options{
 		ClientName:      fmt.Sprintf("warp.cc/%s", self.Name),
 		Addr:            fmt.Sprintf("%s:%d", self.Config.Redis.Host, self.Config.Redis.Port),
@@ -91,7 +91,7 @@ func (self *Publisher[In]) connect() (err error) {
 	return self.client.Ping(ctx).Err()
 }
 
-func (self *Publisher[In]) run() (err error) {
+func (self *RedisPublisher[In]) run() (err error) {
 	self.Log.Info("Starting publisher")
 	for payload := range self.input {
 		self.Log.Info("Payload")

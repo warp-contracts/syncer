@@ -75,7 +75,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		mapper := NewMapper(config).
 			WithInputChannel(store.Output)
 
-		publisher := publisher.NewPublisher[*model.ContractNotification](config, "contract-redis-publisher").
+		redisPublisher := publisher.NewRedisPublisher[*model.ContractNotification](config, "contract-redis-publisher").
 			WithChannelName(config.Contract.PublisherRedisChannelName).
 			WithInputChannel(mapper.Output)
 
@@ -86,7 +86,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithSubtask(blockDownloader.Task).
 			WithSubtask(transactionDownloader.Task).
 			WithSubtask(mapper.Task).
-			WithSubtask(publisher.Task).
+			WithSubtask(redisPublisher.Task).
 			WithSubtask(loader.Task)
 	}
 
