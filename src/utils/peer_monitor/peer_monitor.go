@@ -108,7 +108,7 @@ func (self *PeerMonitor) getPeers() (peers []string, err error) {
 	// Get peers available in the network
 	allPeers, err := self.client.GetPeerList(self.Ctx)
 	if err != nil {
-		self.Log.Error("Failed to get Arweave network info")
+		self.Log.Error("Failed to get Arweave peer list")
 		self.monitor.GetReport().Peer.Errors.PeerDownloadErrors.Inc()
 		return
 	}

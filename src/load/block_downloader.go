@@ -58,6 +58,7 @@ func (self *BlockDownloader) run() (err error) {
 	for networkInfo := range self.input {
 
 	retry:
+
 		block, err := self.client.GetBlockByHeight(self.Ctx, networkInfo.Height)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to get block")
@@ -66,8 +67,10 @@ func (self *BlockDownloader) run() (err error) {
 		}
 
 		self.blockAvailableCondition.L.Lock()
-		self.block = block
-		self.blockAvailableCondition.Broadcast()
+		if block != nil {
+			self.block = block
+			self.blockAvailableCondition.Broadcast()
+		}
 		self.blockAvailableCondition.L.Unlock()
 
 		self.Log.Info("Saved block")
