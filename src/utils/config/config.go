@@ -123,6 +123,7 @@ type Config struct {
 	Database Database
 	Contract Contract
 	Redis    Redis
+	AppSync  AppSync
 }
 
 func setDefaults() {
@@ -168,6 +169,7 @@ func setDefaults() {
 	setDatabaseDefaults()
 	setContractDefaults()
 	setRedisDefaults()
+	setAppSyncDefaults()
 }
 
 func Default() (config *Config) {
