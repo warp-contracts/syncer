@@ -42,7 +42,7 @@ type Bundlr struct {
 }
 
 func setBundlrDefaults() {
-	viper.SetDefault("Bundlr.Urls", []string{"https://node2.bundlr.network"})
+	viper.SetDefault("Bundlr.Urls", []string{"https://node1.bundlr.network"})
 	viper.SetDefault("Bundlr.RequestTimeout", "60s")
 	viper.SetDefault("Bundlr.CheckPeerTimeout", "1s")
 	viper.SetDefault("Bundlr.DialerTimeout", "30s")
