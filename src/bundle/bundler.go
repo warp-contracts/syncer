@@ -128,6 +128,11 @@ func (self *Bundler) run() (err error) {
 				return
 			}
 
+			// Accept {} as empty tags
+			if len(tagBytes) == 2 && string(tagBytes) == "{}" {
+				tagBytes = []byte("[]")
+			}
+
 			err = json.Unmarshal(tagBytes, &bundleItem.Tags)
 			if err != nil {
 				self.Log.WithError(err).WithField("len", len(tagBytes)).WithField("id", item.InteractionID).Error("Failed to unmarshal transaction tags")
