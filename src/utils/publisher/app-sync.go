@@ -77,10 +77,9 @@ func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
 }
 
 func (self *AppSyncPublisher[In]) run() (err error) {
-	self.Log.Info("Starting publisher")
 	for data := range self.input {
 		data := data
-		self.Log.Info("Payload")
+		self.Log.Info("App sync publish")
 		self.SubmitToWorker(func() {
 			// Serialize to JSON
 			jsonData, err := data.MarshalJSON()

@@ -92,9 +92,8 @@ func (self *RedisPublisher[In]) connect() (err error) {
 }
 
 func (self *RedisPublisher[In]) run() (err error) {
-	self.Log.Info("Starting publisher")
 	for payload := range self.input {
-		self.Log.Info("Payload")
+		self.Log.Info("Redis publish")
 		err = self.client.Publish(self.Ctx, self.channelName, payload).Err()
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to publish message")
