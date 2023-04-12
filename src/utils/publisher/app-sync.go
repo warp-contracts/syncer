@@ -26,11 +26,11 @@ func NewAppSyncPublisher[In json.Marshaler](config *config.Config, name string) 
 
 	self.Task = task.NewTask(config, name).
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(self.Config.AppSync.MaxWorkers, self.Config.AppSync.MaxQueueSize)
+		WithWorkerPool(config.AppSync.MaxWorkers, config.AppSync.MaxQueueSize)
 
 	// Init AppSync client
-	gqlClient := graphql.NewClient(self.Config.AppSync.Url,
-		graphql.WithAPIKey(self.Config.AppSync.Token),
+	gqlClient := graphql.NewClient(config.AppSync.Url,
+		graphql.WithAPIKey(config.AppSync.Token),
 		graphql.WithTimeout(time.Second*30),
 	)
 

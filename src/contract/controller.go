@@ -72,22 +72,41 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithMonitor(monitor).
 			WithDB(db)
 
-		mapper := NewMapper(config).
+		flattener := task.NewFlattener[*ContractData](config, "contract-flattener").
+			WithCapacity(config.Contract.StoreBatchSize).
 			WithInputChannel(store.Output)
+
+		duplicator := task.NewDuplicator[*ContractData](config, "contract-duplicator").
+			WithOutputChannels(2, 0).
+			WithInputChannel(flattener.Output)
+
+		redisMapper := redisMapper(config).
+			WithInputChannel(duplicator.NextChannel())
 
 		redisPublisher := publisher.NewRedisPublisher[*model.ContractNotification](config, "contract-redis-publisher").
 			WithChannelName(config.Contract.PublisherRedisChannelName).
-			WithInputChannel(mapper.Output)
+			WithInputChannel(redisMapper.Output)
+
+		appSyncMapper := appSyncMapper(config).
+			WithInputChannel(duplicator.NextChannel())
+
+		appSyncPublisher := publisher.NewAppSyncPublisher[*model.AppSyncContractNotification](config, "contract-appsync-publisher").
+			WithChannelName(config.Contract.PublisherAppSyncChannelName).
+			WithInputChannel(appSyncMapper.Output)
 
 		return task.NewTask(config, "watched-contract").
 			WithSubtask(peerMonitor.Task).
-			WithSubtask(store.Task).
 			WithSubtask(networkMonitor.Task).
 			WithSubtask(blockDownloader.Task).
 			WithSubtask(transactionDownloader.Task).
-			WithSubtask(mapper.Task).
+			WithSubtask(loader.Task).
+			WithSubtask(store.Task).
+			WithSubtask(flattener.Task).
+			WithSubtask(redisMapper.Task).
+			WithSubtask(appSyncMapper.Task).
+			WithSubtask(duplicator.Task).
 			WithSubtask(redisPublisher.Task).
-			WithSubtask(loader.Task)
+			WithSubtask(appSyncPublisher.Task)
 	}
 
 	watchdog := task.NewWatchdog(config).

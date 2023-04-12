@@ -29,3 +29,17 @@ type InteractionNotification struct {
 func (self *InteractionNotification) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(self)
 }
+
+type AppSyncContractNotification struct {
+	ContractTxId   string `json:"contractTxId"`
+	Creator        string `json:"creator"`
+	Type           string `json:"type"`
+	BlockHeight    uint64 `json:"blockHeight"`
+	BlockTimestamp uint64 `json:"blockTimestamp"`
+	Source         string `json:"source"`
+	SyncTimestamp  int64  `json:"syncTimestamp"`
+}
+
+func (self *AppSyncContractNotification) MarshalJSON() (data []byte, err error) {
+	return json.Marshal(self)
+}

@@ -1,6 +1,7 @@
 package task
 
 import (
+	"errors"
 	"sync"
 	"syncer/src/utils/config"
 )
@@ -10,8 +11,9 @@ import (
 type Duplicator[In any] struct {
 	*Task
 
-	input  chan In
-	output []chan In
+	input          chan In
+	output         []chan In
+	freeChannelIdx int
 }
 
 func NewDuplicator[In any](config *config.Config, name string) (self *Duplicator[In]) {
@@ -19,6 +21,12 @@ func NewDuplicator[In any](config *config.Config, name string) (self *Duplicator
 
 	self.Task = NewTask(config, name).
 		WithSubtaskFunc(self.run).
+		WithOnBeforeStart(func() error {
+			if self.freeChannelIdx != len(self.output) {
+				return errors.New("Not all output channels are initialized")
+			}
+			return nil
+		}).
 		WithOnAfterStop(func() {
 			for i := range self.output {
 				close(self.output[i])
@@ -34,6 +42,7 @@ func (self *Duplicator[In]) WithInputChannel(input chan In) *Duplicator[In] {
 }
 
 func (self *Duplicator[In]) WithOutputChannels(numChannels, capacity int) *Duplicator[In] {
+	self.output = make([]chan In, 0, numChannels)
 	for i := 0; i < numChannels; i++ {
 		self.output = append(self.output, make(chan In, capacity))
 	}
@@ -41,8 +50,10 @@ func (self *Duplicator[In]) WithOutputChannels(numChannels, capacity int) *Dupli
 	return self
 }
 
-func (self *Duplicator[In]) GetChannel(idx int) chan In {
-	return self.output[idx]
+func (self *Duplicator[In]) NextChannel() (out chan In) {
+	out = self.output[self.freeChannelIdx]
+	self.freeChannelIdx += 1
+	return
 }
 
 func (self *Duplicator[In]) run() error {

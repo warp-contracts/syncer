@@ -47,6 +47,9 @@ type Contract struct {
 
 	// Saved contracts are published on this Redis channel
 	PublisherRedisChannelName string
+
+	// Saved contracts are published on this AppSync channel
+	PublisherAppSyncChannelName string
 }
 
 func setContractDefaults() {
@@ -63,4 +66,5 @@ func setContractDefaults() {
 	viper.SetDefault("Contract.StoreBackoffMaxInterval", "20s")
 	viper.SetDefault("Contract.PublisherMaxMessageSize", "10485760")
 	viper.SetDefault("Contract.PublisherRedisChannelName", "test")
+	viper.SetDefault("Contract.PublisherAppSyncChannelName", "test")
 }
