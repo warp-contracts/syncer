@@ -27,7 +27,6 @@ type Contract struct {
 	ContractTx          pgtype.JSONB
 	BlockTimestamp      uint64 // NOT NULL
 	Testnet             pgtype.Varchar
-	BundlerResponse     pgtype.Varchar
 	DeploymentType      pgtype.Varchar
 	Manifest            pgtype.JSONB
 }
@@ -46,7 +45,6 @@ func NewContract() *Contract {
 		BundlerContractNode: pgtype.Varchar{Status: pgtype.Null},
 		ContractTx:          pgtype.JSONB{Status: pgtype.Null},
 		Testnet:             pgtype.Varchar{Status: pgtype.Null},
-		BundlerResponse:     pgtype.Varchar{Status: pgtype.Null},
 		DeploymentType:      pgtype.Varchar{Status: pgtype.Null},
 		Manifest:            pgtype.JSONB{Status: pgtype.Null},
 	}
