@@ -100,10 +100,6 @@ func (self *TransactionDownloader) run() error {
 	// Listen for new blocks (blocks)
 	// Finishes when Listener is stopping
 	for block := range self.input {
-		// self.Log.
-		// 	WithField("height", block.Height).
-		// 	Debug("Downloading transactions")
-
 		transactions, err := self.downloadTransactions(block)
 		if self.IsStopping.Load() {
 			// Neglect trhose transactions
@@ -133,8 +129,8 @@ func (self *TransactionDownloader) run() error {
 }
 
 func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (out []*arweave.Transaction, err error) {
-	self.Log.Debug("Start downloading transactions...")
-	defer self.Log.Debug("...Stopped downloading transactions")
+	self.Log.Trace("Start downloading transactions...")
+	defer self.Log.Trace("...Stopped downloading transactions")
 	// Sync between workers
 	var mtx sync.Mutex
 	var wg sync.WaitGroup
@@ -202,8 +198,6 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 			mtx.Lock()
 			out = append(out, tx)
 			mtx.Unlock()
-
-			self.Log.WithField("txId", txId).Trace("Downloaded transaction")
 
 		end:
 			wg.Done()

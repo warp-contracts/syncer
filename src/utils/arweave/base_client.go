@@ -303,7 +303,7 @@ func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (e
 
 	endpoint := strings.Clone(strings.TrimPrefix(resp.Request.URL, self.config.ArNodeUrl))
 
-	self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Info("Retrying begin")
+	self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Trace("Retrying begin")
 
 	for {
 		self.mtx.RLock()

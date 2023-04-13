@@ -107,7 +107,7 @@ func (self *BlockDownloader) run() error {
 			self.monitor.GetReport().BlockDownloader.State.SyncerCurrentHeight.Store(height)
 
 		retry:
-			self.Log.WithField("height", height).Debug("Downloading block")
+			self.Log.WithField("height", height).Trace("Downloading block")
 
 			block, err := self.client.GetBlockByHeight(self.Ctx, height)
 			if err != nil {
@@ -160,7 +160,7 @@ func (self *BlockDownloader) run() error {
 			self.Log.
 				WithField("height", height).
 				WithField("length", len(block.Txs)).
-				Debug("Downloaded block")
+				Trace("Downloaded block")
 
 			// Blocks until a monitorTranactions is ready to receive
 			// or Listener is stopped

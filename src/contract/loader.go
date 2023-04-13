@@ -328,10 +328,9 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 }
 
 func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buffer, err error) {
-	self.Log.WithField("id", contractTx.ID).Debug("--> getSource")
-	defer self.Log.WithField("id", contractTx.ID).Debug("<-- getSource")
+	self.Log.WithField("id", contractTx.ID).Debug("--> getInitState")
+	defer self.Log.WithField("id", contractTx.ID).Debug("<-- getInitState")
 
-	self.Log.WithField("id", contractTx.ID).Debug("1")
 	initState, ok := contractTx.GetTag(warp.TagInitState)
 	if ok {
 		// Init state in tags
@@ -339,7 +338,6 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buf
 		return
 	}
 
-	self.Log.WithField("id", contractTx.ID).Debug("2")
 	initStateTxId, ok := contractTx.GetTag(warp.TagInitStateTx)
 	if ok {
 		// FIXME: Validate tags, eg. this value should be a valid transaction id
@@ -347,14 +345,12 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buf
 		return self.client.GetTransactionDataById(self.Ctx, initStateTxId)
 	}
 
-	self.Log.WithField("id", contractTx.ID).Debug("3")
 	// Init state is the contract's data
 	if len(contractTx.Data) > 0 {
 		out.Write(contractTx.Data)
 		return
 	}
 
-	self.Log.WithField("id", contractTx.ID).Debug("4")
 	// It didn't fit into the data field, fetch chunks
 	return self.client.GetChunks(self.Ctx, contractTx.ID)
 }

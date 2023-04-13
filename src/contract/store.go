@@ -78,8 +78,8 @@ func (self *Store) flush(data []*ContractData) (err error) {
 		return
 	}
 
-	self.Log.WithField("count", len(data)).Info("Flushing contracts")
-	defer self.Log.Info("Flushing contracts done")
+	self.Log.WithField("count", len(data)).Trace("Flushing contracts")
+	defer self.Log.Trace("Flushing contracts done")
 
 	err = self.DB.WithContext(self.Ctx).
 		Transaction(func(tx *gorm.DB) error {
@@ -100,13 +100,7 @@ func (self *Store) flush(data []*ContractData) (err error) {
 				return err
 			}
 
-			if len(data) <= 0 {
-				// No contract to insert
-				return nil
-			}
-
 			for _, d := range data {
-
 				// Insert contract
 				err = tx.WithContext(self.Ctx).
 					Clauses(clause.OnConflict{DoNothing: true}).
