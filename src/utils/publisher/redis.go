@@ -77,7 +77,7 @@ func (self *RedisPublisher[In]) connect() (err error) {
 		}
 
 		opts.TLSConfig = &tls.Config{
-			InsecureSkipVerify: false,
+			InsecureSkipVerify: true,
 			RootCAs:            caCertPool,
 			ClientCAs:          caCertPool,
 			Certificates:       []tls.Certificate{cert},
