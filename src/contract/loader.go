@@ -13,7 +13,6 @@ import (
 	"syncer/src/utils/task"
 	"syncer/src/utils/warp"
 
-	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/exp/slices"
 )
 
@@ -152,6 +151,8 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 
 	_, ok := tx.GetTag(warp.TagWarpTestnet)
 	if ok {
+		// PPE: this does not make sens to me...we def. want to  sync the testnet contracts
+		// - although now I'm aware that this is fucked-up in the current syncing code :-)
 		err = errors.New("Trying to use testnet contract in a non-testnet env")
 		return
 	}
@@ -177,6 +178,7 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 	return
 }
 
+// PPE: remove?
 //	let update: any = {
 //		src_tx_id: definition.srcTxId,
 //		init_state: definition.initState,
@@ -251,11 +253,16 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 			return
 		}
 
+		// PPE: pstInitState.Name ?
 		err = out.PstName.Set(pstInitState.Ticker)
 		if err != nil {
 			return
 		}
 	}
+
+	// PPE: where is the block_height and block_timestmap being set?
+	// I don't see sync_timestamp being set (it was added recently)
+	// Same with deployment_type (should be 'arweave')
 
 	return
 }
@@ -328,6 +335,7 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 }
 
 func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buffer, err error) {
+	// --> getSource? getInitState rather :-)
 	self.Log.WithField("id", contractTx.ID).Debug("--> getSource")
 	defer self.Log.WithField("id", contractTx.ID).Debug("<-- getSource")
 
@@ -350,6 +358,7 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buf
 	self.Log.WithField("id", contractTx.ID).Debug("3")
 	// Init state is the contract's data
 	if len(contractTx.Data) > 0 {
+		// PPE will this produce a proper JSON (i.e. we're writing binary data here)?
 		out.Write(contractTx.Data)
 		return
 	}

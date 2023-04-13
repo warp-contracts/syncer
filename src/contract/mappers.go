@@ -41,13 +41,17 @@ func appSyncMapper(config *config.Config) (self *task.Mapper[*ContractData, *mod
 			select {
 			case <-self.Ctx.Done():
 			case out <- &model.AppSyncContractNotification{
-				ContractTxId:   data.Contract.ContractId,
+				ContractTxId: data.Contract.ContractId,
+				// PPE: hmm, for L1 contracts source should be 'arweave'
+				// and in general it should be taken from already parsed Contract
 				Source:         "warp-external",
 				BlockHeight:    data.Contract.BlockHeight,
 				BlockTimestamp: data.Contract.BlockTimestamp,
 				Creator:        data.Contract.Owner.String,
 				Type:           data.Contract.Type.String,
-				SyncTimestamp:  time.Now().Unix(),
+
+				// PPE: this should be taken from contract.sync_timestamp
+				SyncTimestamp: time.Now().Unix(),
 			}:
 			}
 

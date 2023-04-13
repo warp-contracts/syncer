@@ -88,6 +88,7 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 	return
 }
 
+// PPE: how about renaming to `GetWalletAddress`
 func GetAddress(tx *arweave.Transaction) (owner string, err error) {
 	// The n value is the public modulus and is used as the transaction owner field,
 	// and the address of a wallet is a Base64URL encoded SHA-256 hash of the n value from the JWK.
