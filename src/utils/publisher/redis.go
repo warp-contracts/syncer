@@ -66,18 +66,18 @@ func (self *RedisPublisher[In]) connect() (err error) {
 	}
 
 	if self.Config.Redis.ClientCert != "" && self.Config.Redis.ClientKey != "" && self.Config.Redis.CaCert != "" {
-		cert, err := tls.X509KeyPair([]byte(self.Config.Database.ClientCert), []byte(self.Config.Database.ClientKey))
+		cert, err := tls.X509KeyPair([]byte(self.Config.Redis.ClientCert), []byte(self.Config.Redis.ClientKey))
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to load client cert")
 		}
 
 		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM([]byte(self.Config.Database.CaCert)) {
+		if !caCertPool.AppendCertsFromPEM([]byte(self.Config.Redis.CaCert)) {
 			return errors.New("failed to append CA cert to pool")
 		}
 
 		opts.TLSConfig = &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: false,
 			RootCAs:            caCertPool,
 			ClientCAs:          caCertPool,
 			Certificates:       []tls.Certificate{cert},
