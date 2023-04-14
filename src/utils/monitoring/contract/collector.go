@@ -203,7 +203,7 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.LoadContractError, prometheus.CounterValue, float64(self.monitor.Report.Contractor.Errors.LoadContract.Load()))
 	ch <- prometheus.MustNewConstMetric(self.LoadSourceError, prometheus.CounterValue, float64(self.monitor.Report.Contractor.Errors.LoadSource.Load()))
 	ch <- prometheus.MustNewConstMetric(self.LoadInitStateError, prometheus.CounterValue, float64(self.monitor.Report.Contractor.Errors.LoadInitState.Load()))
-	ch <- prometheus.MustNewConstMetric(self.FinishedHeight, prometheus.CounterValue, float64(self.monitor.Report.Contractor.State.FinishedHeight.Load()))
+	ch <- prometheus.MustNewConstMetric(self.FinishedHeight, prometheus.GaugeValue, float64(self.monitor.Report.Contractor.State.FinishedHeight.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AverageContractsSavedPerMinute, prometheus.CounterValue, float64(self.monitor.Report.Contractor.State.AverageContractsSavedPerMinute.Load()))
 	ch <- prometheus.MustNewConstMetric(self.ContractsSaved, prometheus.CounterValue, float64(self.monitor.Report.Contractor.State.ContractsSaved.Load()))
 

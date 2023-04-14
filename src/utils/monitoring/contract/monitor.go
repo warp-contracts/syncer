@@ -143,7 +143,7 @@ func (self *Monitor) OnGetState(c *gin.Context) {
 	// pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 
 	// Fill data
-	self.Report.BlockDownloader.State.BlocksBehind.Store(int64(self.Report.NetworkInfo.State.ArweaveCurrentHeight.Load()) - self.Report.BlockMonitor.State.SyncerCurrentHeight.Load())
+	self.Report.BlockDownloader.State.BlocksBehind.Store(int64(self.Report.NetworkInfo.State.ArweaveCurrentHeight.Load()) - self.Report.BlockDownloader.State.CurrentHeight.Load())
 	self.Report.Run.State.UpForSeconds.Store(uint64(time.Now().Unix() - self.Report.Run.State.StartTimestamp.Load()))
 
 	c.JSON(http.StatusOK, &self.Report)

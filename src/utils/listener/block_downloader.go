@@ -169,6 +169,9 @@ func (self *BlockDownloader) run() error {
 			// Prepare for the next block
 			lastSyncedHeight = block.Height
 			lastProcessedBlockHash = block.IndepHash
+
+			// Update monitoring
+			self.monitor.GetReport().BlockDownloader.State.CurrentHeight.Store(block.Height)
 		}
 	}
 
