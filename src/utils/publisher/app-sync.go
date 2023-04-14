@@ -86,8 +86,10 @@ func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
 func (self *AppSyncPublisher[In]) run() (err error) {
 	for data := range self.input {
 		data := data
-		self.Log.Info("App sync publish")
 		self.SubmitToWorker(func() {
+			self.Log.Debug("App sync publish...")
+			defer self.Log.Debug("...App sync publish done")
+
 			// Serialize to JSON
 			jsonData, err := data.MarshalJSON()
 			if err != nil {

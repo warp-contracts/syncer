@@ -108,9 +108,10 @@ func (self *RedisPublisher[In]) connect() (err error) {
 
 func (self *RedisPublisher[In]) run() (err error) {
 	for payload := range self.input {
-		self.Log.Info("Redis publish")
 
 		self.SubmitToWorker(func() {
+			self.Log.Debug("Redis publish...")
+			defer self.Log.Debug("...Redis publish done")
 			err = task.NewRetry().
 				WithMaxElapsedTime(self.Config.Redis.MaxElapsedTime).
 				WithMaxInterval(self.Config.Redis.MaxInterval).
