@@ -11,6 +11,7 @@ import (
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/smartweave"
 	"syncer/src/utils/task"
+	"syncer/src/utils/tool"
 	"syncer/src/utils/warp"
 	"time"
 
@@ -226,6 +227,11 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 	initStateBuffer, err := self.getInitState(tx)
 	if err != nil {
 		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to get contract init state")
+		return
+	}
+
+	if !tool.IsJSON(initStateBuffer.Bytes()) {
+		err = backoff.Permanent(errors.New("init state is not valid JSON"))
 		return
 	}
 

@@ -12,3 +12,8 @@ func MinifyJSON(in []byte) []byte {
 	}
 	return dst.Bytes()
 }
+
+func IsJSON(in []byte) bool {
+	var js json.RawMessage
+	return json.Unmarshal(in, &js) == nil
+}
