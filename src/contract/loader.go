@@ -91,8 +91,13 @@ func (self *Loader) run() error {
 }
 
 func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*ContractData, err error) {
-	self.Log.Debug("Start loading contracts...")
-	defer self.Log.Debug("...Stopped loading contracts")
+	if len(transactions) > 0 {
+		// Skip
+		return
+	}
+
+	self.Log.WithField("len", len(transactions)).Debug("Start loading contracts...")
+	defer self.Log.WithField("len", len(out)).Debug("...Stopped loading contracts")
 
 	var (
 		wg  sync.WaitGroup
