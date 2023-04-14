@@ -29,6 +29,7 @@ type Contract struct {
 	Testnet             pgtype.Varchar
 	DeploymentType      pgtype.Varchar
 	Manifest            pgtype.JSONB
+	SyncTimestamp       pgtype.Int8
 }
 
 func NewContract() *Contract {
@@ -47,5 +48,6 @@ func NewContract() *Contract {
 		Testnet:             pgtype.Varchar{Status: pgtype.Null},
 		DeploymentType:      pgtype.Varchar{Status: pgtype.Null},
 		Manifest:            pgtype.JSONB{Status: pgtype.Null},
+		SyncTimestamp:       pgtype.Int8{Status: pgtype.Null},
 	}
 }

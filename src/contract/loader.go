@@ -150,12 +150,6 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 
 	out = new(ContractData)
 
-	_, ok := tx.GetTag(warp.TagWarpTestnet)
-	if ok {
-		err = errors.New("Trying to use testnet contract in a non-testnet env")
-		return
-	}
-
 	out.Contract, err = self.getContract(tx)
 	if err != nil {
 		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to parse contract")
@@ -176,17 +170,6 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 
 	return
 }
-
-//	let update: any = {
-//		src_tx_id: definition.srcTxId,
-//		init_state: definition.initState,
-//		owner: definition.owner,
-//		type,
-
-//		pst_ticker: type == 'pst' ? definition.initState?.ticker : null,
-//		pst_name: type == 'pst' ? definition.initState?.name : null,
-//		contract_tx: { tags: definition.contractTx.tags },
-//	 };
 
 func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, err error) {
 	self.Log.WithField("id", tx.ID).Debug("-> getContract")
@@ -228,6 +211,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to get contract init state")
 		return
 	}
+
 	err = out.InitState.Set(initStateBuffer.Bytes())
 	if err != nil {
 		return

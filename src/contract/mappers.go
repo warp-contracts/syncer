@@ -5,7 +5,6 @@ import (
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
 	"syncer/src/utils/task"
-	"time"
 )
 
 func redisMapper(config *config.Config) (self *task.Mapper[*ContractData, *model.ContractNotification]) {
@@ -42,12 +41,12 @@ func appSyncMapper(config *config.Config) (self *task.Mapper[*ContractData, *mod
 			case <-self.Ctx.Done():
 			case out <- &model.AppSyncContractNotification{
 				ContractTxId:   data.Contract.ContractId,
-				Source:         "warp-external",
+				Source:         "arweave",
 				BlockHeight:    data.Contract.BlockHeight,
 				BlockTimestamp: data.Contract.BlockTimestamp,
 				Creator:        data.Contract.Owner.String,
 				Type:           data.Contract.Type.String,
-				SyncTimestamp:  time.Now().Unix(),
+				SyncTimestamp:  data.Contract.SyncTimestamp.Int,
 			}:
 			}
 
