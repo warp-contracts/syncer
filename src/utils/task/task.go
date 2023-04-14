@@ -196,6 +196,21 @@ func (self *Task) SubmitToWorkerIfEmpty(f func()) {
 	// Submit the task
 	self.workers.Submit(
 		func() {
+			defer func() {
+				var err error
+				if p := recover(); p != nil {
+					switch p := p.(type) {
+					case error:
+						err = p
+					default:
+						err = fmt.Errorf("%s", p)
+					}
+					self.Log.WithError(err).Error("Panic in func passed to worker (if empty)")
+
+					panic(p)
+				}
+			}()
+
 			f()
 
 			// Wake up one waiting goroutine
@@ -224,6 +239,21 @@ func (self *Task) SubmitToWorker(f func()) {
 	// Submit the task
 	self.workers.Submit(
 		func() {
+			defer func() {
+				var err error
+				if p := recover(); p != nil {
+					switch p := p.(type) {
+					case error:
+						err = p
+					default:
+						err = fmt.Errorf("%s", p)
+					}
+					self.Log.WithError(err).Error("Panic in func passed to worker")
+
+					panic(p)
+				}
+			}()
+
 			f()
 
 			// Wake up one waiting goroutine
