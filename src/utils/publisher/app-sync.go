@@ -64,21 +64,30 @@ func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
 	  }
 	}`
 
+	self.Log.Debug("A")
+
 	variables := json.RawMessage(fmt.Sprintf(`{"name":"%s","data":%s}`, self.channelName, data))
+	self.Log.Debug("B")
 	response, err := self.client.Post(graphql.PostRequest{
 		Query:     mutation,
 		Variables: &variables,
 	})
+	self.Log.Debug("C")
 	if err != nil {
+		self.Log.Debug("D")
 		return err
 	}
 
+	self.Log.Debug("E")
 	body := new(string)
 	err = response.DataAs(body)
+	self.Log.Debug("F")
 	if err != nil {
+		self.Log.Debug("G")
 		return err
 	}
 
+	self.Log.Debug("H")
 	self.Log.WithField("code", *response.StatusCode).WithField("body", body).Info("AppSync response")
 	return nil
 }
@@ -91,12 +100,14 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 			defer self.Log.Debug("...App sync publish done")
 
 			// Serialize to JSON
+			self.Log.Debug("1")
 			jsonData, err := data.MarshalJSON()
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to marshal to json")
 				return
 			}
 
+			self.Log.Debug("2")
 			// Retry on failure with exponential backoff
 			err = task.NewRetry().
 				WithMaxElapsedTime(self.Config.AppSync.BackoffMaxElapsedTime).
@@ -105,17 +116,19 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 					self.monitor.GetReport().AppSyncPublisher.Errors.Publish.Inc()
 				}).
 				Run(func() error {
+					self.Log.Debug("3")
 					return self.publish(jsonData)
 				})
 
+			self.Log.Debug("4")
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to publish to appsync after retries")
 				self.monitor.GetReport().AppSyncPublisher.Errors.PersistentFailure.Inc()
 				return
 			}
 
+			self.Log.Debug("5")
 			self.monitor.GetReport().AppSyncPublisher.State.MessagesPublished.Inc()
-
 		})
 	}
 	return nil
