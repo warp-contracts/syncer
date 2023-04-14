@@ -207,7 +207,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 	}
 
 	// Owner
-	owner, err := warp.GetAddress(tx)
+	owner, err := warp.GetWalletAddress(tx)
 	if err != nil {
 		return
 	}
