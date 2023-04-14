@@ -65,8 +65,8 @@ func (self *Loader) run() error {
 	for payload := range self.input {
 		data, err := self.loadAll(payload.Transactions)
 		if err != nil {
-			// FIXME: Handle error
-			self.Log.WithError(err).Error("Failed to load contracts")
+			// This should never happen
+			self.Log.WithError(err).WithField("height", payload.BlockHeight).Error("Failed to load all contracts from a block")
 			return err
 		}
 
@@ -114,29 +114,33 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 			self.Log.WithField("id", tx.ID).Debug("Worker loading contract...")
 			defer self.Log.WithField("id", tx.ID).Debug("...Worker loading contract")
 
-			b := backoff.NewExponentialBackOff()
-			b.MaxElapsedTime = self.Config.Contract.LoaderBackoffMaxElapsedTime
-			b.MaxInterval = self.Config.Contract.LoaderBackoffMaxInterval
-
 			var contractData *ContractData
 
 			// Retry loading contract upon error
 			// Skip contract after LoaderBackoffMaxElapsedTime
-			err := backoff.Retry(func() (err error) {
-				contractData, err = self.load(tx)
-				if err != nil {
-					if err == arweave.ErrNotFound {
-						// FIXME: Monitor errors
-						// No need to retry if any of the data is not found
-						// Arweave client already retries with multiple peers
-						self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, couldn't download source or init state")
-						return backoff.Permanent(err)
-					}
+
+			err := task.NewRetry().
+				WithMaxElapsedTime(self.Config.Contract.LoaderBackoffMaxElapsedTime).
+				WithMaxInterval(self.Config.Contract.LoaderBackoffMaxInterval).
+				WithOnError(func(err error) {
 					// FIXME: Monitor errors
-					self.Log.WithError(err).WithField("id", tx.ID).Warn("Failed to load contract, retrying after timeout...")
-				}
-				return
-			}, b)
+
+				}).
+				Run(func() (err error) {
+					contractData, err = self.load(tx)
+					if err != nil {
+						if err == arweave.ErrNotFound {
+							// FIXME: Monitor errors
+							// No need to retry if any of the data is not found
+							// Arweave client already retries with multiple peers
+							self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, couldn't download source or init state")
+							return backoff.Permanent(err)
+						}
+						// FIXME: Monitor errors
+						self.Log.WithError(err).WithField("id", tx.ID).Warn("Failed to load contract, retrying after timeout...")
+					}
+					return
+				})
 			if err != nil {
 				// FIXME: Monitor errors
 				self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, stopped trying!")
