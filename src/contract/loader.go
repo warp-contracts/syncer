@@ -12,6 +12,7 @@ import (
 	"syncer/src/utils/smartweave"
 	"syncer/src/utils/task"
 	"syncer/src/utils/warp"
+	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/exp/slices"
@@ -66,6 +67,12 @@ func (self *Loader) run() error {
 			// FIXME: Handle error
 			self.Log.WithError(err).Error("Failed to load contracts")
 			return err
+		}
+
+		// Fill in common fields
+		for i := range data {
+			data[i].Contract.BlockHeight = uint64(payload.BlockHeight)
+			data[i].Contract.BlockTimestamp = uint64(payload.BlockTimestamp)
 		}
 
 		select {
@@ -177,6 +184,16 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 
 	var ok bool
 	out = model.NewContract()
+	out.ContractId = tx.ID
+	err = out.DeploymentType.Set("arweave")
+	if err != nil {
+		return
+	}
+
+	err = out.SyncTimestamp.Set(time.Now().Unix())
+	if err != nil {
+		return
+	}
 
 	// Source tx id
 	srcTxId, ok := tx.GetTag(smartweave.TagContractSrcTxId)
@@ -235,7 +252,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 			return
 		}
 
-		err = out.PstName.Set(pstInitState.Ticker)
+		err = out.PstName.Set(pstInitState.Name)
 		if err != nil {
 			return
 		}
@@ -250,6 +267,7 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 
 	var ok bool
 	out = model.NewContractSource()
+	out.SrcTxId = srcId
 
 	srcTx, err := self.client.GetTransactionById(self.Ctx, srcId)
 	if err != nil {
