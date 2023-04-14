@@ -40,6 +40,6 @@ type AppSyncContractNotification struct {
 	SyncTimestamp  int64  `json:"syncTimestamp"`
 }
 
-func (self *AppSyncContractNotification) MarshalJSON() (data []byte, err error) {
+func (self *AppSyncContractNotification) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(self)
 }

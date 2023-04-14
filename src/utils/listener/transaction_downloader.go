@@ -132,8 +132,8 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 		//Skip
 		return
 	}
-	self.Log.Debug("Start downloading transactions...")
-	defer self.Log.Debug("...Stopped downloading transactions")
+	self.Log.WithField("height", block.Height).Debug("Start downloading transactions...")
+	defer self.Log.WithField("height", block.Height).Debug("...Stopped downloading transactions")
 	// Sync between workers
 	var mtx sync.Mutex
 	var wg sync.WaitGroup

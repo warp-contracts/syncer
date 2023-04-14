@@ -34,7 +34,7 @@ func redisMapper(config *config.Config) (self *task.Mapper[*ContractData, *model
 }
 
 func appSyncMapper(config *config.Config) (self *task.Mapper[*ContractData, *model.AppSyncContractNotification]) {
-	return task.NewMapper[*ContractData, *model.AppSyncContractNotification](config, "map-redis-notification").
+	return task.NewMapper[*ContractData, *model.AppSyncContractNotification](config, "map-appsync-notification").
 		WithWorkerPool(1, config.Contract.StoreBatchSize).
 		WithProcessFunc(func(data *ContractData, out chan *model.AppSyncContractNotification) (err error) {
 			select {

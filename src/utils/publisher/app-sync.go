@@ -1,6 +1,7 @@
 package publisher
 
 import (
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"syncer/src/utils/config"
@@ -13,7 +14,7 @@ import (
 )
 
 // Forwards messages to Redis
-type AppSyncPublisher[In json.Marshaler] struct {
+type AppSyncPublisher[In encoding.BinaryMarshaler] struct {
 	*task.Task
 
 	monitor monitoring.Monitor
@@ -23,7 +24,7 @@ type AppSyncPublisher[In json.Marshaler] struct {
 	input       chan In
 }
 
-func NewAppSyncPublisher[In json.Marshaler](config *config.Config, name string) (self *AppSyncPublisher[In]) {
+func NewAppSyncPublisher[In encoding.BinaryMarshaler](config *config.Config, name string) (self *AppSyncPublisher[In]) {
 	self = new(AppSyncPublisher[In])
 
 	self.Task = task.NewTask(config, name).
@@ -101,7 +102,7 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 
 			// Serialize to JSON
 			self.Log.Debug("1")
-			jsonData, err := data.MarshalJSON()
+			jsonData, err := data.MarshalBinary()
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to marshal to json")
 				return
