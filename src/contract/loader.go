@@ -114,20 +114,17 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 			self.Log.WithField("id", tx.ID).Debug("Worker loading contract...")
 			defer self.Log.WithField("id", tx.ID).Debug("...Worker loading contract")
 
-			var contractData *ContractData
-
 			// Retry loading contract upon error
 			// Skip contract after LoaderBackoffMaxElapsedTime
-
 			err := task.NewRetry().
 				WithMaxElapsedTime(self.Config.Contract.LoaderBackoffMaxElapsedTime).
 				WithMaxInterval(self.Config.Contract.LoaderBackoffMaxInterval).
 				WithOnError(func(err error) {
 					// FIXME: Monitor errors
-
+					self.Log.WithError(err).WithField("id", tx.ID).Debug("Retrying loading contract")
 				}).
 				Run(func() (err error) {
-					contractData, err = self.load(tx)
+					contractData, err := self.load(tx)
 					if err != nil {
 						if err == arweave.ErrNotFound {
 							// FIXME: Monitor errors
@@ -139,19 +136,17 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 						// FIXME: Monitor errors
 						self.Log.WithError(err).WithField("id", tx.ID).Warn("Failed to load contract, retrying after timeout...")
 					}
+
+					mtx.Lock()
+					out = append(out, contractData)
+					mtx.Unlock()
 					return
 				})
 			if err != nil {
 				// FIXME: Monitor errors
 				self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, stopped trying!")
-				goto done
 			}
 
-			mtx.Lock()
-			out = append(out, contractData)
-			mtx.Unlock()
-
-		done:
 			wg.Done()
 		})
 	}
