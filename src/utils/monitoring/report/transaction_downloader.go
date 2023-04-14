@@ -3,8 +3,9 @@ package report
 import "go.uber.org/atomic"
 
 type TransactionDownloaderErrors struct {
-	Download   atomic.Uint64 `json:"download"`
-	Validation atomic.Uint64 `json:"validation"`
+	Download                 atomic.Uint64 `json:"download"`
+	PermanentDownloadFailure atomic.Uint64 `json:"permanent_download_failure"`
+	Validation               atomic.Uint64 `json:"validation"`
 }
 
 type TransactionDownloaderState struct {

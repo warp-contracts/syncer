@@ -25,16 +25,18 @@ type Collector struct {
 	PeersBlacklisted *prometheus.Desc
 	NumPeers         *prometheus.Desc
 
-	// TransactionDownloader
-	TransactionsDownloaded                *prometheus.Desc
-	AverageTransactionDownloadedPerMinute *prometheus.Desc
-
-	TxValidationErrors        *prometheus.Desc
-	TxDownloadErrors          *prometheus.Desc
+	// BlockDownloader
 	BlockValidationErrors     *prometheus.Desc
 	BlockDownloadErrors       *prometheus.Desc
 	PeerDownloadErrors        *prometheus.Desc
 	NetworkInfoDownloadErrors *prometheus.Desc
+
+	// TransactionDownloader
+	TransactionsDownloaded                *prometheus.Desc
+	AverageTransactionDownloadedPerMinute *prometheus.Desc
+	TxPermanentDownloadErrors             *prometheus.Desc
+	TxValidationErrors                    *prometheus.Desc
+	TxDownloadErrors                      *prometheus.Desc
 
 	// Contractor
 	DbContractInsertError             *prometheus.Desc
@@ -87,6 +89,7 @@ func NewCollector() *Collector {
 		AverageTransactionDownloadedPerMinute: prometheus.NewDesc("average_transactions_downloaded_per_minute", "", nil, labels),
 		TxValidationErrors:                    prometheus.NewDesc("error_tx_validation", "", nil, labels),
 		TxDownloadErrors:                      prometheus.NewDesc("error_tx_download", "", nil, labels),
+		TxPermanentDownloadErrors:             prometheus.NewDesc("error_tx_permanent_download", "", nil, labels),
 
 		// PeerMonitor
 		PeersBlacklisted:   prometheus.NewDesc("peers_blacklisted", "", nil, labels),
@@ -139,6 +142,7 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.DbLastTransactionBlockHeightError
 	ch <- self.TxValidationErrors
 	ch <- self.TxDownloadErrors
+	ch <- self.TxPermanentDownloadErrors
 	ch <- self.BlockValidationErrors
 	ch <- self.BlockDownloadErrors
 	ch <- self.PeerDownloadErrors
@@ -187,6 +191,7 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	// TransactionDownloader
 	ch <- prometheus.MustNewConstMetric(self.TransactionsDownloaded, prometheus.CounterValue, float64(self.monitor.Report.TransactionDownloader.State.TransactionsDownloaded.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AverageTransactionDownloadedPerMinute, prometheus.GaugeValue, float64(self.monitor.Report.TransactionDownloader.State.AverageTransactionDownloadedPerMinute.Load()))
+	ch <- prometheus.MustNewConstMetric(self.TxPermanentDownloadErrors, prometheus.CounterValue, float64(self.monitor.Report.TransactionDownloader.Errors.PermanentDownloadFailure.Load()))
 	ch <- prometheus.MustNewConstMetric(self.TxDownloadErrors, prometheus.CounterValue, float64(self.monitor.Report.TransactionDownloader.Errors.Download.Load()))
 	ch <- prometheus.MustNewConstMetric(self.TxValidationErrors, prometheus.CounterValue, float64(self.monitor.Report.TransactionDownloader.Errors.Validation.Load()))
 

@@ -106,7 +106,6 @@ func (self *TransactionDownloader) run() error {
 			return nil
 		}
 		if err != nil {
-			// FIXME: Monitor counter
 			// FIXME: Shouldn't we stop?
 			self.Log.WithError(err).WithField("height", block.Height).Error("Failed to download transactions in block")
 			continue
@@ -129,8 +128,12 @@ func (self *TransactionDownloader) run() error {
 }
 
 func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (out []*arweave.Transaction, err error) {
-	self.Log.Trace("Start downloading transactions...")
-	defer self.Log.Trace("...Stopped downloading transactions")
+	if len(block.Txs) == 0 {
+		//Skip
+		return
+	}
+	self.Log.Debug("Start downloading transactions...")
+	defer self.Log.Debug("...Stopped downloading transactions")
 	// Sync between workers
 	var mtx sync.Mutex
 	var wg sync.WaitGroup
@@ -149,14 +152,14 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 			// Encode txId for later
 			txId := base64.RawURLEncoding.EncodeToString(txIdBytes)
 
-			// Configure backoff
-			b := backoff.NewExponentialBackOff()
-			b.MaxElapsedTime = self.maxElapsedTime
-			b.MaxInterval = self.maxInterval
-
 			// Retries downloading transaction until success or permanent error
-			err = backoff.Retry(
-				func() (err error) {
+			err = task.NewRetry().
+				WithMaxElapsedTime(self.maxElapsedTime).
+				WithMaxInterval(self.maxInterval).
+				WithOnError(func(err error) {
+					self.monitor.GetReport().TransactionDownloader.Errors.Download.Inc()
+				}).
+				Run(func() error {
 					tx, err = self.client.GetTransactionById(self.Ctx, txId)
 					if err != nil {
 						if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
@@ -167,16 +170,14 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 
 						// This will completly reset the HTTP client and possibly help in solving the problem
 						self.client.Reset()
-
-						self.monitor.GetReport().TransactionDownloader.Errors.Download.Inc()
-
 						// FIXME: Inform downstream something's wrong
 					}
-
 					return err
-				}, b)
+				})
+
 			if err != nil {
 				// Permanent error
+				self.monitor.GetReport().TransactionDownloader.Errors.PermanentDownloadFailure.Inc()
 				self.Log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, giving up")
 				goto end
 			}
