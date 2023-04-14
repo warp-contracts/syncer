@@ -85,6 +85,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 		redisPublisher := publisher.NewRedisPublisher[*model.ContractNotification](config, "contract-redis-publisher").
 			WithChannelName(config.Contract.PublisherRedisChannelName).
+			WithMonitor(monitor).
 			WithInputChannel(redisMapper.Output)
 
 		appSyncMapper := appSyncMapper(config).
@@ -92,6 +93,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 		appSyncPublisher := publisher.NewAppSyncPublisher[*model.AppSyncContractNotification](config, "contract-appsync-publisher").
 			WithChannelName(config.Contract.PublisherAppSyncChannelName).
+			WithMonitor(monitor).
 			WithInputChannel(appSyncMapper.Output)
 
 		return task.NewTask(config, "watched-contract").
