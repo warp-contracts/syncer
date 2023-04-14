@@ -24,6 +24,16 @@ type Redis struct {
 	ConnMaxIdleTime time.Duration
 	MaxOpenConns    int
 	ConnMaxLifetime time.Duration
+
+	// Publish backoff configuration, 0 is no limit
+	MaxElapsedTime time.Duration
+	MaxInterval    time.Duration
+
+	// Num of workers that publish messages
+	MaxWorkers int
+
+	// Max num of requests in worker's queue
+	MaxQueueSize int
 }
 
 func setRedisDefaults() {
@@ -37,4 +47,8 @@ func setRedisDefaults() {
 	viper.SetDefault("Redis.ConnMaxIdleTime", "10m")
 	viper.SetDefault("Redis.MaxOpenConns", "15")
 	viper.SetDefault("Redis.ConnMaxLifetime", "1h")
+	viper.SetDefault("Redis.MaxElapsedTime", "10m")
+	viper.SetDefault("Redis.MaxInterval", "60s")
+	viper.SetDefault("Redis.MaxWorkers", "15")
+	viper.SetDefault("Redis.MaxQueueSize", "1")
 }

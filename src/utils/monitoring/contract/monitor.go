@@ -25,7 +25,7 @@ type Monitor struct {
 	// Block processing speed
 	BlockHeights      *deque.Deque[int64]
 	TransactionCounts *deque.Deque[uint64]
-	InteractionsSaved *deque.Deque[uint64]
+	ContractsSaved    *deque.Deque[uint64]
 }
 
 func NewMonitor() (self *Monitor) {
@@ -33,7 +33,9 @@ func NewMonitor() (self *Monitor) {
 
 	self.Report = report.Report{
 		Run:                   &report.RunReport{},
-		Syncer:                &report.SyncerReport{},
+		Contractor:            &report.ContractorReport{},
+		RedisPublisher:        &report.RedisPublisherReport{},
+		AppSyncPublisher:      &report.AppSyncPublisherReport{},
 		NetworkInfo:           &report.NetworkInfoReport{},
 		BlockDownloader:       &report.BlockDownloaderReport{},
 		TransactionDownloader: &report.TransactionDownloaderReport{},
@@ -48,7 +50,7 @@ func NewMonitor() (self *Monitor) {
 	self.Task = task.NewTask(nil, "monitor").
 		WithPeriodicSubtaskFunc(time.Minute, self.monitorBlocks).
 		WithPeriodicSubtaskFunc(time.Minute, self.monitorTransactions).
-		WithPeriodicSubtaskFunc(time.Minute, self.monitorInteractions)
+		WithPeriodicSubtaskFunc(time.Minute, self.monitorContracts)
 	return
 }
 
@@ -61,7 +63,7 @@ func (self *Monitor) WithMaxHistorySize(maxHistorySize int) *Monitor {
 
 	self.BlockHeights = deque.New[int64](self.historySize)
 	self.TransactionCounts = deque.New[uint64](self.historySize)
-	self.InteractionsSaved = deque.New[uint64](self.historySize)
+	self.ContractsSaved = deque.New[uint64](self.historySize)
 
 	self.Report.Run.State.StartTimestamp.Store(time.Now().Unix())
 	return self
@@ -77,7 +79,7 @@ func round(f float64) float64 {
 
 // Measure block processing speed
 func (self *Monitor) monitorBlocks() (err error) {
-	loaded := self.Report.BlockDownloader.State.SyncerCurrentHeight.Load()
+	loaded := self.Report.BlockDownloader.State.CurrentHeight.Load()
 	if loaded == 0 {
 		// Neglect the first 0
 		return
@@ -110,20 +112,20 @@ func (self *Monitor) monitorTransactions() (err error) {
 	return
 }
 
-// Measure Interaction processing speed
-func (self *Monitor) monitorInteractions() (err error) {
-	loaded := self.Report.Syncer.State.InteractionsSaved.Load()
+// Measure contracts processing speed
+func (self *Monitor) monitorContracts() (err error) {
+	loaded := self.Report.Contractor.State.ContractsSaved.Load()
 	if loaded == 0 {
 		// Neglect the first 0
 		return
 	}
 
-	self.InteractionsSaved.PushBack(loaded)
-	if self.InteractionsSaved.Len() > self.historySize {
-		self.InteractionsSaved.PopFront()
+	self.ContractsSaved.PushBack(loaded)
+	if self.ContractsSaved.Len() > self.historySize {
+		self.ContractsSaved.PopFront()
 	}
-	value := float64(self.InteractionsSaved.Back()-self.InteractionsSaved.Front()) / float64(self.InteractionsSaved.Len())
-	self.Report.Syncer.State.AverageInteractionsSavedPerMinute.Store(round(value))
+	value := float64(self.ContractsSaved.Back()-self.ContractsSaved.Front()) / float64(self.ContractsSaved.Len())
+	self.Report.Contractor.State.AverageContractsSavedPerMinute.Store(round(value))
 	return
 }
 

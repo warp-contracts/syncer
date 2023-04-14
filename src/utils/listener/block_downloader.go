@@ -104,7 +104,7 @@ func (self *BlockDownloader) run() error {
 
 		// Download transactions from
 		for height := lastSyncedHeight + 1; height <= networkInfo.Height; height++ {
-			self.monitor.GetReport().BlockDownloader.State.SyncerCurrentHeight.Store(height)
+			self.monitor.GetReport().BlockDownloader.State.CurrentHeight.Store(height)
 
 		retry:
 			self.Log.WithField("height", height).Trace("Downloading block")

@@ -168,7 +168,7 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 						// This will completly reset the HTTP client and possibly help in solving the problem
 						self.client.Reset()
 
-						self.monitor.GetReport().TransactionDownloader.Errors.TxDownloadErrors.Inc()
+						self.monitor.GetReport().TransactionDownloader.Errors.Download.Inc()
 
 						// FIXME: Inform downstream something's wrong
 					}

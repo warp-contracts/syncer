@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"syncer/src/utils/config"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 // Forwards messages to Redis
 type RedisPublisher[In encoding.BinaryMarshaler] struct {
 	*task.Task
+
+	monitor monitoring.Monitor
 
 	client      *redis.Client
 	channelName string
@@ -29,7 +32,8 @@ func NewRedisPublisher[In encoding.BinaryMarshaler](config *config.Config, name 
 	self.Task = task.NewTask(config, name).
 		WithSubtaskFunc(self.run).
 		WithOnBeforeStart(self.connect).
-		WithOnAfterStop(self.disconnect)
+		WithOnAfterStop(self.disconnect).
+		WithWorkerPool(config.Redis.MaxWorkers, config.Redis.MaxQueueSize)
 
 	return
 }
@@ -41,6 +45,11 @@ func (self *RedisPublisher[In]) WithInputChannel(v chan In) *RedisPublisher[In] 
 
 func (self *RedisPublisher[In]) WithChannelName(v string) *RedisPublisher[In] {
 	self.channelName = v
+	return self
+}
+
+func (self *RedisPublisher[In]) WithMonitor(monitor monitoring.Monitor) *RedisPublisher[In] {
+	self.monitor = monitor
 	return self
 }
 
@@ -88,16 +97,41 @@ func (self *RedisPublisher[In]) connect() (err error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	return self.client.Ping(ctx).Err()
+	err = self.client.Ping(ctx).Err()
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to ping Redis")
+		return
+	}
+
+	return
 }
 
 func (self *RedisPublisher[In]) run() (err error) {
 	for payload := range self.input {
 		self.Log.Info("Redis publish")
-		err = self.client.Publish(self.Ctx, self.channelName, payload).Err()
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to publish message")
-		}
+
+		self.SubmitToWorker(func() {
+			err = task.NewRetry().
+				WithMaxElapsedTime(self.Config.Redis.MaxElapsedTime).
+				WithMaxInterval(self.Config.Redis.MaxInterval).
+				WithOnError(func(err error) {
+					self.monitor.GetReport().RedisPublisher.Errors.Publish.Inc()
+				}).
+				Run(func() (err error) {
+					err = self.client.Publish(self.Ctx, self.channelName, payload).Err()
+					if err != nil {
+						self.Log.WithError(err).Error("Failed to publish message, retrying")
+						return
+					}
+					return
+				})
+			if err != nil {
+				self.Log.WithError(err).Error("Failed to publish message, giving up")
+				self.monitor.GetReport().RedisPublisher.Errors.PersistentFailure.Inc()
+				return
+			}
+			self.monitor.GetReport().RedisPublisher.State.MessagesPublished.Inc()
+		})
 	}
 	return nil
 }

@@ -97,6 +97,7 @@ func (self *Store) flush(data []*ContractData) (err error) {
 				Error
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to update state after last block")
+				self.monitor.GetReport().Contractor.Errors.DbLastTransactionBlockHeight.Inc()
 				return err
 			}
 
@@ -107,8 +108,8 @@ func (self *Store) flush(data []*ContractData) (err error) {
 					Create(d.Contract).
 					Error
 				if err != nil {
-					//  FIXME: Monitor
 					self.Log.WithError(err).Error("Failed to insert contract")
+					self.monitor.GetReport().Contractor.Errors.DbContractInsert.Inc()
 					continue
 				}
 
@@ -118,11 +119,11 @@ func (self *Store) flush(data []*ContractData) (err error) {
 					Create(d.Source).
 					Error
 				if err != nil {
-					//  FIXME: Monitor
 					self.Log.WithError(err).Error("Failed to insert contract source")
+					self.monitor.GetReport().Contractor.Errors.DbSourceInsert.Inc()
 					continue
 				}
-				// FIXME: Monitor
+
 			}
 
 			return nil
@@ -131,9 +132,13 @@ func (self *Store) flush(data []*ContractData) (err error) {
 		return
 	}
 
+	self.monitor.GetReport().Contractor.State.ContractsSaved.Add(uint64(len(data)))
+
 	// Update saved block height
 	self.mtx.Lock()
 	self.savedBlockHeight = self.contractFinishedHeight
 	self.mtx.Unlock()
+
+	self.monitor.GetReport().Contractor.State.FinishedHeight.Store(self.savedBlockHeight)
 	return
 }

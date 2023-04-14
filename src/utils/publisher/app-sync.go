@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"syncer/src/utils/config"
+	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"time"
 
-	"github.com/cenkalti/backoff"
 	appsync "github.com/sony/appsync-client-go"
 	"github.com/sony/appsync-client-go/graphql"
 )
@@ -15,6 +15,8 @@ import (
 // Forwards messages to Redis
 type AppSyncPublisher[In json.Marshaler] struct {
 	*task.Task
+
+	monitor monitoring.Monitor
 
 	client      *appsync.Client
 	channelName string
@@ -49,6 +51,11 @@ func (self *AppSyncPublisher[In]) WithChannelName(v string) *AppSyncPublisher[In
 	return self
 }
 
+func (self *AppSyncPublisher[In]) WithMonitor(monitor monitoring.Monitor) *AppSyncPublisher[In] {
+	self.monitor = monitor
+	return self
+}
+
 func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
 	mutation := `mutation Publish($data: AWSJSON!, $name: String!) {
 	  publish(data: $data, name: $name) {
@@ -65,8 +72,8 @@ func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	body := new(string)
 
+	body := new(string)
 	err = response.DataAs(body)
 	if err != nil {
 		return err
@@ -89,18 +96,24 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 			}
 
 			// Retry on failure with exponential backoff
-			b := backoff.NewExponentialBackOff()
-			b.MaxElapsedTime = self.Config.AppSync.BackoffMaxElapsedTime
-			b.MaxInterval = self.Config.AppSync.BackoffMaxInterval
-
-			err = backoff.Retry(func() error {
-				return self.publish(jsonData)
-			}, b)
+			err = task.NewRetry().
+				WithMaxElapsedTime(self.Config.AppSync.BackoffMaxElapsedTime).
+				WithMaxInterval(self.Config.AppSync.BackoffMaxInterval).
+				WithOnError(func(err error) {
+					self.monitor.GetReport().AppSyncPublisher.Errors.Publish.Inc()
+				}).
+				Run(func() error {
+					return self.publish(jsonData)
+				})
 
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to publish to appsync after retries")
+				self.monitor.GetReport().AppSyncPublisher.Errors.PersistentFailure.Inc()
 				return
 			}
+
+			self.monitor.GetReport().AppSyncPublisher.State.MessagesPublished.Inc()
+
 		})
 	}
 	return nil

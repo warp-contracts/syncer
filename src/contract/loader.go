@@ -91,7 +91,7 @@ func (self *Loader) run() error {
 }
 
 func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*ContractData, err error) {
-	if len(transactions) > 0 {
+	if len(transactions) == 0 {
 		// Skip
 		return
 	}
@@ -120,20 +120,17 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 				WithMaxElapsedTime(self.Config.Contract.LoaderBackoffMaxElapsedTime).
 				WithMaxInterval(self.Config.Contract.LoaderBackoffMaxInterval).
 				WithOnError(func(err error) {
-					// FIXME: Monitor errors
 					self.Log.WithError(err).WithField("id", tx.ID).Debug("Retrying loading contract")
 				}).
 				Run(func() (err error) {
 					contractData, err := self.load(tx)
 					if err != nil {
 						if err == arweave.ErrNotFound {
-							// FIXME: Monitor errors
 							// No need to retry if any of the data is not found
 							// Arweave client already retries with multiple peers
 							self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, couldn't download source or init state")
 							return backoff.Permanent(err)
 						}
-						// FIXME: Monitor errors
 						self.Log.WithError(err).WithField("id", tx.ID).Warn("Failed to load contract, retrying after timeout...")
 					}
 
@@ -143,8 +140,8 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 					return
 				})
 			if err != nil {
-				// FIXME: Monitor errors
 				self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, stopped trying!")
+				self.monitor.GetReport().Contractor.Errors.LoadPersistentContract.Inc()
 			}
 
 			wg.Done()
@@ -165,6 +162,7 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 	out.Contract, err = self.getContract(tx)
 	if err != nil {
 		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to parse contract")
+		self.monitor.GetReport().Contractor.Errors.LoadContract.Inc()
 		return
 	}
 
@@ -177,6 +175,7 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 	out.Source, err = self.getSource(out.Contract.SrcTxId.String)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get contract source")
+		self.monitor.GetReport().Contractor.Errors.LoadSource.Inc()
 		return
 	}
 
@@ -231,6 +230,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 	initStateBuffer, err := self.getInitState(tx)
 	if err != nil {
 		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to get contract init state")
+		self.monitor.GetReport().Contractor.Errors.LoadInitState.Inc()
 		return
 	}
 
