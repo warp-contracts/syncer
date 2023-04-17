@@ -114,6 +114,7 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 				WithMaxElapsedTime(self.Config.AppSync.BackoffMaxElapsedTime).
 				WithMaxInterval(self.Config.AppSync.BackoffMaxInterval).
 				WithOnError(func(err error) {
+					self.Log.WithError(err).Error("Appsync publish failed")
 					self.monitor.GetReport().AppSyncPublisher.Errors.Publish.Inc()
 				}).
 				Run(func() error {
