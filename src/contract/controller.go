@@ -116,6 +116,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithIsOK(func() bool {
 			isOK := monitor.IsOK()
 			if !isOK {
+				monitor.Clear()
 				monitor.GetReport().Run.Errors.NumWatchdogRestarts.Inc()
 			}
 			return isOK

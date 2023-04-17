@@ -36,6 +36,9 @@ func NewMonitor() (self *Monitor) {
 	return
 }
 
+func (self *Monitor) Clear() {
+}
+
 func (self *Monitor) GetReport() *report.Report {
 	return &self.Report
 }

@@ -51,6 +51,12 @@ func NewMonitor() (self *Monitor) {
 	return
 }
 
+func (self *Monitor) Clear() {
+	self.BlockHeights.Clear()
+	self.TransactionCounts.Clear()
+	self.InteractionsSaved.Clear()
+}
+
 func (self *Monitor) GetReport() *report.Report {
 	return &self.Report
 }

@@ -48,10 +48,16 @@ func NewMonitor() (self *Monitor) {
 	self.collector = NewCollector().WithMonitor(self)
 
 	self.Task = task.NewTask(nil, "monitor").
-		WithPeriodicSubtaskFunc(time.Minute, self.monitorBlocks).
-		WithPeriodicSubtaskFunc(time.Minute, self.monitorTransactions).
-		WithPeriodicSubtaskFunc(time.Minute, self.monitorContracts)
+		WithPeriodicSubtaskFunc(10*time.Second, self.monitorBlocks).
+		WithPeriodicSubtaskFunc(10*time.Second, self.monitorTransactions).
+		WithPeriodicSubtaskFunc(10*time.Second, self.monitorContracts)
 	return
+}
+
+func (self *Monitor) Clear() {
+	self.BlockHeights.Clear()
+	self.TransactionCounts.Clear()
+	self.ContractsSaved.Clear()
 }
 
 func (self *Monitor) GetReport() *report.Report {
@@ -130,8 +136,7 @@ func (self *Monitor) monitorContracts() (err error) {
 }
 
 func (self *Monitor) IsOK() bool {
-	now := time.Now().Unix()
-	if now-self.Report.Run.State.StartTimestamp.Load() < 300 {
+	if self.BlockHeights.Len() < self.historySize {
 		return true
 	}
 
