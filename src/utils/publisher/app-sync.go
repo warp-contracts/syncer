@@ -4,7 +4,9 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"syncer/src/utils/config"
+	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"time"
@@ -12,6 +14,13 @@ import (
 	appsync "github.com/sony/appsync-client-go"
 	"github.com/sony/appsync-client-go/graphql"
 )
+
+const mutation = `mutation Publish($data: AWSJSON!, $name: String!) {
+	publish(data: $data, name: $name) {
+	  data
+	  name
+	}
+  }`
 
 // Forwards messages to Redis
 type AppSyncPublisher[In encoding.BinaryMarshaler] struct {
@@ -24,16 +33,22 @@ type AppSyncPublisher[In encoding.BinaryMarshaler] struct {
 	input       chan In
 }
 
+type Args struct {
+	Name string `json:"name"`
+	Data string `json:"data"`
+}
+
 func NewAppSyncPublisher[In encoding.BinaryMarshaler](config *config.Config, name string) (self *AppSyncPublisher[In]) {
 	self = new(AppSyncPublisher[In])
 
 	self.Task = task.NewTask(config, name).
 		WithSubtaskFunc(self.run).
+		WithPeriodicSubtaskFunc(time.Second*10, self.test).
 		WithWorkerPool(config.AppSync.MaxWorkers, config.AppSync.MaxQueueSize)
 
 	// Init AppSync client
 	gqlClient := graphql.NewClient(config.AppSync.Url,
-		graphql.WithAPIKey(config.AppSync.Token),
+		graphql.WithCredential(config.AppSync.Token),
 		graphql.WithTimeout(time.Second*30),
 	)
 
@@ -58,38 +73,32 @@ func (self *AppSyncPublisher[In]) WithMonitor(monitor monitoring.Monitor) *AppSy
 }
 
 func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
-	mutation := `mutation Publish($data: AWSJSON!, $name: String!) {
-	  publish(data: $data, name: $name) {
-		data
-		name
-	  }
-	}`
+	// Serialize args
+	args := Args{
+		Name: self.channelName,
+		Data: string(data),
+	}
 
-	self.Log.Debug("A")
+	argsBuf, err := json.Marshal(args)
+	if err != nil {
+		return
+	}
+	variables := json.RawMessage(argsBuf)
 
-	variables := json.RawMessage(fmt.Sprintf(`{"name":"%s","data":%s}`, self.channelName, data))
-	self.Log.Debug("B")
+	// Perform the request
 	response, err := self.client.Post(graphql.PostRequest{
 		Query:     mutation,
 		Variables: &variables,
 	})
-	self.Log.Debug("C")
 	if err != nil {
-		self.Log.Debug("D")
 		return err
 	}
 
-	self.Log.Debug("E")
-	body := new(string)
-	err = response.DataAs(body)
-	self.Log.Debug("F")
-	if err != nil {
-		self.Log.Debug("G")
-		return err
+	// Check response
+	if response.StatusCode != nil && *response.StatusCode != http.StatusOK {
+		err = fmt.Errorf("appsync publish failed with status %d", *response.StatusCode)
+		return
 	}
-
-	self.Log.Debug("H")
-	self.Log.WithField("code", *response.StatusCode).WithField("body", body).Info("AppSync response")
 	return nil
 }
 
@@ -101,14 +110,12 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 			defer self.Log.Debug("...App sync publish done")
 
 			// Serialize to JSON
-			self.Log.Debug("1")
 			jsonData, err := data.MarshalBinary()
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to marshal to json")
 				return
 			}
 
-			self.Log.Debug("2")
 			// Retry on failure with exponential backoff
 			err = task.NewRetry().
 				WithMaxElapsedTime(self.Config.AppSync.BackoffMaxElapsedTime).
@@ -118,20 +125,62 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 					self.monitor.GetReport().AppSyncPublisher.Errors.Publish.Inc()
 				}).
 				Run(func() error {
-					self.Log.Debug("3")
 					return self.publish(jsonData)
 				})
 
-			self.Log.Debug("4")
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to publish to appsync after retries")
 				self.monitor.GetReport().AppSyncPublisher.Errors.PersistentFailure.Inc()
 				return
 			}
 
-			self.Log.Debug("5")
 			self.monitor.GetReport().AppSyncPublisher.State.MessagesPublished.Inc()
 		})
 	}
+	return nil
+}
+
+func (self *AppSyncPublisher[In]) test() (err error) {
+	data := model.AppSyncContractNotification{
+		ContractTxId: "testtesttest",
+		Type:         "test",
+	}
+
+	self.SubmitToWorker(func() {
+		self.Log.Debug("App sync publish...")
+		defer self.Log.Debug("...App sync publish done")
+
+		// Serialize to JSON
+		self.Log.Debug("1")
+		jsonData, err := data.MarshalBinary()
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to marshal to json")
+			return
+		}
+
+		self.Log.Debug("2")
+		// Retry on failure with exponential backoff
+		err = task.NewRetry().
+			WithMaxElapsedTime(self.Config.AppSync.BackoffMaxElapsedTime).
+			WithMaxInterval(self.Config.AppSync.BackoffMaxInterval).
+			WithOnError(func(err error) {
+				self.Log.WithError(err).Error("Appsync publish failed")
+				self.monitor.GetReport().AppSyncPublisher.Errors.Publish.Inc()
+			}).
+			Run(func() error {
+				self.Log.Debug("3")
+				return self.publish(jsonData)
+			})
+
+		self.Log.Debug("4")
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to publish to appsync after retries")
+			self.monitor.GetReport().AppSyncPublisher.Errors.PersistentFailure.Inc()
+			return
+		}
+
+		self.Log.Debug("5")
+		self.monitor.GetReport().AppSyncPublisher.State.MessagesPublished.Inc()
+	})
 	return nil
 }
