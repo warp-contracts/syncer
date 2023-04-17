@@ -3,6 +3,7 @@ package monitor_contract
 import (
 	"math"
 	"net/http"
+	"sync"
 	"syncer/src/utils/monitoring/report"
 	"syncer/src/utils/task"
 	"time"
@@ -15,6 +16,8 @@ import (
 // Stores and computes monitor counters
 type Monitor struct {
 	*task.Task
+
+	mtx sync.RWMutex
 
 	Report report.Report
 
@@ -55,6 +58,9 @@ func NewMonitor() (self *Monitor) {
 }
 
 func (self *Monitor) Clear() {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
 	self.BlockHeights.Clear()
 	self.TransactionCounts.Clear()
 	self.ContractsSaved.Clear()
@@ -85,6 +91,9 @@ func round(f float64) float64 {
 
 // Measure block processing speed
 func (self *Monitor) monitorBlocks() (err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
 	loaded := self.Report.BlockDownloader.State.CurrentHeight.Load()
 	if loaded == 0 {
 		// Neglect the first 0
@@ -103,6 +112,9 @@ func (self *Monitor) monitorBlocks() (err error) {
 
 // Measure transaction processing speed
 func (self *Monitor) monitorTransactions() (err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
 	loaded := self.Report.TransactionDownloader.State.TransactionsDownloaded.Load()
 	if loaded == 0 {
 		// Neglect the first 0
@@ -120,6 +132,9 @@ func (self *Monitor) monitorTransactions() (err error) {
 
 // Measure contracts processing speed
 func (self *Monitor) monitorContracts() (err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
 	loaded := self.Report.Contractor.State.ContractsSaved.Load()
 	if loaded == 0 {
 		// Neglect the first 0
@@ -136,6 +151,9 @@ func (self *Monitor) monitorContracts() (err error) {
 }
 
 func (self *Monitor) IsOK() bool {
+	self.mtx.RLock()
+	defer self.mtx.RUnlock()
+
 	if self.BlockHeights.Len() < self.historySize {
 		return true
 	}

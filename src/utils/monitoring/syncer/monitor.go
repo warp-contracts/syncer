@@ -3,6 +3,7 @@ package monitor_syncer
 import (
 	"math"
 	"net/http"
+	"sync"
 	"syncer/src/utils/monitoring/report"
 	"syncer/src/utils/task"
 	"time"
@@ -16,11 +17,10 @@ import (
 type Monitor struct {
 	*task.Task
 
-	Report report.Report
-
+	mtx         sync.RWMutex
+	Report      report.Report
 	historySize int
-
-	collector *Collector
+	collector   *Collector
 
 	// Block processing speed
 	BlockHeights      *deque.Deque[int64]
@@ -52,6 +52,9 @@ func NewMonitor() (self *Monitor) {
 }
 
 func (self *Monitor) Clear() {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
 	self.BlockHeights.Clear()
 	self.TransactionCounts.Clear()
 	self.InteractionsSaved.Clear()
@@ -81,6 +84,9 @@ func round(f float64) float64 {
 
 // Measure block processing speed
 func (self *Monitor) monitorBlocks() (err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
 	loaded := self.Report.BlockMonitor.State.SyncerCurrentHeight.Load()
 	if loaded == 0 {
 		// Neglect the first 0
@@ -99,6 +105,9 @@ func (self *Monitor) monitorBlocks() (err error) {
 
 // Measure transaction processing speed
 func (self *Monitor) monitorTransactions() (err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
 	loaded := self.Report.BlockMonitor.State.TransactionsDownloaded.Load()
 	if loaded == 0 {
 		// Neglect the first 0
@@ -116,6 +125,9 @@ func (self *Monitor) monitorTransactions() (err error) {
 
 // Measure Interaction processing speed
 func (self *Monitor) monitorInteractions() (err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
 	loaded := self.Report.Syncer.State.InteractionsSaved.Load()
 	if loaded == 0 {
 		// Neglect the first 0
@@ -132,8 +144,10 @@ func (self *Monitor) monitorInteractions() (err error) {
 }
 
 func (self *Monitor) IsOK() bool {
-	now := time.Now().Unix()
-	if now-self.Report.Run.State.StartTimestamp.Load() < 300 {
+	self.mtx.RLock()
+	defer self.mtx.RUnlock()
+
+	if self.BlockHeights.Len() < self.historySize {
 		return true
 	}
 
