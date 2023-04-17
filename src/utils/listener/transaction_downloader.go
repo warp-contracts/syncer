@@ -101,8 +101,14 @@ func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownload
 			return false
 		}
 
-		value, ok := tx.GetTag(smartweave.TagAppName)
-		return ok && value == "SmartWeaveAction"
+		for _, tag := range tx.Tags {
+			if string(tag.Value) == "SmartWeaveAction" &&
+				string(tag.Name) == smartweave.TagAppName {
+				return true
+			}
+		}
+
+		return false
 	}
 	return self
 }
