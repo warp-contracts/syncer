@@ -48,8 +48,7 @@ func NewProcessor[In any, Out any](config *config.Config, name string) (self *Pr
 	self = new(Processor[In, Out])
 
 	self.Task = NewTask(config, name).
-		WithSubtaskFunc(self.run).
-		WithWorkerPool(1, 0)
+		WithSubtaskFunc(self.run)
 
 	return
 }
@@ -90,28 +89,26 @@ func (self *Processor[In, Out]) flush() {
 		data = append(data, self.queue.PopFront())
 	}
 
-	self.SubmitToWorker(func() {
-		var out []Out
-		err := NewRetry().
-			WithMaxElapsedTime(self.maxElapsedTime).
-			WithMaxInterval(self.maxInterval).
-			Run(func() error {
-				var err error
-				out, err = self.onFlush(data)
-				return err
-			})
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to flush data")
-			return
-		}
+	var out []Out
+	err := NewRetry().
+		WithMaxElapsedTime(self.maxElapsedTime).
+		WithMaxInterval(self.maxInterval).
+		Run(func() error {
+			var err error
+			out, err = self.onFlush(data)
+			return err
+		})
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to flush data")
+		return
+	}
 
-		if len(out) > 0 {
-			select {
-			case <-self.Ctx.Done():
-			case self.Output <- out:
-			}
+	if len(out) > 0 {
+		select {
+		case <-self.Ctx.Done():
+		case self.Output <- out:
 		}
-	})
+	}
 }
 
 // Receives data from the input channel and saves in the database
