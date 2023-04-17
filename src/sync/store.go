@@ -73,13 +73,13 @@ func (self *Store) flush(data []*model.Interaction) (out []*model.Interaction, e
 			if self.finishedHeight <= 0 {
 				return errors.New("block height too small")
 			}
-			state := model.State{
-				Id:                         1,
-				LastTransactionBlockHeight: self.finishedHeight,
-				LastProcessedBlockHash:     self.finishedBlockHash,
-			}
 			err = tx.WithContext(self.Ctx).
-				Save(&state).
+				Table(model.TableState).
+				Updates(model.State{
+					Id:                         1,
+					LastTransactionBlockHeight: self.finishedHeight,
+					LastProcessedBlockHash:     self.finishedBlockHash,
+				}).
 				Error
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to update last transaction block height")

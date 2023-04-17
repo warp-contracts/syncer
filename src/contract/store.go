@@ -87,13 +87,13 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 				return errors.New("block height too small")
 			}
 
-			state := model.State{
-				Id:                        1,
-				ContractFinishedHeight:    contractFinishedHeight,
-				ContractFinishedBlockHash: contractFinishedBlockHash,
-			}
 			err = tx.WithContext(self.Ctx).
-				Save(&state).
+				Table(model.TableState).
+				Save(model.State{
+					Id:                        1,
+					ContractFinishedHeight:    contractFinishedHeight,
+					ContractFinishedBlockHash: contractFinishedBlockHash,
+				}).
 				Error
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to update state after last block")

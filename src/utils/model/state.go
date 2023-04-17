@@ -2,6 +2,8 @@ package model
 
 import "syncer/src/utils/arweave"
 
+const TableState = "syncer_state"
+
 type State struct {
 	// Id always equals one
 	Id int
@@ -22,5 +24,5 @@ type State struct {
 }
 
 func (State) TableName() string {
-	return "syncer_state"
+	return TableState
 }
