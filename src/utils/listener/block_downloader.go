@@ -20,7 +20,7 @@ type BlockDownloader struct {
 	*task.Task
 
 	// Runtime configuration
-	startHeight            int64
+	startHeight            uint64
 	previousBlockIndepHash arweave.Base64String
 
 	client  *arweave.Client
@@ -71,7 +71,7 @@ func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB, component Componen
 			self.startHeight = state.LastTransactionBlockHeight
 			self.previousBlockIndepHash = state.LastProcessedBlockHash
 		case ComponentContract:
-			self.startHeight = int64(state.ContractFinishedHeight)
+			self.startHeight = state.ContractFinishedHeight
 			self.previousBlockIndepHash = state.ContractFinishedBlockHash
 		default:
 			panic("unknown component")
@@ -99,17 +99,17 @@ func (self *BlockDownloader) run() error {
 		self.Log.
 			WithField("last", lastSyncedHeight).
 			WithField("new", networkInfo.Height).
-			WithField("numNewBlocks", networkInfo.Height-lastSyncedHeight).
+			WithField("numNewBlocks", uint64(networkInfo.Height)-lastSyncedHeight).
 			Debug("Discovered new blocks")
 
 		// Download transactions from
-		for height := lastSyncedHeight + 1; height <= networkInfo.Height; height++ {
-			self.monitor.GetReport().BlockDownloader.State.CurrentHeight.Store(height)
+		for height := lastSyncedHeight + 1; height <= uint64(networkInfo.Height); height++ {
+			self.monitor.GetReport().BlockDownloader.State.CurrentHeight.Store(int64(height))
 
 		retry:
 			self.Log.WithField("height", height).Trace("Downloading block")
 
-			block, err := self.client.GetBlockByHeight(self.Ctx, height)
+			block, err := self.client.GetBlockByHeight(self.Ctx, int64(height))
 			if err != nil {
 				if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
 					return nil
@@ -153,7 +153,7 @@ func (self *BlockDownloader) run() error {
 				self.Log.WithField("height", height).Error("Block hash isn't valid, retrying after sleep")
 				self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
 				//TODO: Move this timeout to configuration
-				time.Sleep(time.Second * 10)
+				time.Sleep(time.Second * 5)
 				goto retry
 			}
 
@@ -167,7 +167,7 @@ func (self *BlockDownloader) run() error {
 			self.Output <- block
 
 			// Prepare for the next block
-			lastSyncedHeight = block.Height
+			lastSyncedHeight = uint64(block.Height)
 			lastProcessedBlockHash = block.IndepHash
 
 			// Update monitoring

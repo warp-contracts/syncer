@@ -7,7 +7,7 @@ type State struct {
 	Id int
 
 	// Height of the last fully processed transaction block
-	LastTransactionBlockHeight int64
+	LastTransactionBlockHeight uint64
 
 	// Hash of the last fully processed transaction block
 	// Next block needs to have this hash set as its previous block hash

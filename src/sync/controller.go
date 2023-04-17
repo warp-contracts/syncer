@@ -48,27 +48,35 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithInterval(config.ListenerPeriod).
 			WithRequiredConfirmationBlocks(config.ListenerRequiredConfirmationBlocks)
 
-		blockMonitor := listener.NewBlockMonitor(config).
+		blockDownloader := listener.NewBlockDownloader(config).
 			WithClient(client).
 			WithInputChannel(networkMonitor.Output).
 			WithMonitor(monitor).
-			WithInitStartHeight(db)
+			WithInitStartHeight(db, listener.ComponentSyncer)
 
-		transactionMonitor := listener.NewTransactionMonitor(config).
-			WithInputChannel(blockMonitor.Output).
+		transactionDownloader := listener.NewTransactionDownloader(config).
+			WithClient(client).
+			WithInputChannel(blockDownloader.Output).
+			WithMonitor(monitor).
+			WithBackoff(config.Contract.TransactionMaxElapsedTime, config.Contract.TransactionMaxInterval).
+			WithFilterInteractions()
+
+		parser := NewParser(config).
+			WithInputChannel(transactionDownloader.Output).
 			WithMonitor(monitor)
 
 		store := NewStore(config).
-			WithInputChannel(transactionMonitor.Output).
+			WithInputChannel(parser.Output).
 			WithMonitor(monitor).
 			WithDB(db)
 
 		return task.NewTask(config, "watched").
 			WithSubtask(peerMonitor.Task).
-			WithSubtask(store.Task).
 			WithSubtask(networkMonitor.Task).
-			WithSubtask(blockMonitor.Task).
-			WithSubtask(transactionMonitor.Task)
+			WithSubtask(blockDownloader.Task).
+			WithSubtask(transactionDownloader.Task).
+			WithSubtask(parser.Task).
+			WithSubtask(store.Task)
 	}
 
 	watchdog := task.NewWatchdog(config).

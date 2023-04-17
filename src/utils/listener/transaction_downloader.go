@@ -95,6 +95,18 @@ func (self *TransactionDownloader) WithFilterContracts() *TransactionDownloader 
 	return self
 }
 
+func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownloader {
+	self.filter = func(tx *arweave.Transaction) bool {
+		if tx.Format < 2 {
+			return false
+		}
+
+		value, ok := tx.GetTag(smartweave.TagAppName)
+		return ok && value == "SmartWeaveAction"
+	}
+	return self
+}
+
 // Listens for changed height and downloads the missing blocks
 func (self *TransactionDownloader) run() error {
 	// Listen for new blocks (blocks)

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
-	"syncer/src/utils/listener"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
@@ -22,7 +21,7 @@ import (
 type Store struct {
 	*task.Task
 
-	input chan *listener.Payload
+	input chan *Payload
 
 	DB *gorm.DB
 
@@ -43,7 +42,7 @@ func (self *Store) WithMonitor(v monitoring.Monitor) *Store {
 	return self
 }
 
-func (self *Store) WithInputChannel(v chan *listener.Payload) *Store {
+func (self *Store) WithInputChannel(v chan *Payload) *Store {
 	self.input = v
 	return self
 }
@@ -53,7 +52,7 @@ func (self *Store) WithDB(v *gorm.DB) *Store {
 	return self
 }
 
-func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransactionBlockHeight int64, lastProcessedBlockHash arweave.Base64String) (err error) {
+func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransactionBlockHeight uint64, lastProcessedBlockHash arweave.Base64String) (err error) {
 	operation := func() error {
 		self.Log.WithField("length", len(pendingInteractions)).WithField("hash", lastProcessedBlockHash.Base64()).Info("Insert batch of interactions and state")
 		err = self.DB.WithContext(self.Ctx).
@@ -93,7 +92,7 @@ func (self *Store) insert(pendingInteractions []*model.Interaction, lastTransact
 				return nil
 			})
 		if err == nil {
-			self.monitor.GetReport().Syncer.State.SyncerFinishedHeight.Store(lastTransactionBlockHeight)
+			self.monitor.GetReport().Syncer.State.SyncerFinishedHeight.Store(int64(lastTransactionBlockHeight))
 			self.monitor.GetReport().Syncer.State.InteractionsSaved.Add(uint64(len(pendingInteractions)))
 		}
 		return err
@@ -120,7 +119,7 @@ func (self *Store) run() (err error) {
 	timer := time.NewTimer(self.Config.StoreMaxTimeInQueue)
 
 	var pendingInteractions []*model.Interaction
-	var lastTransactionBlockHeight int64
+	var lastTransactionBlockHeight uint64
 	var lastProcessedBlockHash []byte
 
 	insert := func() {
