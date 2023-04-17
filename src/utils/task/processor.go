@@ -6,13 +6,13 @@ import (
 
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/gammazero/deque"
 )
 
 // Store handles saving data to the database in na robust way.
 // - groups incoming Interactions into batches,
 // - ensures data isn't stuck even if a batch isn't big enough
+// - passes the data returned by the onFlush function to the output channel
 type Processor[In any, Out any] struct {
 	*Task
 
@@ -23,7 +23,7 @@ type Processor[In any, Out any] struct {
 	onProcess func(In) ([]Out, error)
 
 	// Periodically called to handle a batch of processed data
-	onFlush func([]Out) error
+	onFlush func([]Out) ([]Out, error)
 
 	// Queue for the processed data
 	queue deque.Deque[Out]
@@ -66,7 +66,7 @@ func (self *Processor[In, Out]) WithInputChannel(v chan In) *Processor[In, Out] 
 	return self
 }
 
-func (self *Processor[In, Out]) WithOnFlush(interval time.Duration, f func([]Out) error) *Processor[In, Out] {
+func (self *Processor[In, Out]) WithOnFlush(interval time.Duration, f func([]Out) ([]Out, error)) *Processor[In, Out] {
 	self.flushInterval = interval
 	self.onFlush = f
 	return self
@@ -91,26 +91,24 @@ func (self *Processor[In, Out]) flush() {
 	}
 
 	self.SubmitToWorker(func() {
-		// Expotentially increase the interval between retries
-		// Never stop retrying
-		// Wait at most maxBackoffInterval between retries
-		b := backoff.NewExponentialBackOff()
-		b.MaxElapsedTime = self.maxElapsedTime
-		b.MaxInterval = self.maxInterval
-
-		err := backoff.Retry(func() error {
-			return self.onFlush(data)
-		}, b)
-
+		var out []Out
+		err := NewRetry().
+			WithMaxElapsedTime(self.maxElapsedTime).
+			WithMaxInterval(self.maxInterval).
+			Run(func() error {
+				var err error
+				out, err = self.onFlush(data)
+				return err
+			})
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to flush data")
 			return
 		}
 
-		if len(data) > 0 {
+		if len(out) > 0 {
 			select {
 			case <-self.Ctx.Done():
-			case self.Output <- data:
+			case self.Output <- out:
 			}
 		}
 	})

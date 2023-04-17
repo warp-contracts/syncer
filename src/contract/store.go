@@ -70,7 +70,7 @@ func (self *Store) getState(payload *Payload) (savedBlockHeight, contractFinishe
 	return self.savedBlockHeight, self.contractFinishedHeight, self.contractFinishedBlockHash
 }
 
-func (self *Store) flush(data []*ContractData) (err error) {
+func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) {
 	savedBlockHeight, contractFinishedHeight, contractFinishedBlockHash := self.getState(nil)
 
 	if savedBlockHeight == contractFinishedHeight && len(data) == 0 {
@@ -140,5 +140,8 @@ func (self *Store) flush(data []*ContractData) (err error) {
 	self.mtx.Unlock()
 
 	self.monitor.GetReport().Contractor.State.FinishedHeight.Store(self.savedBlockHeight)
+
+	// Everything went well, pass all data further
+	out = data
 	return
 }
