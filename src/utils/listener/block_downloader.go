@@ -159,8 +159,8 @@ func (self *BlockDownloader) run() error {
 
 			self.Log.
 				WithField("height", height).
-				WithField("length", len(block.Txs)).
-				Trace("Downloaded block")
+				WithField("len", len(block.Txs)).
+				Debug("Downloaded block")
 
 			// Blocks until a monitorTranactions is ready to receive
 			// or Listener is stopped

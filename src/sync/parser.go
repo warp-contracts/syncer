@@ -29,7 +29,7 @@ func NewParser(config *config.Config) (self *Parser) {
 
 	self.Task = task.NewTask(config, "contract-Parser").
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(config.ListenerNumWorkers, config.ListenerWorkerQueueSize).
+		WithWorkerPool(10, 1000).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		}).
@@ -62,6 +62,7 @@ func (self *Parser) run() error {
 			return err
 		}
 
+		self.Log.WithField("height", payload.BlockHeight).WithField("len", len(interactions)).Debug("Parsed interactions")
 		select {
 		case <-self.Ctx.Done():
 			return nil
@@ -77,6 +78,11 @@ func (self *Parser) run() error {
 }
 
 func (self *Parser) parseAll(payload *listener.Payload) (out []*model.Interaction, err error) {
+	if len(payload.Transactions) == 0 {
+		// Skip empty blocks
+		return
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(len(payload.Transactions))
 	var mtx sync.Mutex
