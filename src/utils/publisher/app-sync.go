@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"syncer/src/utils/config"
-	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
 	"syncer/src/utils/task"
 	"time"
@@ -43,7 +42,6 @@ func NewAppSyncPublisher[In encoding.BinaryMarshaler](config *config.Config, nam
 
 	self.Task = task.NewTask(config, name).
 		WithSubtaskFunc(self.run).
-		WithPeriodicSubtaskFunc(time.Second*10, self.test).
 		WithWorkerPool(config.AppSync.MaxWorkers, config.AppSync.MaxQueueSize)
 
 	// Init AppSync client
@@ -137,50 +135,5 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 			self.monitor.GetReport().AppSyncPublisher.State.MessagesPublished.Inc()
 		})
 	}
-	return nil
-}
-
-func (self *AppSyncPublisher[In]) test() (err error) {
-	data := model.AppSyncContractNotification{
-		ContractTxId: "testtesttest",
-		Type:         "test",
-	}
-
-	self.SubmitToWorker(func() {
-		self.Log.Debug("App sync publish...")
-		defer self.Log.Debug("...App sync publish done")
-
-		// Serialize to JSON
-		self.Log.Debug("1")
-		jsonData, err := data.MarshalBinary()
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to marshal to json")
-			return
-		}
-
-		self.Log.Debug("2")
-		// Retry on failure with exponential backoff
-		err = task.NewRetry().
-			WithMaxElapsedTime(self.Config.AppSync.BackoffMaxElapsedTime).
-			WithMaxInterval(self.Config.AppSync.BackoffMaxInterval).
-			WithOnError(func(err error) {
-				self.Log.WithError(err).Error("Appsync publish failed")
-				self.monitor.GetReport().AppSyncPublisher.Errors.Publish.Inc()
-			}).
-			Run(func() error {
-				self.Log.Debug("3")
-				return self.publish(jsonData)
-			})
-
-		self.Log.Debug("4")
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to publish to appsync after retries")
-			self.monitor.GetReport().AppSyncPublisher.Errors.PersistentFailure.Inc()
-			return
-		}
-
-		self.Log.Debug("5")
-		self.monitor.GetReport().AppSyncPublisher.State.MessagesPublished.Inc()
-	})
 	return nil
 }
