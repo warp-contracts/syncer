@@ -71,6 +71,9 @@ func (self *Store) getState(payload *Payload) (savedBlockHeight, contractFinishe
 }
 
 func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) {
+	self.Log.WithField("len", len(data)).Debug("Saving contracts...")
+	self.Log.WithField("len", len(data)).Debug("...Saved contracts")
+
 	savedBlockHeight, contractFinishedHeight, contractFinishedBlockHash := self.getState(nil)
 
 	if savedBlockHeight == contractFinishedHeight && len(data) == 0 {
