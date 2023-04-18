@@ -220,8 +220,11 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 		return
 	}
 
-	// Contract tx
-	err = out.ContractTx.Set(tx)
+	// Contract tx, but only tags
+	tmpTx := arweave.Transaction{
+		Tags: tx.Tags,
+	}
+	err = out.ContractTx.Set(tmpTx)
 	if err != nil {
 		return
 	}
