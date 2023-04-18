@@ -2,7 +2,6 @@ package contract
 
 import (
 	"errors"
-	"sync"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
 	"syncer/src/utils/monitoring"
@@ -18,14 +17,13 @@ import (
 type Store struct {
 	*task.Processor[*Payload, *ContractData]
 
-	DB  *gorm.DB
-	mtx sync.Mutex
+	DB *gorm.DB
 
 	monitor monitoring.Monitor
 
-	savedBlockHeight          uint64
-	contractFinishedHeight    uint64
-	contractFinishedBlockHash []byte
+	savedBlockHeight  uint64
+	finishedHeight    uint64
+	finishedBlockHash []byte
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -56,33 +54,20 @@ func (self *Store) WithDB(v *gorm.DB) *Store {
 }
 
 func (self *Store) process(payload *Payload) (data []*ContractData, err error) {
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
-	self.contractFinishedHeight = payload.BlockHeight
-	self.contractFinishedBlockHash = payload.BlockHash
+	self.finishedHeight = payload.BlockHeight
+	self.finishedBlockHash = payload.BlockHash
 	data = payload.Data
 	return
 }
 
-func (self *Store) getState(payload *Payload) (savedBlockHeight, contractFinishedHeight uint64, contractFinishedBlockHash []byte) {
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
-	return self.savedBlockHeight, self.contractFinishedHeight, self.contractFinishedBlockHash
-}
-
 func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) {
-	self.Log.WithField("len", len(data)).Debug("Saving contracts...")
-	self.Log.WithField("len", len(data)).Debug("...Saved contracts")
-
-	savedBlockHeight, contractFinishedHeight, contractFinishedBlockHash := self.getState(nil)
-
-	if savedBlockHeight == contractFinishedHeight && len(data) == 0 {
+	if self.savedBlockHeight == self.finishedHeight && len(data) == 0 {
 		// No need to flush, nothing changed
 		return
 	}
 
-	self.Log.WithField("count", len(data)).Trace("Flushing contracts")
-	defer self.Log.Trace("Flushing contracts done")
+	self.Log.WithField("len", len(data)).Debug("Flushing contracts")
+	defer self.Log.Debug("Flushing contracts done")
 
 	// Create batches that later can be committed in a transaction
 	contracts := make([]*model.Contract, 0, len(data))
@@ -94,7 +79,7 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 
 	err = self.DB.WithContext(self.Ctx).
 		Transaction(func(tx *gorm.DB) error {
-			if contractFinishedHeight <= 0 {
+			if self.finishedHeight <= 0 {
 				return errors.New("block height too small")
 			}
 
@@ -103,8 +88,8 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 					Name: model.SyncedComponentContracts,
 				}).
 				Updates(model.State{
-					FinishedBlockHeight: contractFinishedHeight,
-					FinishedBlockHash:   contractFinishedBlockHash,
+					FinishedBlockHeight: self.finishedHeight,
+					FinishedBlockHash:   self.finishedBlockHash,
 				}).
 				Error
 			if err != nil {
@@ -146,9 +131,7 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 	self.monitor.GetReport().Contractor.State.ContractsSaved.Add(uint64(len(data)))
 
 	// Update saved block height
-	self.mtx.Lock()
-	self.savedBlockHeight = self.contractFinishedHeight
-	self.mtx.Unlock()
+	self.savedBlockHeight = self.finishedHeight
 
 	self.monitor.GetReport().Contractor.State.FinishedHeight.Store(self.savedBlockHeight)
 
