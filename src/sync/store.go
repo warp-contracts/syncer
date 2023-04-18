@@ -74,11 +74,12 @@ func (self *Store) flush(data []*model.Interaction) (out []*model.Interaction, e
 				return errors.New("block height too small")
 			}
 			err = tx.WithContext(self.Ctx).
-				Table(model.TableState).
+				Model(&model.State{
+					Name: model.SyncedComponentInteractions,
+				}).
 				Updates(model.State{
-					Id:                         1,
-					LastTransactionBlockHeight: self.finishedHeight,
-					LastProcessedBlockHash:     self.finishedBlockHash,
+					FinishedBlockHeight: self.finishedHeight,
+					FinishedBlockHash:   self.finishedBlockHash,
 				}).
 				Error
 			if err != nil {

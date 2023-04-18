@@ -52,7 +52,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithClient(client).
 			WithInputChannel(networkMonitor.Output).
 			WithMonitor(monitor).
-			WithInitStartHeight(db, listener.ComponentSyncer)
+			WithInitStartHeight(db, model.SyncedComponentInteractions)
 
 		transactionDownloader := listener.NewTransactionDownloader(config).
 			WithClient(client).

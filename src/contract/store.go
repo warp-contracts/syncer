@@ -88,11 +88,12 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 			}
 
 			err = tx.WithContext(self.Ctx).
-				Table(model.TableState).
-				Save(model.State{
-					Id:                        1,
-					ContractFinishedHeight:    contractFinishedHeight,
-					ContractFinishedBlockHash: contractFinishedBlockHash,
+				Model(&model.State{
+					Name: model.SyncedComponentContracts,
+				}).
+				Updates(model.State{
+					FinishedBlockHeight: contractFinishedHeight,
+					FinishedBlockHash:   contractFinishedBlockHash,
 				}).
 				Error
 			if err != nil {
