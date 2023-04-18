@@ -2,6 +2,8 @@ package model
 
 import "github.com/jackc/pgtype"
 
+const TableContractSource = "contracts_src"
+
 type ContractSource struct {
 	SrcTxId         string
 	Src             pgtype.Text
@@ -34,7 +36,7 @@ func NewContractSource() *ContractSource {
 }
 
 func (ContractSource) TableName() string {
-	return "contracts_src"
+	return TableContractSource
 }
 
 func (self *ContractSource) IsJS() bool {

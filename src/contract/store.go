@@ -81,6 +81,14 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 	self.Log.WithField("count", len(data)).Trace("Flushing contracts")
 	defer self.Log.Trace("Flushing contracts done")
 
+	// Create batches that later can be committed in a transaction
+	contracts := make([]*model.Contract, 0, len(data))
+	sources := make([]*model.ContractSource, 0, len(data))
+	for _, d := range data {
+		contracts = append(contracts, d.Contract)
+		sources = append(sources, d.Source)
+	}
+
 	err = self.DB.WithContext(self.Ctx).
 		Transaction(func(tx *gorm.DB) error {
 			if contractFinishedHeight <= 0 {
@@ -97,34 +105,33 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 				}).
 				Error
 			if err != nil {
-				self.Log.WithError(err).Error("Failed to update state after last block")
+				self.Log.WithError(err).Error("Failed to update stmonitorate after last block")
 				self.monitor.GetReport().Contractor.Errors.DbLastTransactionBlockHeight.Inc()
 				return err
 			}
 
-			for _, d := range data {
-				// Insert contract
-				err = tx.WithContext(self.Ctx).
-					Clauses(clause.OnConflict{DoNothing: true}).
-					Create(d.Contract).
-					Error
-				if err != nil {
-					self.Log.WithError(err).Error("Failed to insert contract")
-					self.monitor.GetReport().Contractor.Errors.DbContractInsert.Inc()
-					continue
-				}
+			// Insert contract
+			err = tx.WithContext(self.Ctx).
+				Table(model.TableContract).
+				Clauses(clause.OnConflict{DoNothing: true}).
+				CreateInBatches(contracts, 5).
+				Error
+			if err != nil {
+				self.Log.WithError(err).Error("Failed to insert contract")
+				self.monitor.GetReport().Contractor.Errors.DbContractInsert.Inc()
+				return err
+			}
 
-				// Insert Source
-				err = tx.WithContext(self.Ctx).
-					Clauses(clause.OnConflict{DoNothing: true}).
-					Create(d.Source).
-					Error
-				if err != nil {
-					self.Log.WithError(err).Error("Failed to insert contract source")
-					self.monitor.GetReport().Contractor.Errors.DbSourceInsert.Inc()
-					continue
-				}
-
+			// Insert Source
+			err = tx.WithContext(self.Ctx).
+				Table(model.TableContractSource).
+				Clauses(clause.OnConflict{DoNothing: true}).
+				CreateInBatches(sources, 5).
+				Error
+			if err != nil {
+				self.Log.WithError(err).Error("Failed to insert contract source")
+				self.monitor.GetReport().Contractor.Errors.DbSourceInsert.Inc()
+				return err
 			}
 
 			return nil
