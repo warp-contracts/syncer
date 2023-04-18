@@ -51,9 +51,9 @@ func NewMonitor() (self *Monitor) {
 	self.collector = NewCollector().WithMonitor(self)
 
 	self.Task = task.NewTask(nil, "monitor").
-		WithPeriodicSubtaskFunc(10*time.Second, self.monitorBlocks).
-		WithPeriodicSubtaskFunc(10*time.Second, self.monitorTransactions).
-		WithPeriodicSubtaskFunc(10*time.Second, self.monitorContracts)
+		WithPeriodicSubtaskFunc(61*time.Second, self.monitorBlocks).
+		WithPeriodicSubtaskFunc(62*time.Second, self.monitorTransactions).
+		WithPeriodicSubtaskFunc(60*time.Second, self.monitorContracts)
 	return
 }
 
@@ -163,7 +163,7 @@ func (self *Monitor) IsOK() bool {
 		// It's not behind, so it's OK
 		return true
 	}
-	return self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Load() > 0.1
+	return self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Load() > 0.01
 }
 
 func (self *Monitor) OnGetState(c *gin.Context) {
