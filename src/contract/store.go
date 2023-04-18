@@ -66,8 +66,10 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 		return
 	}
 
-	self.Log.WithField("len", len(data)).Debug("Flushing contracts")
-	defer self.Log.Debug("Flushing contracts done")
+	if len(data) > 0 {
+		self.Log.WithField("len", len(data)).Debug("Flushing contracts")
+		defer self.Log.Debug("Flushing contracts done")
+	}
 
 	// Create batches that later can be committed in a transaction
 	contracts := make([]*model.Contract, 0, len(data))
