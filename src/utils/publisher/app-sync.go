@@ -10,6 +10,7 @@ import (
 	"syncer/src/utils/task"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	appsync "github.com/sony/appsync-client-go"
 	"github.com/sony/appsync-client-go/graphql"
 )
@@ -95,6 +96,10 @@ func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
 	// Check response
 	if response.StatusCode != nil && *response.StatusCode != http.StatusOK {
 		err = fmt.Errorf("appsync publish failed with status %d", *response.StatusCode)
+		if *response.StatusCode > 399 && *response.StatusCode < 500 {
+			// Something's wrong with client configuration, don't retry
+			err = backoff.Permanent(err)
+		}
 		return
 	}
 	return nil
