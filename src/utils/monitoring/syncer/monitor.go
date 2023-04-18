@@ -152,6 +152,11 @@ func (self *Monitor) IsOK() bool {
 		return true
 	}
 
+	if int64(self.Report.NetworkInfo.State.ArweaveCurrentHeight.Load())-1 <= self.Report.BlockDownloader.State.CurrentHeight.Load() {
+		// It's not behind, so it's OK
+		return true
+	}
+
 	// Syncer is operational long enough, check stats
 	return self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Load() > 0.1
 }

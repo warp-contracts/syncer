@@ -154,11 +154,15 @@ func (self *Monitor) IsOK() bool {
 	self.mtx.RLock()
 	defer self.mtx.RUnlock()
 
+	// Syncer is operational long enough, check stats
 	if self.BlockHeights.Len() < self.historySize {
 		return true
 	}
 
-	// Syncer is operational long enough, check stats
+	if int64(self.Report.NetworkInfo.State.ArweaveCurrentHeight.Load())-1 <= self.Report.BlockDownloader.State.CurrentHeight.Load() {
+		// It's not behind, so it's OK
+		return true
+	}
 	return self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Load() > 0.1
 }
 
