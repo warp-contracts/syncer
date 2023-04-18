@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"math"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/model"
@@ -23,6 +24,9 @@ type BlockDownloader struct {
 	startHeight            uint64
 	previousBlockIndepHash arweave.Base64String
 
+	// Optionally synchonization can be stopped at a certain height
+	stopBlockHeight uint64
+
 	client  *arweave.Client
 	monitor monitoring.Monitor
 
@@ -33,6 +37,10 @@ type BlockDownloader struct {
 // Using Arweave client periodically checks for blocks of transactions
 func NewBlockDownloader(config *config.Config) (self *BlockDownloader) {
 	self = new(BlockDownloader)
+
+	// By default range allows all possible heights
+	self.startHeight = 0
+	self.stopBlockHeight = math.MaxUint64
 
 	self.Output = make(chan *arweave.Block)
 
@@ -52,6 +60,26 @@ func (self *BlockDownloader) WithMonitor(monitor monitoring.Monitor) *BlockDownl
 
 func (self *BlockDownloader) WithClient(client *arweave.Client) *BlockDownloader {
 	self.client = client
+	return self
+}
+
+func (self *BlockDownloader) WithHeightRange(start, stop uint64) *BlockDownloader {
+	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
+		block, err := self.client.GetBlockByHeight(self.Ctx, int64(start-1))
+		if err != nil {
+			return err
+		}
+
+		if !block.IsValid() {
+			return errors.New("Invalid block")
+		}
+
+		self.startHeight = uint64(block.Height)
+		self.previousBlockIndepHash = block.IndepHash
+		self.stopBlockHeight = stop
+
+		return nil
+	})
 	return self
 }
 
@@ -94,7 +122,7 @@ func (self *BlockDownloader) run() error {
 			Debug("Discovered new blocks")
 
 		// Download transactions from
-		for height := lastSyncedHeight + 1; height <= uint64(networkInfo.Height); height++ {
+		for height := lastSyncedHeight + 1; height <= uint64(networkInfo.Height) && height >= self.startHeight && height <= self.stopBlockHeight; height++ {
 			self.monitor.GetReport().BlockDownloader.State.CurrentHeight.Store(int64(height))
 
 		retry:

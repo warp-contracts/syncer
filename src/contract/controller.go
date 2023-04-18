@@ -19,7 +19,7 @@ type Controller struct {
 
 // Main class that orchestrates main syncer functionalities
 // Setups listening and storing interactions
-func NewController(config *config.Config) (self *Controller, err error) {
+func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint64) (self *Controller, err error) {
 	self = new(Controller)
 
 	self.Task = task.NewTask(config, "contract-controller")
@@ -52,8 +52,15 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		blockDownloader := listener.NewBlockDownloader(config).
 			WithClient(client).
 			WithInputChannel(networkMonitor.Output).
-			WithMonitor(monitor).
-			WithInitStartHeight(db, model.SyncedComponentContracts)
+			WithMonitor(monitor)
+
+		if startBlockHeight > 0 && stopBlockHeight > 0 {
+			// Sync only a range of blocks
+			blockDownloader = blockDownloader.WithHeightRange(startBlockHeight, stopBlockHeight)
+		} else {
+			// By default sync using the height saved in the db and never stop
+			blockDownloader = blockDownloader.WithInitStartHeight(db, model.SyncedComponentContracts)
+		}
 
 		transactionDownloader := listener.NewTransactionDownloader(config).
 			WithClient(client).

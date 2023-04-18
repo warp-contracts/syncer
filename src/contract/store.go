@@ -85,19 +85,34 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 				return errors.New("block height too small")
 			}
 
+			// Get the state
+			var state model.State
 			err = tx.WithContext(self.Ctx).
-				Model(&model.State{
-					Name: model.SyncedComponentContracts,
-				}).
-				Updates(model.State{
-					FinishedBlockHeight: self.finishedHeight,
-					FinishedBlockHash:   self.finishedBlockHash,
-				}).
+				Where("name = ?", model.SyncedComponentContracts).
+				First(&state).
 				Error
 			if err != nil {
-				self.Log.WithError(err).Error("Failed to update stmonitorate after last block")
+				self.Log.WithError(err).Error("Failed to get state")
 				self.monitor.GetReport().Contractor.Errors.DbLastTransactionBlockHeight.Inc()
 				return err
+			}
+
+			// Update state only if block height is higher
+			if state.FinishedBlockHeight < self.finishedHeight {
+				err = tx.WithContext(self.Ctx).
+					Model(&model.State{
+						Name: model.SyncedComponentContracts,
+					}).
+					Updates(model.State{
+						FinishedBlockHeight: self.finishedHeight,
+						FinishedBlockHash:   self.finishedBlockHash,
+					}).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to update stmonitorate after last block")
+					self.monitor.GetReport().Contractor.Errors.DbLastTransactionBlockHeight.Inc()
+					return err
+				}
 			}
 
 			// Insert contract
