@@ -12,6 +12,7 @@ import (
 	"syncer/src/utils/task"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"gorm.io/gorm"
 )
 
@@ -32,6 +33,10 @@ type BlockDownloader struct {
 
 	input  chan *arweave.NetworkInfo
 	Output chan *arweave.Block
+
+	// Parameters
+	maxElapsedTime time.Duration
+	maxInterval    time.Duration
 }
 
 // Using Arweave client periodically checks for blocks of transactions
@@ -60,6 +65,12 @@ func (self *BlockDownloader) WithMonitor(monitor monitoring.Monitor) *BlockDownl
 
 func (self *BlockDownloader) WithClient(client *arweave.Client) *BlockDownloader {
 	self.client = client
+	return self
+}
+
+func (self *BlockDownloader) WithBackoff(maxElapsedTime, maxInterval time.Duration) *BlockDownloader {
+	self.maxElapsedTime = maxElapsedTime
+	self.maxInterval = maxInterval
 	return self
 }
 
@@ -125,55 +136,64 @@ func (self *BlockDownloader) run() error {
 		for height := lastSyncedHeight + 1; height <= uint64(networkInfo.Height) && height >= self.startHeight && height <= self.stopBlockHeight; height++ {
 			self.monitor.GetReport().BlockDownloader.State.CurrentHeight.Store(int64(height))
 
-		retry:
 			self.Log.WithField("height", height).Trace("Downloading block")
 
-			block, err := self.client.GetBlockByHeight(self.Ctx, int64(height))
+			var block *arweave.Block
+			err := task.NewRetry().
+				WithContext(self.Ctx).
+				WithMaxElapsedTime(self.maxElapsedTime).
+				WithMaxInterval(self.maxInterval).
+				WithAcceptableDuration(self.maxInterval * 2).
+				WithOnError(func(err error, isDurationAcceptable bool) error {
+					self.Log.WithError(err).WithField("height", height).Error("Failed to download block, retrying...")
+
+					if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
+						// Stopping
+						return backoff.Permanent(err)
+					}
+					self.monitor.GetReport().BlockDownloader.Errors.BlockDownloadErrors.Inc()
+
+					if !isDurationAcceptable {
+						// This will completly reset the HTTP client and possibly help in solving the problem
+						self.client.Reset()
+					}
+
+					return err
+				}).
+				Run(func() (err error) {
+					block, err = self.client.GetBlockByHeight(self.Ctx, int64(height))
+					if err != nil {
+						return err
+					}
+
+					if len(lastProcessedBlockHash) > 0 &&
+						!bytes.Equal(lastProcessedBlockHash, block.PreviousBlock) {
+						self.Log.WithField("height", height).
+							WithField("last_processed_block_hash", lastProcessedBlockHash).
+							WithField("previous_block", block.PreviousBlock).
+							Error("Previous block hash isn't valid")
+
+						self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
+
+						// TODO: Try downloading with another peer
+						// TODO: Log malicious peer
+						err = errors.New("previous block hash isn't valid")
+						return
+					}
+
+					if !block.IsValid() {
+						self.Log.WithField("height", height).Error("Block hash isn't valid")
+						self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
+						err = errors.New("block isn't valid")
+						return
+					}
+
+					return
+				})
+
 			if err != nil {
-				if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
-					return nil
-				}
-
-				self.Log.WithError(err).WithField("height", height).Error("Failed to download block, retrying...")
-
-				// This will completly reset the HTTP client and possibly help in solving the problem
-				self.client.Reset()
-
-				self.monitor.GetReport().BlockDownloader.Errors.BlockDownloadErrors.Inc()
-
-				time.Sleep(self.Config.ListenerRetryFailedTransactionDownloadInterval)
-				if self.IsStopping.Load() {
-					// Neglect this block and close the goroutine
-					return nil
-				}
-
-				goto retry
-			}
-
-			if len(lastProcessedBlockHash) > 0 &&
-				!bytes.Equal(lastProcessedBlockHash, block.PreviousBlock) {
-				self.Log.WithField("height", height).
-					WithField("last_processed_block_hash", lastProcessedBlockHash).
-					WithField("previous_block", block.PreviousBlock).
-					Error("Previous block hash isn't valid, retrying after sleep")
-
-				// TODO: Add specific error counter
-				self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
-
-				//TODO: Move this timeout to configuration
-				time.Sleep(time.Second * 10)
-
-				// TODO: Try downloading with another peer
-				// TODO: Log malicious peer
-				goto retry
-			}
-
-			if !block.IsValid() {
-				self.Log.WithField("height", height).Error("Block hash isn't valid, retrying after sleep")
-				self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
-				//TODO: Move this timeout to configuration
-				time.Sleep(time.Second * 5)
-				goto retry
+				self.Log.WithError(err).WithField("height", height).Error("Failed to download block, stop retrying")
+				return err
 			}
 
 			self.Log.
@@ -181,8 +201,7 @@ func (self *BlockDownloader) run() error {
 				WithField("len", len(block.Txs)).
 				Debug("Downloaded block")
 
-			// Blocks until a monitorTranactions is ready to receive
-			// or Listener is stopped
+			// Blocks until something is ready to receive
 			self.Output <- block
 
 			// Prepare for the next block

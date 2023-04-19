@@ -52,6 +52,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 		blockDownloader := listener.NewBlockDownloader(config).
 			WithClient(client).
 			WithInputChannel(networkMonitor.Output).
+			WithBackoff(0, config.Contract.TransactionMaxInterval).
 			WithMonitor(monitor)
 
 		if startBlockHeight > 0 && stopBlockHeight > 0 {
