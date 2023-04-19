@@ -32,7 +32,9 @@ func NewMonitor() (self *Monitor) {
 
 	self.collector = NewCollector().WithMonitor(self)
 
-	self.Task = task.NewTask(nil, "monitor")
+	self.Task = task.NewTask(nil, "monitor").
+		WithPeriodicSubtaskFunc(30*time.Second, self.monitor)
+
 	return
 }
 
@@ -49,6 +51,11 @@ func (self *Monitor) GetPrometheusCollector() (collector prometheus.Collector) {
 
 func (self *Monitor) IsOK() bool {
 	return true
+}
+
+func (self *Monitor) monitor() (err error) {
+	self.Report.Run.State.UpForSeconds.Store(uint64(time.Now().Unix() - self.Report.Run.State.StartTimestamp.Load()))
+	return nil
 }
 
 func (self *Monitor) OnGetState(c *gin.Context) {

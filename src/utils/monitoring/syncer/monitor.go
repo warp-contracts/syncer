@@ -46,6 +46,7 @@ func NewMonitor() (self *Monitor) {
 	self.collector = NewCollector().WithMonitor(self)
 
 	self.Task = task.NewTask(nil, "monitor").
+		WithPeriodicSubtaskFunc(30*time.Second, self.monitor).
 		WithPeriodicSubtaskFunc(time.Minute, self.monitorBlocks).
 		WithPeriodicSubtaskFunc(time.Minute, self.monitorTransactions).
 		WithPeriodicSubtaskFunc(time.Minute, self.monitorInteractions)
@@ -161,13 +162,13 @@ func (self *Monitor) IsOK() bool {
 	return self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Load() > 0.1
 }
 
-func (self *Monitor) OnGetState(c *gin.Context) {
-	// pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
-
-	// Fill data
+func (self *Monitor) monitor() (err error) {
 	self.Report.BlockDownloader.State.BlocksBehind.Store(int64(self.Report.NetworkInfo.State.ArweaveCurrentHeight.Load()) - self.Report.BlockDownloader.State.CurrentHeight.Load())
 	self.Report.Run.State.UpForSeconds.Store(uint64(time.Now().Unix() - self.Report.Run.State.StartTimestamp.Load()))
+	return nil
+}
 
+func (self *Monitor) OnGetState(c *gin.Context) {
 	c.JSON(http.StatusOK, &self.Report)
 }
 
