@@ -121,6 +121,7 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 
 			// Retry on failure with exponential backoff
 			err = task.NewRetry().
+				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.Config.AppSync.BackoffMaxElapsedTime).
 				WithMaxInterval(self.Config.AppSync.BackoffMaxInterval).
 				WithOnError(func(err error) {

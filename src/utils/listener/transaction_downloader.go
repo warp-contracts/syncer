@@ -172,6 +172,7 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 
 			// Retries downloading transaction until success or permanent error
 			err = task.NewRetry().
+				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.maxElapsedTime).
 				WithMaxInterval(self.maxInterval).
 				WithOnError(func(err error) {

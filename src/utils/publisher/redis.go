@@ -113,6 +113,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 			self.Log.Debug("Redis publish...")
 			defer self.Log.Debug("...Redis publish done")
 			err = task.NewRetry().
+				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.Config.Redis.MaxElapsedTime).
 				WithMaxInterval(self.Config.Redis.MaxInterval).
 				WithOnError(func(err error) {

@@ -91,6 +91,7 @@ func (self *Processor[In, Out]) flush() {
 
 	var out []Out
 	err := NewRetry().
+		WithContext(self.Ctx).
 		WithMaxElapsedTime(self.maxElapsedTime).
 		WithMaxInterval(self.maxInterval).
 		Run(func() error {
