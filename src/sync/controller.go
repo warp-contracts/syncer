@@ -45,21 +45,21 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		networkMonitor := listener.NewNetworkMonitor(config).
 			WithClient(client).
 			WithMonitor(monitor).
-			WithInterval(config.ListenerPeriod).
-			WithRequiredConfirmationBlocks(config.ListenerRequiredConfirmationBlocks)
+			WithInterval(config.NetworkMonitor.Period).
+			WithRequiredConfirmationBlocks(config.NetworkMonitor.RequiredConfirmationBlocks)
 
 		blockDownloader := listener.NewBlockDownloader(config).
 			WithClient(client).
 			WithInputChannel(networkMonitor.Output).
 			WithMonitor(monitor).
-			WithBackoff(0, config.Contract.TransactionMaxInterval).
+			WithBackoff(0, config.Syncer.TransactionMaxInterval).
 			WithInitStartHeight(db, model.SyncedComponentInteractions)
 
 		transactionDownloader := listener.NewTransactionDownloader(config).
 			WithClient(client).
 			WithInputChannel(blockDownloader.Output).
 			WithMonitor(monitor).
-			WithBackoff(config.Contract.TransactionMaxElapsedTime, config.Contract.TransactionMaxInterval).
+			WithBackoff(0, config.Syncer.TransactionMaxInterval).
 			WithFilterInteractions()
 
 		parser := NewParser(config).

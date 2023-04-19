@@ -41,7 +41,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Gets network height from WARP's GW
 	networkMonitor := listener.NewNetworkMonitor(config).
 		WithClient(client).
-		WithInterval(config.Checker.NetworkMonitorInterval).
+		WithInterval(config.NetworkMonitor.Period).
 		WithMonitor(monitor).
 		WithEnableOutput(false /*disable output channel to avoid blocking*/).
 		WithRequiredConfirmationBlocks(0)

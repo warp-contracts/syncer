@@ -41,7 +41,7 @@ func NewTransactionDownloader(config *config.Config) (self *TransactionDownloade
 
 	self.Task = task.NewTask(config, "transaction-downloader").
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(config.ListenerNumWorkers, config.ListenerWorkerQueueSize).
+		WithWorkerPool(config.TransactionDownloader.NumWorkers, config.TransactionDownloader.WorkerQueueSize).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})

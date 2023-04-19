@@ -53,7 +53,7 @@ func (s *ClientTestSuite) TestGetPeerList() {
 	require.Greater(s.T(), len(out), 0)
 }
 func (s *ClientTestSuite) TestCheckPeer() {
-	out, t, err := s.client.CheckPeerConnection(s.ctx, s.config.ArNodeUrl)
+	out, t, err := s.client.CheckPeerConnection(s.ctx, s.config.Arweave.NodeUrl)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), out)
 	require.NotZero(s.T(), out.Blocks)
@@ -76,15 +76,15 @@ func (s *ClientTestSuite) TestGetTransactionById() {
 }
 
 func (s *ClientTestSuite) TestSetPeers() {
-	tmp := strings.Clone(s.config.ArNodeUrl)
+	tmp := strings.Clone(s.config.Arweave.NodeUrl)
 
 	// Working peer only in tmp list
 	s.client.SetPeers([]string{tmp})
 
 	// Tmp break the main URL
-	s.config.ArNodeUrl = "https://google.com"
+	s.config.Arweave.NodeUrl = "https://google.com"
 	defer func() {
-		s.config.ArNodeUrl = tmp
+		s.config.Arweave.NodeUrl = tmp
 	}()
 	out, err := s.client.GetNetworkInfo(s.ctx)
 	require.Nil(s.T(), err)

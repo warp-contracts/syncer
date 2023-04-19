@@ -46,8 +46,8 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 		networkMonitor := listener.NewNetworkMonitor(config).
 			WithClient(client).
 			WithMonitor(monitor).
-			WithInterval(config.ListenerPeriod).
-			WithRequiredConfirmationBlocks(config.ListenerRequiredConfirmationBlocks)
+			WithInterval(config.NetworkMonitor.Period).
+			WithRequiredConfirmationBlocks(config.NetworkMonitor.RequiredConfirmationBlocks)
 
 		blockDownloader := listener.NewBlockDownloader(config).
 			WithClient(client).

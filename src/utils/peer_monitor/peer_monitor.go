@@ -42,8 +42,8 @@ func NewPeerMonitor(config *config.Config) (self *PeerMonitor) {
 	self = new(PeerMonitor)
 
 	self.Task = task.NewTask(config, "peer-monitor").
-		WithPeriodicSubtaskFunc(config.PeerMonitorPeriod, self.runPeriodically).
-		WithWorkerPool(config.PeerMonitorNumWorkers, config.PeerMonitorWorkerQueueSize)
+		WithPeriodicSubtaskFunc(config.PeerMonitor.Period, self.runPeriodically).
+		WithWorkerPool(config.PeerMonitor.NumWorkers, config.PeerMonitor.WorkerQueueSize)
 
 	return
 }
@@ -75,8 +75,8 @@ func (self *PeerMonitor) runPeriodically() (err error) {
 	peers = self.sortPeersByMetrics(height, peers)
 
 	numPeers := len(peers)
-	if numPeers > self.Config.PeerMonitorMaxPeers {
-		numPeers = self.Config.PeerMonitorMaxPeers
+	if numPeers > self.Config.PeerMonitor.MaxPeers {
+		numPeers = self.Config.PeerMonitor.MaxPeers
 	}
 
 	self.client.SetPeers(peers[:numPeers])
@@ -85,14 +85,14 @@ func (self *PeerMonitor) runPeriodically() (err error) {
 	self.monitor.GetReport().Peer.State.PeersBlacklisted.Store(uint64(self.blacklist.Size.Load()))
 
 	self.Log.WithField("numBlacklisted", self.blacklist.Size.Load()).Trace("Set new peers")
-	self.blacklist.RemoveOldest(self.Config.PeerMonitorMaxPeersRemovedFromBlacklist)
+	self.blacklist.RemoveOldest(self.Config.PeerMonitor.MaxPeersRemovedFromBlacklist)
 
 	return nil
 }
 
 func (self *PeerMonitor) getTrustedHeight() (out int64, err error) {
 	// Use a specific URL as the source of truth, to avoid race conditions with SDK
-	ctx := context.WithValue(self.Ctx, arweave.ContextForcePeer, self.Config.ListenerNetworkInfoNodeUrl)
+	ctx := context.WithValue(self.Ctx, arweave.ContextForcePeer, self.Config.NetworkMonitor.Url)
 	ctx = context.WithValue(ctx, arweave.ContextDisablePeers, true)
 
 	networkInfo, err := self.client.GetNetworkInfo(ctx)
@@ -196,7 +196,8 @@ func (self *PeerMonitor) sortPeersByMetrics(height int64, allPeers []string) (pe
 
 	// Filter out peers that are too far out
 	metrics = slice.Filter(metrics, func(m *metric) bool {
-		return height-m.Height < self.Config.ListenerRequiredConfirmationBlocks
+		// TODO: Move this constant to dedicated config
+		return height-m.Height < 50
 	})
 
 	// Sort using response times (less is better)

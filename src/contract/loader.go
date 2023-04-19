@@ -35,9 +35,9 @@ func NewLoader(config *config.Config) (self *Loader) {
 
 	self.Output = make(chan *Payload)
 
-	self.Task = task.NewTask(config, "contract-loader").
+	self.Task = task.NewTask(config, "loader").
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(config.ListenerNumWorkers, config.ListenerWorkerQueueSize).
+		WithWorkerPool(config.Contract.LoaderWorkerPoolSize, config.Contract.LoaderWorkerQueueSize).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})

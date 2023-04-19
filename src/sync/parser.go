@@ -27,7 +27,7 @@ func NewParser(config *config.Config) (self *Parser) {
 
 	self.Output = make(chan *Payload)
 
-	self.Task = task.NewTask(config, "contract-Parser").
+	self.Task = task.NewTask(config, "parser").
 		WithSubtaskFunc(self.run).
 		WithWorkerPool(10, 1000).
 		WithOnAfterStop(func() {

@@ -29,10 +29,10 @@ func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
 
 	self.Processor = task.NewProcessor[*Payload, *model.Interaction](config, "store").
-		WithBatchSize(config.StoreBatchSize).
-		WithOnFlush(config.StoreMaxTimeInQueue, self.flush).
+		WithBatchSize(config.Syncer.StoreBatchSize).
+		WithOnFlush(config.Syncer.StoreMaxTimeInQueue, self.flush).
 		WithOnProcess(self.process).
-		WithBackoff(0, config.StoreMaxBackoffInterval)
+		WithBackoff(0, config.Syncer.StoreMaxBackoffInterval)
 
 	return
 }

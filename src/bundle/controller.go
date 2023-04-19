@@ -60,7 +60,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	networkMonitor := listener.NewNetworkMonitor(config).
 		WithClient(arweaveClient).
 		WithMonitor(monitor).
-		WithInterval(config.ListenerPeriod).
+		WithInterval(config.NetworkMonitor.Period).
 		WithRequiredConfirmationBlocks(0).
 		WithEnableOutput(false /*disable output channel to avoid blocking*/)
 

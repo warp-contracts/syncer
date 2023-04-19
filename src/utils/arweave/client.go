@@ -78,7 +78,7 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 	ctx = context.WithValue(ctx, ContextForcePeer, peer)
 
 	// Set timeout
-	ctx, cancel := context.WithTimeout(ctx, self.config.ArCheckPeerTimeout)
+	ctx, cancel := context.WithTimeout(ctx, self.config.Arweave.CheckPeerTimeout)
 	defer cancel()
 
 	self.mtx.RLock()

@@ -56,7 +56,7 @@ func (self *BaseClient) Reset() {
 	defer self.mtx.Unlock()
 
 	// Ensure client isn't reset too often
-	if time.Since(self.lastReset) < self.config.ArLimiterDecreaseInterval {
+	if time.Since(self.lastReset) < self.config.Arweave.LimiterDecreaseInterval {
 		// Limit was just decreased
 		return
 	}
@@ -75,7 +75,7 @@ func (self *BaseClient) Reset() {
 	// NOTE: Do not use SetBaseURL - it will break picking alternative peers upon error
 	self.client =
 		resty.New().
-			SetTimeout(self.config.ArRequestTimeout).
+			SetTimeout(self.config.Arweave.RequestTimeout).
 			SetHeader("User-Agent", "warp.cc/syncer/"+build_info.Version).
 			SetRetryCount(1).
 			SetLogger(NewLogger(true /*force all logs to trace*/)).
@@ -101,8 +101,8 @@ func (self *BaseClient) Reset() {
 
 func (self *BaseClient) createTransport() *http.Transport {
 	dialer := &net.Dialer{
-		Timeout:   self.config.ArDialerTimeout,
-		KeepAlive: self.config.ArDialerKeepAlive,
+		Timeout:   self.config.Arweave.DialerTimeout,
+		KeepAlive: self.config.Arweave.DialerKeepAlive,
 		DualStack: true,
 	}
 
@@ -111,12 +111,12 @@ func (self *BaseClient) createTransport() *http.Transport {
 		ForceAttemptHTTP2: true,
 
 		DialContext:           dialer.DialContext,
-		TLSHandshakeTimeout:   self.config.ArTLSHandshakeTimeout,
+		TLSHandshakeTimeout:   self.config.Arweave.TLSHandshakeTimeout,
 		ExpectContinueTimeout: 1 * time.Second,
 
 		// This is important. arweave.net may sometimes stop responding on idle connections,
 		// resulting in error: context deadline exceeded (Client.Timeout exceeded while awaiting headers)
-		IdleConnTimeout:     self.config.ArIdleConnTimeout,
+		IdleConnTimeout:     self.config.Arweave.IdleConnTimeout,
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 1,
 		MaxConnsPerHost:     1,
@@ -171,7 +171,7 @@ func (self *BaseClient) CleanupContext(ctx context.Context) error {
 // 	self.mtx.Lock()
 // 	defer self.mtx.Unlock()
 
-// 	if time.Since(self.lastLimitDecrease) < self.config.ArLimiterDecreaseInterval {
+// 	if time.Since(self.lastLimitDecrease) < self.config.Arweave.LimiterDecreaseInterval {
 // 		// Limit was just decreased
 // 		return nil
 // 	}
@@ -185,7 +185,7 @@ func (self *BaseClient) CleanupContext(ctx context.Context) error {
 // 		return err
 // 	}
 
-// 	newLimit := limiter.Limit() * rate.Limit(self.config.ArLimiterDecreaseFactor)
+// 	newLimit := limiter.Limit() * rate.Limit(self.config.Arweave.LimiterDecreaseFactor)
 // 	self.log.WithField("peer", url.Host).
 // 		WithField("oldLimit", limiter.Limit()).
 // 		WithField("newLimit", newLimit).
@@ -212,7 +212,7 @@ func (self *BaseClient) onForcePeer(c *resty.Client, req *resty.Request) (err er
 
 	peer, ok := req.Context().Value(ContextForcePeer).(string)
 	if !ok {
-		peer = self.config.ArNodeUrl
+		peer = self.config.Arweave.NodeUrl
 	}
 
 	forcedUrl, err := url.Parse(peer)
@@ -259,7 +259,7 @@ func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err er
 		self.mtx.Lock()
 		limiter, ok = self.limiters[url.Host]
 		if !ok {
-			limiter = ratelimit.New(self.config.ArLimiterBurstSize, ratelimit.Per(self.config.ArLimiterInterval))
+			limiter = ratelimit.New(self.config.Arweave.LimiterBurstSize, ratelimit.Per(self.config.Arweave.LimiterInterval))
 			self.limiters[url.Host] = limiter
 		}
 		self.mtx.Unlock()
@@ -301,7 +301,7 @@ func (self *BaseClient) onRetryRequest(c *resty.Client, resp *resty.Response) (e
 		secondResponse *resty.Response
 	)
 
-	endpoint := strings.Clone(strings.TrimPrefix(resp.Request.URL, self.config.ArNodeUrl))
+	endpoint := strings.Clone(strings.TrimPrefix(resp.Request.URL, self.config.Arweave.NodeUrl))
 
 	self.log.WithField("peer", peer).WithField("idx", idx).WithField("endpoint", endpoint).Trace("Retrying begin")
 

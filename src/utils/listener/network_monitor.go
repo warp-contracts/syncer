@@ -82,7 +82,7 @@ func (self *NetworkMonitor) GetLastNetworkInfo() *arweave.NetworkInfo {
 // Periodically checks Arweave network info for updated height
 func (self *NetworkMonitor) runPeriodically() error {
 	// Use a specific URL as the source of truth, to avoid race conditions with SDK
-	ctx := context.WithValue(self.Ctx, arweave.ContextForcePeer, self.Config.ListenerNetworkInfoNodeUrl)
+	ctx := context.WithValue(self.Ctx, arweave.ContextForcePeer, self.Config.NetworkMonitor.Url)
 	ctx = context.WithValue(ctx, arweave.ContextDisablePeers, true)
 
 	networkInfo, err := self.client.GetNetworkInfo(ctx)
