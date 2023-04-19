@@ -175,22 +175,25 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.maxElapsedTime).
 				WithMaxInterval(self.maxInterval).
-				WithOnError(func(err error) {
+				WithAcceptableDuration(self.maxInterval * 2).
+				WithOnError(func(err error, isDurationAcceptable bool) error {
+					self.Log.WithError(err).WithField("txId", txId).Warn("Failed to download transaction, retrying after timeout")
+
+					if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
+						// Stopping
+						return backoff.Permanent(err)
+					}
 					self.monitor.GetReport().TransactionDownloader.Errors.Download.Inc()
+
+					if !isDurationAcceptable {
+						// This will completly reset the HTTP client and possibly help in solving the problem
+						self.client.Reset()
+					}
+
+					return err
 				}).
 				Run(func() error {
 					tx, err = self.client.GetTransactionById(self.Ctx, txId)
-					if err != nil {
-						if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
-							// Stopping
-							return backoff.Permanent(err)
-						}
-						self.Log.WithError(err).WithField("txId", txId).Warn("Failed to download transaction, retrying after timeout")
-
-						// This will completly reset the HTTP client and possibly help in solving the problem
-						self.client.Reset()
-						// FIXME: Inform downstream something's wrong
-					}
 					return err
 				})
 

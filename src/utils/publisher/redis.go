@@ -116,16 +116,13 @@ func (self *RedisPublisher[In]) run() (err error) {
 				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.Config.Redis.MaxElapsedTime).
 				WithMaxInterval(self.Config.Redis.MaxInterval).
-				WithOnError(func(err error) {
+				WithOnError(func(err error, isDurationAcceptable bool) error {
+					self.Log.WithError(err).Error("Failed to publish message, retrying")
 					self.monitor.GetReport().RedisPublisher.Errors.Publish.Inc()
+					return err
 				}).
 				Run(func() (err error) {
-					err = self.client.Publish(self.Ctx, self.channelName, payload).Err()
-					if err != nil {
-						self.Log.WithError(err).Error("Failed to publish message, retrying")
-						return
-					}
-					return
+					return self.client.Publish(self.Ctx, self.channelName, payload).Err()
 				})
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to publish message, giving up")

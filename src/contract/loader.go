@@ -117,26 +117,43 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 			// Retry loading contract upon error
 			// Skip contract after LoaderBackoffMaxElapsedTime
 			err := task.NewRetry().
+				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.Config.Contract.LoaderBackoffMaxElapsedTime).
+				WithAcceptableDuration(self.Config.Contract.LoaderBackoffAcceptableDuration).
 				WithMaxInterval(self.Config.Contract.LoaderBackoffMaxInterval).
-				WithOnError(func(err error) {
-					self.Log.WithError(err).WithField("id", tx.ID).Debug("Retrying loading contract")
+				WithOnError(func(err error, isDurationAcceptable bool) error {
+					self.Log.WithError(err).
+						WithField("is_acceptable", isDurationAcceptable).
+						WithField("id", tx.ID).
+						Error("Failed to load contract, retrying...")
+
+					if isDurationAcceptable || errors.Is(err, &backoff.PermanentError{}) {
+						// We're still within the acceptable timeout
+						// Or it's a permanent error anyway
+						return err
+					}
+
+					if err == arweave.ErrNotFound {
+						// No need to retry if any of the data is not found
+						// Arweave client already retries with multiple peers
+						self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, couldn't download source or init state")
+						return backoff.Permanent(err)
+					}
+
+					// Reset arweave client, this should fix the issue
+					self.client.Reset()
+
+					return err
 				}).
 				Run(func() (err error) {
 					contractData, err := self.load(tx)
-					if err != nil {
-						if err == arweave.ErrNotFound {
-							// No need to retry if any of the data is not found
-							// Arweave client already retries with multiple peers
-							self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, couldn't download source or init state")
-							return backoff.Permanent(err)
-						}
-						self.Log.WithError(err).WithField("id", tx.ID).Warn("Failed to load contract, retrying after timeout...")
+					if err == nil {
+						// Success
+						mtx.Lock()
+						out = append(out, contractData)
+						mtx.Unlock()
 					}
 
-					mtx.Lock()
-					out = append(out, contractData)
-					mtx.Unlock()
 					return
 				})
 			if err != nil {
