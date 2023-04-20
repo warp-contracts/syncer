@@ -52,7 +52,7 @@ func (self *Store) save(ids []int) error {
 
 	err := self.db.Model(&model.BundleItem{}).
 		Where("interaction_id IN ?", ids).
-		Update("state", model.BundleStateOnBundler).
+		Update("state", model.BundleStateOnArweave).
 		Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to update bundle state")

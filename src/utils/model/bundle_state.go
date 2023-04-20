@@ -2,7 +2,6 @@ package model
 
 import "database/sql/driver"
 
-// CREATE TYPE bundle_state AS ENUM ('PENDING', 'UPLOADING', 'UPLOADED', 'ON_BUNDLER', 'ON_ARWEAVE');
 type BundleState string
 
 const (
@@ -10,7 +9,6 @@ const (
 	BundleStateUploading BundleState = "UPLOADING"
 	BundleStateUploaded  BundleState = "UPLOADED"
 	BundleStateChecking  BundleState = "CHECKING"
-	BundleStateOnBundler BundleState = "ON_BUNDLER"
 	BundleStateOnArweave BundleState = "ON_ARWEAVE"
 	BundleStateMalformed BundleState = "MALFORMED"
 )
