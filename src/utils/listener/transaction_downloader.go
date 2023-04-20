@@ -185,6 +185,13 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 					}
 					self.monitor.GetReport().TransactionDownloader.Errors.Download.Inc()
 
+					if errors.Is(err, arweave.ErrPending) {
+						// https://docs.arweave.org/developers/server/http-api#undefined-4
+						// This is a temporary error, after some time the transaction will be available
+						time.Sleep(time.Second)
+						return err
+					}
+
 					if !isDurationAcceptable {
 						// This will completly reset the HTTP client and possibly help in solving the problem
 						self.client.Reset()

@@ -3,6 +3,7 @@ package arweave
 import (
 	"bytes"
 	"context"
+	"errors"
 	"math/big"
 	"strconv"
 	"syncer/src/utils/config"
@@ -137,6 +138,7 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 
 	resp, err := req.
 		SetResult(&Transaction{}).
+		SetError(&Error{}).
 		ForceContentType("application/json").
 		SetPathParam("id", id).
 		Get("/tx/{id}")
@@ -144,9 +146,24 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 		return
 	}
 
+	if resp.IsError() {
+		msg, ok := resp.Error().(*Error)
+		if !ok {
+			err = ErrBadResponse
+			return
+		}
+		err = errors.New(msg.Error)
+		return
+	}
+
 	out, ok := resp.Result().(*Transaction)
 	if !ok {
-		err = ErrFailedToParse
+		if string(resp.Body()) == "Pending" {
+			err = ErrPending
+		} else {
+			err = ErrFailedToParse
+		}
+
 		return
 	}
 
