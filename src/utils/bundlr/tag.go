@@ -11,9 +11,7 @@ type Tag struct {
 
 type Tags []Tag
 
-// var avroParser = avro.MustParse(`{"type": "array", "items": {"type": "record", "name": "Tag", "fields": [{"name": "name", "type": "string"}, {"name": "value", "type": "string"}]}}`)
-var avroParser = avro.MustParse(`{"type": "record",	"name": "Tag",	"fields": [{"name": "name", "type": "string"}, {"name": "value", "type": "string" }]}
-`)
+var avroParser = avro.MustParse(`{"type": "array", "items": {"type": "record", "name": "Tag", "fields": [{"name": "name", "type": "string"}, {"name": "value", "type": "string"}]}}`)
 
 func (self Tags) Marshal() ([]byte, error) {
 	if len(self) == 0 {
