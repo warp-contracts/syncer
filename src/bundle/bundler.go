@@ -147,13 +147,13 @@ func (self *Bundler) run() (err error) {
 					self.Log.WithError(err).
 						WithField("id", item.InteractionID).
 						WithField("resp", string(resp.Body())).
-						WithField("req", resp.Request.Body).
+						// WithField("req", resp.Request.Body).
 						WithField("url", resp.Request.URL).
 						Error("Failed to upload interaction to Bundlr")
 				} else {
 					self.Log.WithError(err).
 						WithField("id", item.InteractionID).
-						WithField("req", resp.Request.Body).
+						// WithField("req", resp.Request.Body).
 						WithField("url", resp.Request.URL).
 						Error("Failed to upload interaction to Bundlr, no response")
 				}
