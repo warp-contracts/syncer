@@ -23,7 +23,7 @@ func NewGenerator(config *config.Config) (self *Generator) {
 	self.Output = make(chan *arweave.Transaction)
 
 	self.Task = task.NewTask(config, "generator").
-		WithPeriodicSubtaskFunc(1000*time.Millisecond, self.runPeriodically)
+		WithPeriodicSubtaskFunc(10000*time.Millisecond, self.runPeriodically)
 
 	return
 }
