@@ -41,6 +41,7 @@ func setDefaults() {
 	viper.SetDefault("LogLevel", "DEBUG")
 	viper.SetDefault("StopTimeout", "30s")
 
+	setForwarderDefaults()
 	setArweaveDefaults()
 	setPeerMonitorDefaults()
 	setTransactionDownloaderDefaults()
