@@ -6,14 +6,14 @@ const TableState = "sync_state"
 
 type State struct {
 	// Name of the synced component (interactions, contracts)
-	Name SyncedComponent `gorm:"primaryKey"`
+	Name SyncedComponent `gorm:"primaryKey" json:"name"`
 
-	// Height of the last fully processed transaction block
-	FinishedBlockHeight uint64
+	// Height of the last fully processed  transaction block
+	FinishedBlockHeight uint64 `json:"finished_block_height"`
 
 	// Hash of the last fully processed transaction block
 	// Next block needs to have this hash set as its previous block hash
-	FinishedBlockHash arweave.Base64String
+	FinishedBlockHash arweave.Base64String `json:"finished_block_hash"`
 }
 
 func (State) TableName() string {

@@ -7,6 +7,7 @@ type Report struct {
 	Contractor            *ContractorReport            `json:"contractor,omitempty"`
 	Bundler               *BundlerReport               `json:"bundler,omitempty"`
 	Checker               *CheckerReport               `json:"checker,omitempty"`
+	Forwarder             *ForwarderReport             `json:"forwarder,omitempty"`
 	NetworkInfo           *NetworkInfoReport           `json:"network_info,omitempty"`
 	BlockMonitor          *BlockMonitorReport          `json:"block_monitor,omitempty"`
 	BlockDownloader       *BlockDownloaderReport       `json:"block_downloader,omitempty"`
