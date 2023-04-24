@@ -72,6 +72,10 @@ bundle: build-race | ; $(info $(M) starting bundling with default params…)
 check: build-race | ; $(info $(M) starting checking with default params…)
 	bin/$(PACKAGE) check
 
+.PHONY: forward
+forward: build-race | ; $(info $(M) starting forwarding with default params…)
+	bin/$(PACKAGE) forward
+
 .PHONY: load
 load: build-race | ; $(info $(M) starting loading with default params…)
 	bin/$(PACKAGE) load
