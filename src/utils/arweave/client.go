@@ -144,6 +144,11 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 		SetPathParam("id", id).
 		Get("/tx/{id}")
 	if resp.IsError() {
+		if resp.StatusCode() == http.StatusNotFound {
+			err = ErrNotFound
+			return
+		}
+
 		msg, ok := resp.Error().(*Error)
 		if !ok {
 			err = ErrBadResponse

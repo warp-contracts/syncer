@@ -73,7 +73,8 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 		loader := NewLoader(config).
 			WithInputChannel(transactionDownloader.Output).
 			WithMonitor(monitor).
-			WithClient(client)
+			WithClient(client).
+			WithDB(db)
 
 		store := NewStore(config).
 			WithInputChannel(loader.Output).
