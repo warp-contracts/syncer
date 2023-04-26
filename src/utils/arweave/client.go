@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"net/http"
 	"strconv"
 	"syncer/src/utils/config"
 	"time"
@@ -142,18 +143,23 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 		ForceContentType("application/json").
 		SetPathParam("id", id).
 		Get("/tx/{id}")
-	if err != nil {
-		return
-	}
-
 	if resp.IsError() {
 		msg, ok := resp.Error().(*Error)
 		if !ok {
 			err = ErrBadResponse
 			return
 		}
-		self.log.WithField("resp", resp.Body()).Error("Error response")
-		err = errors.New(msg.Error)
+
+		if msg.Error != "" {
+			err = errors.New(msg.Error)
+			return
+		}
+
+		err = errors.New(string(http.StatusText(resp.StatusCode())))
+		return
+	}
+
+	if err != nil {
 		return
 	}
 
@@ -162,7 +168,6 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 		if string(resp.Body()) == "Pending" {
 			err = ErrPending
 		} else {
-			self.log.WithField("resp", resp.Body()).Error("Error response")
 			err = ErrFailedToParse
 		}
 
