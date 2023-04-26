@@ -76,7 +76,11 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 	sources := make([]*model.ContractSource, 0, len(data))
 	for _, d := range data {
 		contracts = append(contracts, d.Contract)
-		sources = append(sources, d.Source)
+
+		if d.Source != nil {
+			// Neglect empty sources
+			sources = append(sources, d.Source)
+		}
 	}
 
 	err = self.DB.WithContext(self.Ctx).

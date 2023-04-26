@@ -17,6 +17,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/exp/slices"
+	"gorm.io/gorm"
 )
 
 // Gets contract's source and init state
@@ -24,6 +25,8 @@ type Loader struct {
 	*task.Task
 	monitor monitoring.Monitor
 	client  *arweave.Client
+	db      *gorm.DB
+
 	// Data about the interactions that need to be bundled
 	input  chan *listener.Payload
 	Output chan *Payload
@@ -57,6 +60,11 @@ func (self *Loader) WithInputChannel(v chan *listener.Payload) *Loader {
 
 func (self *Loader) WithClient(client *arweave.Client) *Loader {
 	self.client = client
+	return self
+}
+
+func (self *Loader) WithDB(v *gorm.DB) *Loader {
+	self.db = v
 	return self
 }
 
@@ -125,7 +133,7 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 					self.Log.WithError(err).
 						WithField("is_acceptable", isDurationAcceptable).
 						WithField("id", tx.ID).
-						Error("Failed to load contract, retrying...")
+						Warn("Failed to load contract, retrying...")
 
 					if isDurationAcceptable || errors.Is(err, &backoff.PermanentError{}) {
 						// We're still within the acceptable timeout
@@ -305,6 +313,27 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 
 	srcTx, err := self.client.GetTransactionById(self.Ctx, srcId)
 	if err != nil {
+		if errors.Is(err, arweave.ErrNotFound) {
+			// Source may have been deployed in a bundle
+			// In that case it should already be in the database
+			var exists bool
+			err2 := self.db.WithContext(self.Ctx).
+				Table(model.TableContractSource).
+				Select("count(1) > 0").
+				Where("src_tx_id = ?", srcId).
+				Limit(1).
+				Find(&exists).
+				Error
+			if err2 != nil {
+				return
+			}
+			if exists {
+				// Source already exists in the database, no need to load it again
+				return nil, nil
+			}
+		}
+
+		// Source doesn't exist in the database, return the error
 		self.Log.WithError(err).Error("Failed to get contract source transaction")
 		return
 	}
