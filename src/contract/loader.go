@@ -254,8 +254,11 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 		return
 	}
 
-	if !tool.IsJSON(initStateBuffer.Bytes()) {
-		err = backoff.Permanent(errors.New("init state is not valid JSON"))
+	// Check if init state is valid JSON
+	err = tool.CheckJSON(initStateBuffer.Bytes())
+	if err != nil {
+		self.Log.WithError(err).WithField("id", tx.ID).Error("Init state isn't valid JSON")
+		err = backoff.Permanent(err)
 		return
 	}
 
