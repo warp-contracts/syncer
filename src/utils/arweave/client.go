@@ -153,7 +153,6 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 			return
 		}
 		err = errors.New(msg.Error)
-		self.log.WithField("resp", resp.Body()).Debug("Error response")
 		return
 	}
 
@@ -162,6 +161,7 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 		if string(resp.Body()) == "Pending" {
 			err = ErrPending
 		} else {
+			self.log.WithField("resp", resp.Body()).Error("Error response")
 			err = ErrFailedToParse
 		}
 
