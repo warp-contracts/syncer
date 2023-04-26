@@ -152,6 +152,7 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 			err = ErrBadResponse
 			return
 		}
+		self.log.WithField("resp", resp.Body()).Error("Error response")
 		err = errors.New(msg.Error)
 		return
 	}
