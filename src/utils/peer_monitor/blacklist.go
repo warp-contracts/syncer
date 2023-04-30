@@ -29,7 +29,7 @@ func (self *Blacklist) Contains(peer string) bool {
 }
 
 func (self *Blacklist) RemoveOldest(n int) {
-	items := make([]item, 0, self.Size.Load())
+	items := make([]item, 0)
 	self.peers.Range(func(key any, value any) bool {
 		peer, _ := key.(string)
 		inserted, _ := value.(time.Time)
