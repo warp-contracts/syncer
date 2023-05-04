@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"encoding/json"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
@@ -92,7 +93,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 		redisMapper := redisMapper(config).
 			WithInputChannel(duplicator.NextChannel())
 
-		redisPublisher := publisher.NewRedisPublisher[*model.ContractNotification](config, "contract-redis-publisher").
+		redisPublisher := publisher.NewRedisPublisher[*model.ContractNotification](config, config.Redis[0], "contract-redis-publisher-0").
 			WithChannelName(config.Contract.PublisherRedisChannelName).
 			WithMonitor(monitor).
 			WithInputChannel(redisMapper.Output)
@@ -132,6 +133,11 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 		})
 
 	self.Task = self.Task.
+		WithOnBeforeStart(func() error {
+			b, _ := json.Marshal(config)
+			self.Log.WithField("redisconfig", string(b)).Info("Config")
+			return nil
+		}).
 		WithSubtask(monitor.Task).
 		WithSubtask(server.Task).
 		WithSubtask(watchdog.Task)

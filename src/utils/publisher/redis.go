@@ -19,6 +19,8 @@ import (
 type RedisPublisher[In encoding.BinaryMarshaler] struct {
 	*task.Task
 
+	redisConfig config.Redis
+
 	monitor monitoring.Monitor
 
 	client      *redis.Client
@@ -26,14 +28,16 @@ type RedisPublisher[In encoding.BinaryMarshaler] struct {
 	input       chan In
 }
 
-func NewRedisPublisher[In encoding.BinaryMarshaler](config *config.Config, name string) (self *RedisPublisher[In]) {
+func NewRedisPublisher[In encoding.BinaryMarshaler](config *config.Config, redisConfig config.Redis, name string) (self *RedisPublisher[In]) {
 	self = new(RedisPublisher[In])
+
+	self.redisConfig = redisConfig
 
 	self.Task = task.NewTask(config, name).
 		WithSubtaskFunc(self.run).
 		WithOnBeforeStart(self.connect).
 		WithOnAfterStop(self.disconnect).
-		WithWorkerPool(config.Redis.MaxWorkers, config.Redis.MaxQueueSize)
+		WithWorkerPool(redisConfig.MaxWorkers, redisConfig.MaxQueueSize)
 
 	return
 }
@@ -63,25 +67,25 @@ func (self *RedisPublisher[In]) disconnect() {
 func (self *RedisPublisher[In]) connect() (err error) {
 	opts := redis.Options{
 		ClientName:      fmt.Sprintf("warp.cc/%s", self.Name),
-		Addr:            fmt.Sprintf("%s:%d", self.Config.Redis.Host, self.Config.Redis.Port),
-		Password:        self.Config.Redis.Password,
-		Username:        self.Config.Redis.User,
-		DB:              self.Config.Redis.DB,
-		MinIdleConns:    self.Config.Redis.MinIdleConns,
-		MaxIdleConns:    self.Config.Redis.MaxIdleConns,
-		ConnMaxIdleTime: self.Config.Redis.ConnMaxIdleTime,
-		PoolSize:        self.Config.Redis.MaxOpenConns,
-		ConnMaxLifetime: self.Config.Redis.ConnMaxLifetime,
+		Addr:            fmt.Sprintf("%s:%d", self.redisConfig.Host, self.redisConfig.Port),
+		Password:        self.redisConfig.Password,
+		Username:        self.redisConfig.User,
+		DB:              self.redisConfig.DB,
+		MinIdleConns:    self.redisConfig.MinIdleConns,
+		MaxIdleConns:    self.redisConfig.MaxIdleConns,
+		ConnMaxIdleTime: self.redisConfig.ConnMaxIdleTime,
+		PoolSize:        self.redisConfig.MaxOpenConns,
+		ConnMaxLifetime: self.redisConfig.ConnMaxLifetime,
 	}
 
-	if self.Config.Redis.ClientCert != "" && self.Config.Redis.ClientKey != "" && self.Config.Redis.CaCert != "" {
-		cert, err := tls.X509KeyPair([]byte(self.Config.Redis.ClientCert), []byte(self.Config.Redis.ClientKey))
+	if self.redisConfig.ClientCert != "" && self.redisConfig.ClientKey != "" && self.redisConfig.CaCert != "" {
+		cert, err := tls.X509KeyPair([]byte(self.redisConfig.ClientCert), []byte(self.redisConfig.ClientKey))
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to load client cert")
 		}
 
 		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM([]byte(self.Config.Redis.CaCert)) {
+		if !caCertPool.AppendCertsFromPEM([]byte(self.redisConfig.CaCert)) {
 			return errors.New("failed to append CA cert to pool")
 		}
 
@@ -114,8 +118,8 @@ func (self *RedisPublisher[In]) run() (err error) {
 			defer self.Log.Debug("...Redis publish done")
 			err = task.NewRetry().
 				WithContext(self.Ctx).
-				WithMaxElapsedTime(self.Config.Redis.MaxElapsedTime).
-				WithMaxInterval(self.Config.Redis.MaxInterval).
+				WithMaxElapsedTime(self.redisConfig.MaxElapsedTime).
+				WithMaxInterval(self.redisConfig.MaxInterval).
 				WithOnError(func(err error, isDurationAcceptable bool) error {
 					self.Log.WithError(err).Error("Failed to publish message, retrying")
 					self.monitor.GetReport().RedisPublisher.Errors.Publish.Inc()

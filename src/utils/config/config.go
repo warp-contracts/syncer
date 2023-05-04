@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -32,7 +33,7 @@ type Config struct {
 	Checker               Checker
 	Database              Database
 	Contract              Contract
-	Redis                 Redis
+	Redis                 []Redis
 	AppSync               AppSync
 }
 
@@ -105,6 +106,8 @@ func Load(filename string) (config *Config, err error) {
 	}
 
 	err = viper.Unmarshal(&config)
+
+	fmt.Println(viper.AllSettings())
 
 	return
 }
