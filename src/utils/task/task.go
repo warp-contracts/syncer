@@ -114,6 +114,20 @@ func (self *Task) WithSubtask(t *Task) *Task {
 	return self
 }
 
+func (self *Task) WithSubtaskSlice(tasks []*Task) *Task {
+	// Ensure context will be cancelled after all kinds of subtasks finish
+	for _, t := range tasks {
+		t = t.WithOnBeforeStart(func() error {
+			self.stopWaitGroup.Add(1)
+			return nil
+		}).WithOnAfterStop(func() {
+			self.stopWaitGroup.Done()
+		})
+		self.subtasks = append(self.subtasks, t)
+	}
+	return self
+}
+
 func (self *Task) WithSubtaskFunc(f func() error) *Task {
 	self.subtasksFunc = append(self.subtasksFunc, f)
 	return self

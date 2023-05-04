@@ -2,6 +2,7 @@ package contract
 
 import (
 	"encoding/json"
+	"fmt"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
 	"syncer/src/utils/listener"
@@ -90,14 +91,24 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 			WithOutputChannels(2, 0).
 			WithInputChannel(flattener.Output)
 
+		// Publish to all redis instances
 		redisMapper := redisMapper(config).
 			WithInputChannel(duplicator.NextChannel())
 
-		redisPublisher := publisher.NewRedisPublisher[*model.ContractNotification](config, config.Redis[0], "contract-redis-publisher-0").
-			WithChannelName(config.Contract.PublisherRedisChannelName).
-			WithMonitor(monitor).
+		redisDuplicator := task.NewDuplicator[*model.ContractNotification](config, "redis-duplicator").
+			WithOutputChannels(len(config.Redis), 0).
 			WithInputChannel(redisMapper.Output)
 
+		redisPublishers := make([]*task.Task, 0, len(config.Redis))
+		for i := range config.Redis {
+			redisPublisher := publisher.NewRedisPublisher[*model.ContractNotification](config, config.Redis[i], fmt.Sprintf("contract-redis-publisher-%d", i)).
+				WithChannelName(config.Contract.PublisherRedisChannelName).
+				WithMonitor(monitor).
+				WithInputChannel(redisDuplicator.NextChannel())
+			redisPublishers = append(redisPublishers, redisPublisher.Task)
+		}
+
+		// Publish to AppSync
 		appSyncMapper := appSyncMapper(config).
 			WithInputChannel(duplicator.NextChannel())
 
@@ -117,7 +128,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 			WithSubtask(redisMapper.Task).
 			WithSubtask(appSyncMapper.Task).
 			WithSubtask(duplicator.Task).
-			WithSubtask(redisPublisher.Task).
+			WithSubtaskSlice(redisPublishers).
 			WithSubtask(appSyncPublisher.Task)
 	}
 

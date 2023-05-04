@@ -51,6 +51,20 @@ func setRedisDefaults() {
 		MaxInterval:     60 * time.Second,
 		MaxWorkers:      15,
 		MaxQueueSize:    1,
+	}, {
+		Port:            6379,
+		Host:            "localhost",
+		DB:              0,
+		Password:        "password",
+		MinIdleConns:    1,
+		MaxIdleConns:    5,
+		ConnMaxIdleTime: 10 * time.Minute,
+		MaxOpenConns:    15,
+		ConnMaxLifetime: time.Hour,
+		MaxElapsedTime:  10 * time.Minute,
+		MaxInterval:     60 * time.Second,
+		MaxWorkers:      15,
+		MaxQueueSize:    1,
 	}})
 	// viper.SetDefault("Redis[0].Port", "6379")
 	// viper.SetDefault("Redis[0].Host", "localhost")
