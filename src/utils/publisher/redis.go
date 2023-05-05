@@ -65,6 +65,7 @@ func (self *RedisPublisher[In]) disconnect() {
 }
 
 func (self *RedisPublisher[In]) connect() (err error) {
+	self.Log.WithField("port", self.redisConfig.Port).WithField("host", self.redisConfig.Host).Error("REDIS")
 	opts := redis.Options{
 		ClientName:      fmt.Sprintf("warp.cc/%s", self.Name),
 		Addr:            fmt.Sprintf("%s:%d", self.redisConfig.Host, self.redisConfig.Port),
