@@ -1,7 +1,6 @@
 package contract
 
 import (
-	"encoding/json"
 	"fmt"
 	"syncer/src/utils/arweave"
 	"syncer/src/utils/config"
@@ -144,11 +143,11 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 		})
 
 	self.Task = self.Task.
-		WithOnBeforeStart(func() error {
-			b, _ := json.Marshal(config)
-			self.Log.WithField("redisconfig", string(b)).Info("Config")
-			return nil
-		}).
+		// WithOnBeforeStart(func() error {
+		// 	b, _ := json.Marshal(config)
+		// 	self.Log.WithField("redisconfig", string(b)).Info("Config")
+		// 	return nil
+		// }).
 		WithSubtask(monitor.Task).
 		WithSubtask(server.Task).
 		WithSubtask(watchdog.Task)
