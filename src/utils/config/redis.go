@@ -19,6 +19,7 @@ type Redis struct {
 	ClientKey  string
 	ClientCert string
 	CaCert     string
+	EnableTLS  bool
 
 	// Connection configuration
 	MinIdleConns    int
@@ -49,6 +50,7 @@ func unmarshalRedis(config *Config) error {
 			Host:            "localhost",
 			DB:              0,
 			Password:        "password",
+			EnableTLS:       true,
 			MinIdleConns:    1,
 			MaxIdleConns:    5,
 			ConnMaxIdleTime: 10 * time.Minute,
@@ -81,6 +83,7 @@ func setRedisDefaults() {
 	viper.SetDefault("Redis[0].Host", "localhost")
 	viper.SetDefault("Redis[0].User", "")
 	viper.SetDefault("Redis[0].Password", "password")
+	viper.SetDefault("Redis[0].EnableTLS", "false")
 	viper.SetDefault("Redis[0].DB", "0")
 	viper.SetDefault("Redis[0].MinIdleConns", "1")
 	viper.SetDefault("Redis[0].MaxIdleConns", "5")

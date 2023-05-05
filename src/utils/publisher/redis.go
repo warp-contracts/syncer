@@ -96,6 +96,10 @@ func (self *RedisPublisher[In]) connect() (err error) {
 			ClientCAs:          caCertPool,
 			Certificates:       []tls.Certificate{cert},
 		}
+	} else if self.redisConfig.EnableTLS {
+		opts.TLSConfig = &tls.Config{
+			InsecureSkipVerify: false,
+		}
 	}
 
 	self.client = redis.NewClient(&opts)
