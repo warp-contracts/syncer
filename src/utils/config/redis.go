@@ -45,8 +45,8 @@ func unmarshalRedis(config *Config) error {
 	for i := range config.Redis {
 
 		data := Redis{
-			Port:            6344,
-			Host:            "0",
+			Port:            6379,
+			Host:            "localhost",
 			DB:              0,
 			Password:        "password",
 			MinIdleConns:    1,
