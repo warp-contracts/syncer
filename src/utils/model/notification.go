@@ -8,10 +8,10 @@ import (
 )
 
 type ContractNotification struct {
-	ContractTxId string        `json:"contract_tx_id"`
+	ContractTxId string        `json:"contractTxId"`
 	Test         bool          `json:"test"`
 	Source       string        `json:"source"`
-	InitialState pgtype.JSONB  `json:"initial_state"`
+	InitialState pgtype.JSONB  `json:"initialState"`
 	Tags         []arweave.Tag `json:"tags"`
 }
 
@@ -20,7 +20,7 @@ func (self *ContractNotification) MarshalBinary() (data []byte, err error) {
 }
 
 type InteractionNotification struct {
-	ContractTxId string `json:"contract_tx_id"`
+	ContractTxId string `json:"contractTxId"`
 	Test         bool   `json:"test"`
 	Source       string `json:"source"`
 	Interaction  string `json:"interaction"`
