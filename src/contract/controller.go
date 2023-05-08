@@ -125,6 +125,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 			WithSubtask(store.Task).
 			WithSubtask(flattener.Task).
 			WithSubtask(redisMapper.Task).
+			WithSubtask(redisDuplicator.Task).
 			WithSubtask(appSyncMapper.Task).
 			WithSubtask(duplicator.Task).
 			WithSubtaskSlice(redisPublishers).
