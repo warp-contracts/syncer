@@ -76,6 +76,7 @@ func (self *RedisPublisher[In]) connect() (err error) {
 		MaxIdleConns:    self.redisConfig.MaxIdleConns,
 		ConnMaxIdleTime: self.redisConfig.ConnMaxIdleTime,
 		PoolSize:        self.redisConfig.MaxOpenConns,
+		DialTimeout:     time.Minute,
 		ConnMaxLifetime: self.redisConfig.ConnMaxLifetime,
 	}
 
@@ -111,6 +112,7 @@ func (self *RedisPublisher[In]) connect() (err error) {
 		self.Log.WithError(err).Error("Failed to ping Redis")
 		return
 	}
+	self.Log.WithField("host", self.redisConfig.Host).Info("Redis connection OK")
 
 	return
 }
@@ -131,6 +133,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 					return err
 				}).
 				Run(func() (err error) {
+					self.Log.Debug("Publish message to Redis")
 					return self.client.Publish(self.Ctx, self.channelName, payload).Err()
 				})
 			if err != nil {
