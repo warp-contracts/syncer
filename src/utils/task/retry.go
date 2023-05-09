@@ -58,7 +58,7 @@ func (self *Retry) Run(f func() error) error {
 	b.MaxInterval = self.maxInterval
 	return backoff.Retry(func() error {
 		err := f()
-		if err != nil {
+		if err != nil && self.onError != nil {
 			return self.onError(err, time.Since(self.startTime) < self.acceptableDuration)
 		}
 		return nil
