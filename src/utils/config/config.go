@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -100,7 +99,6 @@ func BindEnv(path []string, val reflect.Value) {
 		}
 
 		env := "SYNCER_" + strcase.ToScreamingSnake(strings.Join(path, "_"))
-		fmt.Println(key, env)
 		err := viper.BindEnv(key, env)
 		if err != nil {
 			panic(err)
@@ -123,7 +121,6 @@ func getSliceLength(key string) int {
 		// var rest string
 		_, err := fmt.Sscanf(viperKey, key+"[%d]", &idx)
 		if err != nil {
-			// fmt.Println(viperKey, err.Error())
 			continue
 		}
 		idx += 1
@@ -183,13 +180,6 @@ func Load(filename string) (config *Config, err error) {
 	if err != nil {
 		return nil, err
 	}
-	b, err := json.MarshalIndent(config.Redis, "", "  ")
-	if err != nil {
-		fmt.Println("error:", err)
-	}
 
-	fmt.Println(string(b))
-
-	fmt.Println(getSliceLength("redis"))
 	return
 }
