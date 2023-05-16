@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { JWKInterface } from 'arweave/node/lib/wallet';
 import { DeployPlugin, ArweaveSigner, EthereumSigner } from 'warp-contracts-plugin-deploy';
-import { defaultCacheOptions, LoggerFactory, Tag, WarpFactory } from 'warp-contracts';
+import { defaultCacheOptions, LoggerFactory, Tag, WarpFactory, WARP_TAGS } from 'warp-contracts';
 
 async function main() {
     let wallet: JWKInterface = readJSON('.secrets/jwk.json');
@@ -71,6 +71,16 @@ async function main() {
         }, true);
         console.log(`contractType=JS initState=tag contractTxId=${d.contractTxId} srcTxId=${d.srcTxId}`);
 
+
+        const { contractTxId, srcTxId } = await warp.deploy({
+            wallet: wallet,
+            initState: JSON.stringify(initialState),
+            src: jsContractSrc,
+            tags: [
+                { name: WARP_TAGS.INIT_STATE_TX, value: d.srcTxId || '' },
+            ]
+        }, true);
+        console.log(`contractType=JS initState=tx in tag contractTxId=${d.contractTxId} srcTxId=${d.srcTxId}`);
 
     } catch (e) {
         //logger.error(e)
