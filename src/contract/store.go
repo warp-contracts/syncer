@@ -24,6 +24,8 @@ type Store struct {
 	savedBlockHeight  uint64
 	finishedHeight    uint64
 	finishedBlockHash []byte
+
+	replaceExistingData bool
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -45,6 +47,11 @@ func (self *Store) WithMonitor(v monitoring.Monitor) *Store {
 
 func (self *Store) WithInputChannel(v chan *Payload) *Store {
 	self.Processor = self.Processor.WithInputChannel(v)
+	return self
+}
+
+func (self *Store) WithReplaceExistingData(replace bool) *Store {
+	self.replaceExistingData = replace
 	return self
 }
 
@@ -122,7 +129,7 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 			// Insert contract
 			err = tx.WithContext(self.Ctx).
 				Table(model.TableContract).
-				Clauses(clause.OnConflict{DoNothing: true}).
+				Clauses(clause.OnConflict{DoNothing: !self.replaceExistingData, UpdateAll: self.replaceExistingData}).
 				CreateInBatches(contracts, 5).
 				Error
 			if err != nil {
@@ -134,7 +141,7 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 			// Insert Source
 			err = tx.WithContext(self.Ctx).
 				Table(model.TableContractSource).
-				Clauses(clause.OnConflict{DoNothing: true}).
+				Clauses(clause.OnConflict{DoNothing: !self.replaceExistingData, UpdateAll: self.replaceExistingData}).
 				CreateInBatches(sources, 5).
 				Error
 			if err != nil {

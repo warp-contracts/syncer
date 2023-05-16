@@ -20,7 +20,7 @@ type Controller struct {
 
 // Main class that orchestrates main syncer functionalities
 // Setups listening and storing interactions
-func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint64) (self *Controller, err error) {
+func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint64, replaceExisting bool) (self *Controller, err error) {
 	self = new(Controller)
 
 	self.Task = task.NewTask(config, "contract-controller")
@@ -79,6 +79,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 
 		store := NewStore(config).
 			WithInputChannel(loader.Output).
+			WithReplaceExistingData(replaceExisting).
 			WithMonitor(monitor).
 			WithDB(db)
 
