@@ -315,6 +315,10 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 	var ok bool
 	out = model.NewContractSource()
 	out.SrcTxId = srcId
+	err = out.DeploymentType.Set("arweave")
+	if err != nil {
+		return
+	}
 
 	srcTx, err := self.client.GetTransactionById(self.Ctx, srcId)
 	if err != nil {
@@ -362,6 +366,17 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 
 	// Check signature
 	err = srcTx.Verify()
+	if err != nil {
+		return
+	}
+
+	// Set owner
+	owner, err := warp.GetWalletAddress(srcTx)
+	if err != nil {
+		return
+	}
+
+	err = out.Owner.Set(owner)
 	if err != nil {
 		return
 	}
