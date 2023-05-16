@@ -3,6 +3,7 @@ package arweave
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"math/big"
 	"net/http"
@@ -262,6 +263,7 @@ func (self *Client) GetChunks(ctx context.Context, id string) (out bytes.Buffer,
 			return
 		}
 
+		// Chunk field is already decoded from base64
 		out.Write(chunk.Chunk.Bytes())
 
 		// Are there more chunks?
@@ -285,7 +287,13 @@ func (self *Client) GetTransactionDataById(ctx context.Context, id string) (out 
 		return
 	}
 
-	out.Write(resp.Body())
+	// Data is base64 url encoded
+	buf, err := base64.RawURLEncoding.DecodeString(string(resp.Body()))
+	if err != nil {
+		return
+	}
+
+	out.Write(buf)
 	if out.Len() > 0 {
 		return
 	}

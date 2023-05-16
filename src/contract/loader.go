@@ -2,7 +2,6 @@ package contract
 
 import (
 	"bytes"
-	"encoding/base64"
 	"errors"
 	"sync"
 	"syncer/src/utils/arweave"
@@ -368,21 +367,14 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 	}
 
 	// Get source from transaction's data
-	srcEncoded, err := self.client.GetTransactionDataById(self.Ctx, srcId)
+	src, err := self.client.GetTransactionDataById(self.Ctx, srcId)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get source data")
 		return
 	}
 
-	// Arweave returns base64 encoded data
-	src, err := base64.RawURLEncoding.DecodeString(srcEncoded.String())
-	if err != nil {
-		self.Log.WithError(err).Error("Failed to decode source data")
-		return
-	}
-
 	if out.IsJS() {
-		err = out.Src.Set(src)
+		err = out.Src.Set(src.String())
 		if err != nil {
 			return
 		}
@@ -397,7 +389,7 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 			return
 		}
 
-		err = out.SrcBinary.Set(src)
+		err = out.SrcBinary.Set(src.Bytes())
 		if err != nil {
 			return
 		}
@@ -426,8 +418,8 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out []byte, e
 			return
 		}
 
-		// Decode base64
-		return base64.RawURLEncoding.DecodeString(buf.String())
+		out = buf.Bytes()
+		return
 	}
 
 	// Init state is the contract's data
@@ -442,6 +434,6 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out []byte, e
 		return
 	}
 
-	// Decode base64
-	return base64.RawURLEncoding.DecodeString(buf.String())
+	out = buf.Bytes()
+	return
 }
