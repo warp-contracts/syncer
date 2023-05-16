@@ -368,14 +368,21 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 	}
 
 	// Get source from transaction's data
-	src, err := self.client.GetTransactionDataById(self.Ctx, srcId)
+	srcEncoded, err := self.client.GetTransactionDataById(self.Ctx, srcId)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get source data")
 		return
 	}
 
+	// Arweave returns base64 encoded data
+	src, err := base64.RawURLEncoding.DecodeString(srcEncoded.String())
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to decode source data")
+		return
+	}
+
 	if out.IsJS() {
-		err = out.Src.Set(src.String())
+		err = out.Src.Set(src)
 		if err != nil {
 			return
 		}
@@ -390,7 +397,7 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 			return
 		}
 
-		err = out.SrcBinary.Set(src.Bytes())
+		err = out.SrcBinary.Set(src)
 		if err != nil {
 			return
 		}
