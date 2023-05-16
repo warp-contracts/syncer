@@ -2,6 +2,7 @@ package contract
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"sync"
 	"syncer/src/utils/arweave"
@@ -255,7 +256,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 	}
 
 	// Init state
-	initStateBuffer, err := self.getInitState(tx)
+	initStateBytes, err := self.getInitState(tx)
 	if err != nil {
 		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to get contract init state")
 		self.monitor.GetReport().Contractor.Errors.LoadInitState.Inc()
@@ -263,9 +264,9 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 	}
 
 	// Check if init state is valid JSON
-	err = tool.CheckJSON(initStateBuffer.Bytes())
+	err = tool.CheckJSON(initStateBytes)
 	if err != nil {
-		str := initStateBuffer.String()
+		str := string(initStateBytes)
 		l := len(str)
 		if len(str) > 50 {
 			l = 50
@@ -276,13 +277,13 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 		return
 	}
 
-	err = out.InitState.Set(initStateBuffer.Bytes())
+	err = out.InitState.Set(initStateBytes)
 	if err != nil {
 		return
 	}
 
 	// Try parsing init state as a PST
-	pstInitState, err := warp.ParsePstInitState(initStateBuffer.Bytes())
+	pstInitState, err := warp.ParsePstInitState(initStateBytes)
 	if err != nil || !pstInitState.IsPst() {
 		err = out.Type.Set(model.ContractTypeOther)
 		if err != nil {
@@ -397,14 +398,14 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 	return
 }
 
-func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buffer, err error) {
+func (self *Loader) getInitState(contractTx *arweave.Transaction) (out []byte, err error) {
 	self.Log.WithField("id", contractTx.ID).Debug("--> getInitState")
 	defer self.Log.WithField("id", contractTx.ID).Debug("<-- getInitState")
 
 	initState, ok := contractTx.GetTag(warp.TagInitState)
 	if ok {
 		// Init state in tags
-		out.WriteString(initState)
+		out = []byte(initState)
 		return
 	}
 
@@ -412,15 +413,28 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out bytes.Buf
 	if ok {
 		// FIXME: Validate tags, eg. this value should be a valid transaction id
 		// Init state in a separate transaction
-		return self.client.GetTransactionDataById(self.Ctx, initStateTxId)
+		var buf bytes.Buffer
+		buf, err = self.client.GetTransactionDataById(self.Ctx, initStateTxId)
+		if err != nil {
+			return
+		}
+
+		// Decode base64
+		return base64.RawURLEncoding.DecodeString(buf.String())
 	}
 
 	// Init state is the contract's data
 	if len(contractTx.Data) > 0 {
-		out.Write(contractTx.Data)
+		out = contractTx.Data
 		return
 	}
 
 	// It didn't fit into the data field, fetch chunks
-	return self.client.GetChunks(self.Ctx, contractTx.ID)
+	buf, err := self.client.GetChunks(self.Ctx, contractTx.ID)
+	if err != nil {
+		return
+	}
+
+	// Decode base64
+	return base64.RawURLEncoding.DecodeString(buf.String())
 }
