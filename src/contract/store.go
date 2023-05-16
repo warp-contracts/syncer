@@ -129,7 +129,11 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 			// Insert contract
 			err = tx.WithContext(self.Ctx).
 				Table(model.TableContract).
-				Clauses(clause.OnConflict{DoNothing: !self.replaceExistingData, UpdateAll: self.replaceExistingData}).
+				Clauses(clause.OnConflict{
+					DoNothing: !self.replaceExistingData,
+					Columns:   []clause.Column{{Name: "contract_id"}},
+					UpdateAll: self.replaceExistingData,
+				}).
 				CreateInBatches(contracts, 5).
 				Error
 			if err != nil {
@@ -141,7 +145,10 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 			// Insert Source
 			err = tx.WithContext(self.Ctx).
 				Table(model.TableContractSource).
-				Clauses(clause.OnConflict{DoNothing: !self.replaceExistingData, UpdateAll: self.replaceExistingData}).
+				Clauses(clause.OnConflict{
+					DoNothing: !self.replaceExistingData,
+					Columns:   []clause.Column{{Name: "src_tx_id"}},
+					UpdateAll: self.replaceExistingData}).
 				CreateInBatches(sources, 5).
 				Error
 			if err != nil {
