@@ -4,10 +4,11 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"syncer/src/utils/common"
-	"syncer/src/utils/config"
-	"syncer/src/utils/logger"
 	"syscall"
+
+	"github.com/warp-contracts/syncer/src/utils/common"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/logger"
 
 	"github.com/spf13/cobra"
 )

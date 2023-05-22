@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"syncer/src/utils/config"
-	"syncer/src/utils/logger"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/logger"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"

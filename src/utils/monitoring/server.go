@@ -3,9 +3,10 @@ package monitoring
 import (
 	"context"
 	"net/http"
-	"syncer/src/utils/build_info"
-	"syncer/src/utils/config"
-	"syncer/src/utils/task"
+
+	"github.com/warp-contracts/syncer/src/utils/build_info"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"

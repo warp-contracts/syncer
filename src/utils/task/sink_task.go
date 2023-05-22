@@ -2,7 +2,8 @@ package task
 
 import (
 	"math"
-	"syncer/src/utils/config"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
 
 	"time"
 

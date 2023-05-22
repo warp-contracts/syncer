@@ -2,9 +2,10 @@ package monitor_forwarder
 
 import (
 	"net/http"
-	"syncer/src/utils/monitoring/report"
-	"syncer/src/utils/task"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/monitoring/report"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"

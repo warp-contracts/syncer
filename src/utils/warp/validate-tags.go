@@ -2,8 +2,9 @@ package warp
 
 import (
 	"fmt"
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/smartweave"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/smartweave"
 )
 
 type Validator func(arweave.Base64String) error

@@ -1,4 +1,4 @@
-module syncer
+module github.com/warp-contracts/syncer
 
 go 1.19
 

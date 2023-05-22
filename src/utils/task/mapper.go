@@ -1,7 +1,7 @@
 package task
 
 import (
-	"syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/config"
 )
 
 // Takes item from input channel, processes it and inserts it into the output channel

@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"syncer/src/utils/common"
-	"syncer/src/utils/config"
-	"syncer/src/utils/logger"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/common"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/logger"
 
 	"github.com/gammazero/workerpool"
 	"github.com/sirupsen/logrus"

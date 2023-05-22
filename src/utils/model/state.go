@@ -1,6 +1,6 @@
 package model
 
-import "syncer/src/utils/arweave"
+import "github.com/warp-contracts/syncer/src/utils/arweave"
 
 const TableState = "sync_state"
 

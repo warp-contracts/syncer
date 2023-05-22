@@ -3,9 +3,10 @@ package load
 import (
 	"database/sql"
 	"strconv"
-	"syncer/src/utils/config"
-	"syncer/src/utils/task"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"gorm.io/gorm"
 )

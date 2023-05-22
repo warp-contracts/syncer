@@ -1,10 +1,10 @@
 package contract
 
 import (
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/config"
-	"syncer/src/utils/model"
-	"syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
 func redisMapper(config *config.Config) (self *task.Mapper[*ContractData, *model.ContractNotification]) {

@@ -2,7 +2,8 @@ package bundlr
 
 import (
 	"context"
-	"syncer/src/utils/config"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

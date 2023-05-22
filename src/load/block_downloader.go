@@ -2,10 +2,11 @@ package load
 
 import (
 	"sync"
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/config"
-	"syncer/src/utils/task"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
 // Gets the latest block

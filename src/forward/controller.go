@@ -1,11 +1,11 @@
 package forward
 
 import (
-	"syncer/src/utils/config"
-	"syncer/src/utils/model"
-	"syncer/src/utils/monitoring"
-	monitor_forwarder "syncer/src/utils/monitoring/forwarder"
-	"syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	monitor_forwarder "github.com/warp-contracts/syncer/src/utils/monitoring/forwarder"
+	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
 type Controller struct {

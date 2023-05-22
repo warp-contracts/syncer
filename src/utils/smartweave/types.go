@@ -1,6 +1,6 @@
 package smartweave
 
-import "syncer/src/utils/arweave"
+import "github.com/warp-contracts/syncer/src/utils/arweave"
 
 type Owner struct {
 	Address string `json:"address"`

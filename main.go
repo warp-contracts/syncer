@@ -2,7 +2,7 @@
 package main
 
 import (
-	"syncer/src/cmd"
+	"github.com/warp-contracts/syncer/src/cmd"
 
 	"fmt"
 	"os"

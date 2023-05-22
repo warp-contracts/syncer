@@ -3,7 +3,8 @@ package task
 import (
 	"errors"
 	"sync"
-	"syncer/src/utils/config"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
 )
 
 // Takes item from input channel and in parallel puts to all output channels.

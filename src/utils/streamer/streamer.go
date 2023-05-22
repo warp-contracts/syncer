@@ -7,10 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"syncer/src/utils/build_info"
-	"syncer/src/utils/config"
-	"syncer/src/utils/task"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/build_info"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"github.com/jackc/pgx"
 )

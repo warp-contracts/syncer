@@ -5,12 +5,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"sync"
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/config"
-	"syncer/src/utils/monitoring"
-	"syncer/src/utils/smartweave"
-	"syncer/src/utils/task"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	"github.com/warp-contracts/syncer/src/utils/smartweave"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"github.com/cenkalti/backoff/v4"
 )

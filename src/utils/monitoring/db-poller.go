@@ -1,9 +1,10 @@
 package monitoring
 
 import (
-	"syncer/src/utils/config"
-	"syncer/src/utils/task"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"go.uber.org/atomic"
 

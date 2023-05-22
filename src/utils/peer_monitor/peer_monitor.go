@@ -6,11 +6,12 @@ import (
 	"net/netip"
 	"sort"
 	"sync"
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/config"
-	"syncer/src/utils/monitoring"
-	"syncer/src/utils/slice"
-	"syncer/src/utils/task"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	"github.com/warp-contracts/syncer/src/utils/slice"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"time"
 )

@@ -2,16 +2,17 @@ package contract
 
 import (
 	"fmt"
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/config"
-	"syncer/src/utils/listener"
-	"syncer/src/utils/model"
-	"syncer/src/utils/monitoring"
-	monitor_contract "syncer/src/utils/monitoring/contract"
-	"syncer/src/utils/peer_monitor"
-	"syncer/src/utils/publisher"
-	"syncer/src/utils/task"
-	"syncer/src/utils/warp"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/listener"
+	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	monitor_contract "github.com/warp-contracts/syncer/src/utils/monitoring/contract"
+	"github.com/warp-contracts/syncer/src/utils/peer_monitor"
+	"github.com/warp-contracts/syncer/src/utils/publisher"
+	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/warp"
 )
 
 type Controller struct {

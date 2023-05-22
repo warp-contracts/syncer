@@ -1,7 +1,7 @@
 package task
 
 import (
-	"syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/config"
 )
 
 // Accepts slices of elements and emits each element individually

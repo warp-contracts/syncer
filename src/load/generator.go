@@ -1,11 +1,12 @@
 package load
 
 import (
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/config"
-	"syncer/src/utils/task"
-	"syncer/src/utils/tool"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/tool"
 )
 
 // Generates fake transactions

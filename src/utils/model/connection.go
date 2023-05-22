@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"syncer/src/utils/build_info"
-	"syncer/src/utils/common"
-	"syncer/src/utils/config"
-	l "syncer/src/utils/logger"
-	"syncer/src/utils/model/sql_migrations"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/build_info"
+	"github.com/warp-contracts/syncer/src/utils/common"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	l "github.com/warp-contracts/syncer/src/utils/logger"
+	"github.com/warp-contracts/syncer/src/utils/model/sql_migrations"
 
 	migrate "github.com/rubenv/sql-migrate"
 	"gorm.io/driver/postgres"

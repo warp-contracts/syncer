@@ -8,10 +8,11 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"syncer/src/utils/build_info"
-	"syncer/src/utils/config"
-	"syncer/src/utils/logger"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/build_info"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/logger"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"

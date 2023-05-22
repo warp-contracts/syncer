@@ -2,12 +2,13 @@ package sync
 
 import (
 	"sync"
-	"syncer/src/utils/config"
-	"syncer/src/utils/listener"
-	"syncer/src/utils/model"
-	"syncer/src/utils/monitoring"
-	"syncer/src/utils/task"
-	"syncer/src/utils/warp"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/listener"
+	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/warp"
 )
 
 // Gets contract's source and init state

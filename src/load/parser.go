@@ -2,11 +2,12 @@ package load
 
 import (
 	"encoding/json"
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/config"
-	"syncer/src/utils/model"
-	"syncer/src/utils/task"
-	"syncer/src/utils/warp"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/warp"
 )
 
 // Generates fake transactions

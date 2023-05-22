@@ -7,10 +7,11 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
-	"syncer/src/utils/config"
-	"syncer/src/utils/monitoring"
-	"syncer/src/utils/task"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"github.com/redis/go-redis/v9"
 )

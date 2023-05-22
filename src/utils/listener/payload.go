@@ -1,7 +1,7 @@
 package listener
 
 import (
-	"syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/arweave"
 )
 
 type Payload struct {

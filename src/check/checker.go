@@ -1,10 +1,10 @@
 package check
 
 import (
-	"syncer/src/utils/bundlr"
-	"syncer/src/utils/config"
-	"syncer/src/utils/monitoring"
-	"syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/bundlr"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
 // Periodically gets the current network height from warp's GW and confirms bundle is FINALIZED

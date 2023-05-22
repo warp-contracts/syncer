@@ -4,9 +4,10 @@ import (
 	"math"
 	"net/http"
 	"sync"
-	"syncer/src/utils/monitoring/report"
-	"syncer/src/utils/task"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/monitoring/report"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"github.com/gammazero/deque"
 	"github.com/gin-gonic/gin"

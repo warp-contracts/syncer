@@ -8,8 +8,9 @@ import (
 	"math/big"
 	"net/http"
 	"strconv"
-	"syncer/src/utils/config"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
 
 	"github.com/teivah/onecontext"
 )

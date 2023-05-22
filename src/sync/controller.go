@@ -1,15 +1,15 @@
 package sync
 
 import (
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/config"
-	"syncer/src/utils/listener"
-	"syncer/src/utils/model"
-	"syncer/src/utils/monitoring"
-	monitor_syncer "syncer/src/utils/monitoring/syncer"
-	"syncer/src/utils/peer_monitor"
-	"syncer/src/utils/task"
-	"syncer/src/utils/warp"
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/listener"
+	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	monitor_syncer "github.com/warp-contracts/syncer/src/utils/monitoring/syncer"
+	"github.com/warp-contracts/syncer/src/utils/peer_monitor"
+	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/warp"
 )
 
 type Controller struct {

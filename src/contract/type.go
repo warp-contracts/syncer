@@ -1,8 +1,8 @@
 package contract
 
 import (
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/model"
 )
 
 type ContractData struct {

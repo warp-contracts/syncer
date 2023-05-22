@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/config"
-	"syncer/src/utils/logger"
-	"syncer/src/utils/model"
-	"syncer/src/utils/smartweave"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/logger"
+	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/smartweave"
 
 	"github.com/dvsekhvalnov/jose2go/base64url"
 	"github.com/sirupsen/logrus"

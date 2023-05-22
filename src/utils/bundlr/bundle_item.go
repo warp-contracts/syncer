@@ -7,7 +7,8 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"strconv"
-	"syncer/src/utils/arweave"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
 )
 
 type BundleItem struct {

@@ -1,8 +1,9 @@
 package task
 
 import (
-	"syncer/src/utils/config"
 	"time"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
 )
 
 type Watchdog struct {

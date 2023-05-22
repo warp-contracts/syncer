@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"syncer/src/utils/config"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
 
 	"github.com/iancoleman/strcase"
 	"github.com/spf13/cobra"

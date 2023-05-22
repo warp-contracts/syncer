@@ -2,11 +2,12 @@ package forward
 
 import (
 	"encoding/json"
-	"syncer/src/utils/config"
-	"syncer/src/utils/model"
-	"syncer/src/utils/monitoring"
-	"syncer/src/utils/streamer"
-	"syncer/src/utils/task"
+
+	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	"github.com/warp-contracts/syncer/src/utils/streamer"
+	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"gorm.io/gorm"
 )

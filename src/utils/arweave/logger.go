@@ -1,7 +1,7 @@
 package arweave
 
 import (
-	"syncer/src/utils/logger"
+	"github.com/warp-contracts/syncer/src/utils/logger"
 
 	"github.com/sirupsen/logrus"
 )

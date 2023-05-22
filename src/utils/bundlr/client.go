@@ -3,8 +3,9 @@ package bundlr
 import (
 	"context"
 	"io"
-	"syncer/src/utils/bundlr/responses"
-	"syncer/src/utils/config"
+
+	"github.com/warp-contracts/syncer/src/utils/bundlr/responses"
+	"github.com/warp-contracts/syncer/src/utils/config"
 
 	"github.com/go-resty/resty/v2"
 )

@@ -2,8 +2,9 @@ package model
 
 import (
 	"database/sql"
-	"syncer/src/utils/arweave"
-	"syncer/src/utils/smartweave"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/smartweave"
 
 	"github.com/lib/pq"
 )

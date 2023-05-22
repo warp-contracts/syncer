@@ -2,7 +2,8 @@ package model
 
 import (
 	"encoding/json"
-	"syncer/src/utils/arweave"
+
+	"github.com/warp-contracts/syncer/src/utils/arweave"
 
 	"github.com/jackc/pgtype"
 )

@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"syncer/src/sync"
-	"syncer/src/utils/logger"
+	"github.com/warp-contracts/syncer/src/sync"
+	"github.com/warp-contracts/syncer/src/utils/logger"
 
 	"github.com/spf13/cobra"
 )
