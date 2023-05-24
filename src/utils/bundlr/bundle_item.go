@@ -13,6 +13,8 @@ import (
 	"strconv"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
+
+	etherum_crypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 type BundleItem struct {
@@ -53,8 +55,28 @@ var CONFIG = map[int]struct {
 	3: {
 		Signature: 65,
 		Owner:     65,
-		Verify: func(hash []byte, self *BundleItem) error {
-			return errors.New("unsupported signature type")
+		Verify: func(hash []byte, self *BundleItem) (err error) {
+			// Convert owner to public key bytes
+			publicKeyECDSA, err := etherum_crypto.UnmarshalPubkey(self.Owner)
+			if err != nil {
+				err = errors.New("can not unmarshal etherum pubkey")
+				return
+			}
+			publicKeyBytes := etherum_crypto.FromECDSAPub(publicKeyECDSA)
+
+			// Get the public key from the signature
+			sigPublicKey, err := etherum_crypto.Ecrecover(hash, self.Signature)
+			if err != nil {
+				return
+			}
+
+			// Check if the public key recovered from the signature matches the owner
+			if !bytes.Equal(sigPublicKey, publicKeyBytes) {
+				err = errors.New("verify etherum signature failed")
+				return
+			}
+
+			return
 		},
 	},
 }
