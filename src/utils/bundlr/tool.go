@@ -20,3 +20,11 @@ func ShortTo2ByteArray(long int) []byte {
 	}
 	return byteArray
 }
+
+func ByteArrayToLong(b []byte) int {
+	value := 0
+	for i := len(b) - 1; i >= 0; i-- {
+		value = value*256 + int(b[i])
+	}
+	return value
+}

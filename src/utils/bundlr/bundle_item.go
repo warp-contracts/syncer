@@ -6,24 +6,40 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"errors"
 	"strconv"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 )
 
 type BundleItem struct {
-	Signature arweave.Base64String `json:"signature"`
-	Owner     arweave.Base64String `json:"owner"`  //  utils.Base64Encode(pubkey)
-	Target    arweave.Base64String `json:"target"` // optional, if exist must length 32, and is base64 str
-	Anchor    arweave.Base64String `json:"anchor"` // optional, if exist must length 32, and is base64 str
-	Tags      Tags                 `json:"tags"`
-	Data      arweave.Base64String `json:"data"`
-	Id        arweave.Base64String `json:"id"`
+	SignatureType int                  `json:"signature_type"`
+	Signature     arweave.Base64String `json:"signature"`
+	Owner         arweave.Base64String `json:"owner"`  //  utils.Base64Encode(pubkey)
+	Target        arweave.Base64String `json:"target"` // optional, if exist must length 32, and is base64 str
+	Anchor        arweave.Base64String `json:"anchor"` // optional, if exist must length 32, and is base64 str
+	Tags          Tags                 `json:"tags"`
+	Data          arweave.Base64String `json:"data"`
+	Id            arweave.Base64String `json:"id"`
 }
 
 // Arweave signature
-const SIGNATURE_LENGHT = 512
-const OWNER_LENGTH = 512
+const ARWEAVE_SIGNATURE_LENGHT = 512
+const ARWEAVE_OWNER_LENGTH = 512
+
+var LENGTHS = map[int]struct {
+	Signature int
+	Owner     int
+}{
+	1: {
+		Signature: 512,
+		Owner:     512,
+	},
+	3: {
+		Signature: 65,
+		Owner:     65,
+	},
+}
 
 func (self *BundleItem) sign(privateKey *rsa.PrivateKey, tagsBytes []byte) (id, signature []byte, err error) {
 	values := []any{
@@ -56,6 +72,152 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey, tagsBytes []byte) (id, 
 	return
 }
 
+// Reverse operation of Reader, but use subslices instead of copying.
+// Parsed buffer is saved for later reuse.
+// User should ensure data buffer is not modified AFTER calling this method
+func (self *BundleItem) Unmarshal(data []byte) (err error) {
+	reader := bytes.NewReader(data)
+
+	// Signature type
+	signatureType := make([]byte, 2)
+	n, err := reader.Read(signatureType)
+	if err != nil {
+		return
+	}
+	if n < 2 {
+		err = errors.New("not enough bytes for the signature type")
+		return
+	}
+	self.SignatureType = ByteArrayToLong(signatureType)
+
+	// For now only Arweave signature is supported
+	if self.SignatureType != 1 {
+		err = errors.New("only Arweave signature is supported")
+		return
+	}
+
+	// Signature (different length depending on the signature type)
+	self.Signature = make([]byte, LENGTHS[self.SignatureType].Signature)
+	n, err = reader.Read(self.Signature)
+	if err != nil {
+		return
+	}
+	if n < LENGTHS[self.SignatureType].Signature {
+		err = errors.New("not enough bytes for the signature")
+		return
+	}
+
+	// Owner - public key (different length depending on the signature type)
+	self.Signature = make([]byte, LENGTHS[self.SignatureType].Owner)
+	n, err = reader.Read(self.Signature)
+	if err != nil {
+		return
+	}
+	if n < LENGTHS[self.SignatureType].Owner {
+		err = errors.New("not enough bytes for the owner")
+		return
+	}
+
+	// Target (it's optional)
+	isTargetPresent, err := reader.ReadByte()
+	if err != nil {
+		return err
+	}
+
+	if isTargetPresent == 0 {
+		self.Target = []byte{}
+	} else {
+		// Value present
+		self.Target = make([]byte, 32)
+		n, err = reader.Read(self.Target)
+		if err != nil {
+			return err
+		}
+		if n < 32 {
+			err = errors.New("not enough bytes for the target")
+			return
+		}
+	}
+
+	// Anchor (it's optional)
+	isAnchorPresent, err := reader.ReadByte()
+	if err != nil {
+		return err
+	}
+
+	if isAnchorPresent == 0 {
+		self.Anchor = []byte{}
+	} else {
+		// Value present
+		self.Anchor = make([]byte, 32)
+		n, err = reader.Read(self.Anchor)
+		if err != nil {
+			return err
+		}
+		if n < 32 {
+			err = errors.New("not enough bytes for the anchor")
+			return
+		}
+	}
+
+	// Length of the tags slice
+	numTagsBuffer := make([]byte, 8)
+	n, err = reader.Read(numTagsBuffer)
+	if err != nil {
+		return
+	}
+	if n < 8 {
+		err = errors.New("not enough bytes for the number of tags")
+		return
+	}
+	numTags := ByteArrayToLong(numTagsBuffer)
+
+	// Size of encoded tags
+	numTagsBytesBuffer := make([]byte, 8)
+	n, err = reader.Read(numTagsBytesBuffer)
+	if err != nil {
+		return
+	}
+	if n < 8 {
+		err = errors.New("not enough bytes for the number of tags")
+		return
+	}
+	numTagsBytes := ByteArrayToLong(numTagsBytesBuffer)
+
+	// Tags
+	self.Tags = make(Tags, 0, numTags)
+	if numTags > 0 {
+		// Read tags
+		tagsBuffer := make([]byte, numTagsBytes)
+		n, err = reader.Read(tagsBuffer)
+		if err != nil {
+			return
+		}
+		if n < numTagsBytes {
+			err = errors.New("not enough bytes for the tags")
+			return
+		}
+
+		// Parse tags
+		err = self.Tags.Unmarshal(tagsBuffer)
+		if err != nil {
+			return
+		}
+	}
+
+	// The rest is just data
+	self.Data = make([]byte, reader.Len())
+	n, err = reader.Read(self.Data)
+	if err != nil {
+		return
+	}
+	if n < len(self.Data) {
+		err = errors.New("not enough bytes for the data")
+		return
+	}
+	return
+}
+
 func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 	// Tags
 	tagsBytes, err := self.Tags.Marshal()
@@ -72,7 +234,7 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 
 	out = bytes.NewBuffer(make([]byte,
 		0,
-		2+SIGNATURE_LENGHT+OWNER_LENGTH+1+len(self.Target)+1+len(self.Anchor)+len(self.Data),
+		2+ARWEAVE_SIGNATURE_LENGHT+ARWEAVE_OWNER_LENGTH+1+len(self.Target)+1+len(self.Anchor)+len(self.Data),
 	))
 	out.Write(ShortTo2ByteArray(1))
 	out.Write(self.Signature)
