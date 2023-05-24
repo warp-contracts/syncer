@@ -22,5 +22,5 @@ func (self Tags) Marshal() ([]byte, error) {
 }
 
 func (self Tags) Unmarshal(data []byte) error {
-	return avro.Unmarshal(avroParser, data, self)
+	return avro.Unmarshal(avroParser, data, &self)
 }

@@ -6,7 +6,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
+	"fmt"
+	"io"
 	"strconv"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
@@ -75,9 +78,7 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey, tagsBytes []byte) (id, 
 // Reverse operation of Reader, but use subslices instead of copying.
 // Parsed buffer is saved for later reuse.
 // User should ensure data buffer is not modified AFTER calling this method
-func (self *BundleItem) Unmarshal(data []byte) (err error) {
-	reader := bytes.NewReader(data)
-
+func (self *BundleItem) Unmarshal(reader io.Reader) (err error) {
 	// Signature type
 	signatureType := make([]byte, 2)
 	n, err := reader.Read(signatureType)
@@ -88,9 +89,10 @@ func (self *BundleItem) Unmarshal(data []byte) (err error) {
 		err = errors.New("not enough bytes for the signature type")
 		return
 	}
-	self.SignatureType = ByteArrayToLong(signatureType)
+	self.SignatureType = int(binary.LittleEndian.Uint16(signatureType))
 
 	// For now only Arweave signature is supported
+	fmt.Println("Signature type: ", self.SignatureType)
 	if self.SignatureType != 1 {
 		err = errors.New("only Arweave signature is supported")
 		return
@@ -119,12 +121,17 @@ func (self *BundleItem) Unmarshal(data []byte) (err error) {
 	}
 
 	// Target (it's optional)
-	isTargetPresent, err := reader.ReadByte()
+	isTargetPresent := make([]byte, 1)
+	n, err = reader.Read(isTargetPresent)
 	if err != nil {
 		return err
 	}
+	if n < 1 {
+		err = errors.New("not enough bytes for the target flag")
+		return
+	}
 
-	if isTargetPresent == 0 {
+	if isTargetPresent[0] == 0 {
 		self.Target = []byte{}
 	} else {
 		// Value present
@@ -140,12 +147,17 @@ func (self *BundleItem) Unmarshal(data []byte) (err error) {
 	}
 
 	// Anchor (it's optional)
-	isAnchorPresent, err := reader.ReadByte()
+	isAnchorPresent := make([]byte, 1)
+	n, err = reader.Read(isAnchorPresent)
 	if err != nil {
 		return err
 	}
+	if n < 1 {
+		err = errors.New("not enough bytes for the anchor flag")
+		return
+	}
 
-	if isAnchorPresent == 0 {
+	if isAnchorPresent[0] == 0 {
 		self.Anchor = []byte{}
 	} else {
 		// Value present
@@ -170,7 +182,7 @@ func (self *BundleItem) Unmarshal(data []byte) (err error) {
 		err = errors.New("not enough bytes for the number of tags")
 		return
 	}
-	numTags := ByteArrayToLong(numTagsBuffer)
+	numTags := int(binary.LittleEndian.Uint64(numTagsBuffer))
 
 	// Size of encoded tags
 	numTagsBytesBuffer := make([]byte, 8)
@@ -179,13 +191,13 @@ func (self *BundleItem) Unmarshal(data []byte) (err error) {
 		return
 	}
 	if n < 8 {
-		err = errors.New("not enough bytes for the number of tags")
+		err = errors.New("not enough bytes for the number of bytes for tags")
 		return
 	}
-	numTagsBytes := ByteArrayToLong(numTagsBytesBuffer)
+	numTagsBytes := int(binary.LittleEndian.Uint64(numTagsBytesBuffer))
 
 	// Tags
-	self.Tags = make(Tags, 0, numTags)
+	self.Tags = make([]Tag, numTags)
 	if numTags > 0 {
 		// Read tags
 		tagsBuffer := make([]byte, numTagsBytes)
@@ -206,15 +218,13 @@ func (self *BundleItem) Unmarshal(data []byte) (err error) {
 	}
 
 	// The rest is just data
-	self.Data = make([]byte, reader.Len())
-	n, err = reader.Read(self.Data)
+	var data bytes.Buffer
+	_, err = data.ReadFrom(reader)
 	if err != nil {
 		return
 	}
-	if n < len(self.Data) {
-		err = errors.New("not enough bytes for the data")
-		return
-	}
+	self.Data = data.Bytes()
+
 	return
 }
 

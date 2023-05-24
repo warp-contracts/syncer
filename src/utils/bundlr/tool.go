@@ -1,30 +1,15 @@
 package bundlr
 
-func LongTo8ByteArray(long int) []byte {
-	// we want to represent the input as a 8-bytes array
-	byteArray := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	for i := 0; i < len(byteArray); i++ {
-		byt := long & 0xff
-		byteArray[i] = byte(byt)
-		long = (long - byt) / 256
-	}
-	return byteArray
+import "encoding/binary"
+
+func LongTo8ByteArray(long int) (out []byte) {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(long))
+	return buf
 }
 
 func ShortTo2ByteArray(long int) []byte {
-	byteArray := []byte{0, 0}
-	for i := 0; i < len(byteArray); i++ {
-		byt := long & 0xff
-		byteArray[i] = byte(byt)
-		long = (long - byt) / 256
-	}
-	return byteArray
-}
-
-func ByteArrayToLong(b []byte) int {
-	value := 0
-	for i := len(b) - 1; i >= 0; i-- {
-		value = value*256 + int(b[i])
-	}
-	return value
+	buf := make([]byte, 2)
+	binary.LittleEndian.PutUint16(buf, uint16(long))
+	return buf
 }
