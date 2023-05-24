@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"math/big"
 	"strconv"
@@ -154,7 +153,6 @@ func (self *BundleItem) Unmarshal(reader io.Reader) (err error) {
 	self.SignatureType = int(binary.LittleEndian.Uint16(signatureType))
 
 	// For now only Arweave signature is supported
-	fmt.Println("Signature type: ", self.SignatureType)
 	if self.SignatureType != 1 {
 		err = errors.New("only Arweave signature is supported")
 		return
