@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"strconv"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
@@ -30,17 +31,32 @@ type BundleItem struct {
 const ARWEAVE_SIGNATURE_LENGHT = 512
 const ARWEAVE_OWNER_LENGTH = 512
 
-var LENGTHS = map[int]struct {
+var CONFIG = map[int]struct {
 	Signature int
 	Owner     int
+	Verify    func(hash []byte, self *BundleItem) error
 }{
 	1: {
 		Signature: 512,
 		Owner:     512,
+		Verify: func(hash []byte, self *BundleItem) error {
+			ownerPublicKey := &rsa.PublicKey{
+				N: new(big.Int).SetBytes([]byte(self.Owner)),
+				E: 65537, //"AQAB"
+			}
+
+			return rsa.VerifyPSS(ownerPublicKey, crypto.SHA256, hash, []byte(self.Signature), &rsa.PSSOptions{
+				SaltLength: rsa.PSSSaltLengthAuto,
+				Hash:       crypto.SHA256,
+			})
+		},
 	},
 	3: {
 		Signature: 65,
 		Owner:     65,
+		Verify: func(hash []byte, self *BundleItem) error {
+			return errors.New("unsupported signature type")
+		},
 	},
 }
 
@@ -75,6 +91,52 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey, tagsBytes []byte) (id, 
 	return
 }
 
+func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
+	// Tags
+	tagsBytes, err := self.Tags.Marshal()
+	if err != nil {
+		return
+	}
+	self.Owner = signer.Owner
+
+	// Signs bundle item
+	self.Id, self.Signature, err = self.sign(signer.PrivateKey, tagsBytes)
+	if err != nil {
+		return
+	}
+
+	out = bytes.NewBuffer(make([]byte,
+		0,
+		2+ARWEAVE_SIGNATURE_LENGHT+ARWEAVE_OWNER_LENGTH+1+len(self.Target)+1+len(self.Anchor)+len(self.Data),
+	))
+	out.Write(ShortTo2ByteArray(1))
+	out.Write(self.Signature)
+	out.Write(self.Owner)
+
+	// Optional target
+	if len(self.Target) == 0 {
+		out.WriteByte(0)
+	} else {
+		out.WriteByte(1)
+		out.Write(self.Target)
+	}
+
+	// Optional anchor
+	if len(self.Anchor) == 0 {
+		out.WriteByte(0)
+	} else {
+		out.WriteByte(1)
+		out.Write(self.Anchor)
+	}
+
+	out.Write(LongTo8ByteArray(len(self.Tags)))
+	out.Write(LongTo8ByteArray(len(tagsBytes)))
+	out.Write(tagsBytes)
+	out.Write(self.Data)
+
+	return
+}
+
 // Reverse operation of Reader, but use subslices instead of copying.
 // Parsed buffer is saved for later reuse.
 // User should ensure data buffer is not modified AFTER calling this method
@@ -99,23 +161,23 @@ func (self *BundleItem) Unmarshal(reader io.Reader) (err error) {
 	}
 
 	// Signature (different length depending on the signature type)
-	self.Signature = make([]byte, LENGTHS[self.SignatureType].Signature)
+	self.Signature = make([]byte, CONFIG[self.SignatureType].Signature)
 	n, err = reader.Read(self.Signature)
 	if err != nil {
 		return
 	}
-	if n < LENGTHS[self.SignatureType].Signature {
+	if n < CONFIG[self.SignatureType].Signature {
 		err = errors.New("not enough bytes for the signature")
 		return
 	}
 
 	// Owner - public key (different length depending on the signature type)
-	self.Signature = make([]byte, LENGTHS[self.SignatureType].Owner)
+	self.Signature = make([]byte, CONFIG[self.SignatureType].Owner)
 	n, err = reader.Read(self.Signature)
 	if err != nil {
 		return
 	}
-	if n < LENGTHS[self.SignatureType].Owner {
+	if n < CONFIG[self.SignatureType].Owner {
 		err = errors.New("not enough bytes for the owner")
 		return
 	}
@@ -228,48 +290,75 @@ func (self *BundleItem) Unmarshal(reader io.Reader) (err error) {
 	return
 }
 
-func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
+// https://github.com/ArweaveTeam/arweave-standards/blob/master/ans/ANS-104.md#21-verifying-a-dataitem
+func (self *BundleItem) Verify() (err error) {
+	idArray := sha256.Sum256(self.Signature)
+	if !bytes.Equal(idArray[:], self.Id) {
+		err = errors.New("id doesn't match signature")
+		return
+	}
+
+	// an anchor isn't more than 32 bytes
+	// with this lib it has to be 0 or 32bytes
+	if len(self.Anchor) != 0 && len(self.Anchor) != 32 {
+		err = errors.New("anchor must be 32 bytes long")
+		return
+	}
+
 	// Tags
+	if len(self.Tags) > 128 {
+		err = errors.New("too many tags, max is 128")
+		return
+	}
+
+	for _, tag := range self.Tags {
+		if len(tag.Name) == 0 {
+			err = errors.New("tag name is empty")
+			return
+		}
+		if len(tag.Name) > 1024 {
+			err = errors.New("tag name is too long, max is 1024 bytes")
+			return
+		}
+		if len(tag.Value) == 0 {
+			err = errors.New("tag value is empty")
+			return
+		}
+		if len(tag.Value) > 3072 {
+			err = errors.New("tag value is too long, max is 3072 bytes")
+			return
+		}
+	}
+
+	// Verify signature
+	return self.VerifySignature()
+}
+
+func (self *BundleItem) VerifySignature() (err error) {
 	tagsBytes, err := self.Tags.Marshal()
 	if err != nil {
 		return
 	}
-	self.Owner = signer.Owner
 
-	// Signs bundle item
-	self.Id, self.Signature, err = self.sign(signer.PrivateKey, tagsBytes)
-	if err != nil {
+	values := []any{
+		"dataitem",
+		"1",
+		[]byte(strconv.Itoa(self.SignatureType)),
+		self.Owner,
+		self.Target,
+		self.Anchor,
+		tagsBytes,
+		self.Data,
+	}
+
+	deepHash := arweave.DeepHash(values)
+	hashed := sha256.Sum256(deepHash[:])
+
+	conf, ok := CONFIG[self.SignatureType]
+	if !ok {
+		err = errors.New("unknown signature type")
 		return
 	}
 
-	out = bytes.NewBuffer(make([]byte,
-		0,
-		2+ARWEAVE_SIGNATURE_LENGHT+ARWEAVE_OWNER_LENGTH+1+len(self.Target)+1+len(self.Anchor)+len(self.Data),
-	))
-	out.Write(ShortTo2ByteArray(1))
-	out.Write(self.Signature)
-	out.Write(self.Owner)
-
-	// Optional target
-	if len(self.Target) == 0 {
-		out.WriteByte(0)
-	} else {
-		out.WriteByte(1)
-		out.Write(self.Target)
-	}
-
-	// Optional anchor
-	if len(self.Anchor) == 0 {
-		out.WriteByte(0)
-	} else {
-		out.WriteByte(1)
-		out.Write(self.Anchor)
-	}
-
-	out.Write(LongTo8ByteArray(len(self.Tags)))
-	out.Write(LongTo8ByteArray(len(tagsBytes)))
-	out.Write(tagsBytes)
-	out.Write(self.Data)
-
-	return
+	return conf.Verify(hashed[:], self)
 }
