@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/tool"
 
 	etherum_crypto "github.com/ethereum/go-ethereum/crypto"
 )
@@ -132,10 +133,10 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 	}
 
 	// Serialization
-	out = bytes.NewBuffer(make([]byte,
-		0,
-		2+ARWEAVE_SIGNATURE_LENGHT+ARWEAVE_OWNER_LENGTH+1+len(self.Target)+1+len(self.Anchor)+len(self.Data),
-	))
+	// Don't try to allocate more than 4kB. Buffer will grow if needed anyway.
+	initSize := tool.Max(4096, 2+ARWEAVE_SIGNATURE_LENGHT+ARWEAVE_OWNER_LENGTH+1+len(self.Target)+1+len(self.Anchor)+len(self.Data))
+	out = bytes.NewBuffer(make([]byte, 0, initSize))
+
 	out.Write(ShortTo2ByteArray(self.SignatureType))
 	out.Write(self.Signature)
 	out.Write(self.Owner)
