@@ -118,12 +118,16 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 	if err != nil {
 		return
 	}
-	self.Owner = signer.Owner
 
-	// Signs bundle item
-	self.Id, self.Signature, err = self.sign(signer.PrivateKey, tagsBytes)
-	if err != nil {
-		return
+	// Crypto
+	if len(self.Owner) == 0 && len(self.Signature) == 0 && len(self.Id) == 0 {
+		self.Owner = signer.Owner
+
+		// Signs bundle item
+		self.Id, self.Signature, err = self.sign(signer.PrivateKey, tagsBytes)
+		if err != nil {
+			return
+		}
 	}
 
 	out = bytes.NewBuffer(make([]byte,
