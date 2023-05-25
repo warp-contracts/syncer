@@ -85,7 +85,7 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey, tagsBytes []byte) (id, 
 	values := []any{
 		"dataitem",
 		"1",
-		[]byte(strconv.Itoa(1)), // Signature type
+		[]byte(strconv.Itoa(self.SignatureType)), // Signature type
 		self.Owner,
 		self.Target,
 		self.Anchor,
@@ -121,6 +121,7 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 
 	// Crypto
 	if len(self.Owner) == 0 && len(self.Signature) == 0 && len(self.Id) == 0 {
+		self.SignatureType = signer.GetType()
 		self.Owner = signer.Owner
 
 		// Signs bundle item
@@ -130,11 +131,12 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 		}
 	}
 
+	// Serialization
 	out = bytes.NewBuffer(make([]byte,
 		0,
 		2+ARWEAVE_SIGNATURE_LENGHT+ARWEAVE_OWNER_LENGTH+1+len(self.Target)+1+len(self.Anchor)+len(self.Data),
 	))
-	out.Write(ShortTo2ByteArray(1))
+	out.Write(ShortTo2ByteArray(self.SignatureType))
 	out.Write(self.Signature)
 	out.Write(self.Owner)
 
@@ -154,6 +156,7 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 		out.Write(self.Anchor)
 	}
 
+	// Rest
 	out.Write(LongTo8ByteArray(len(self.Tags)))
 	out.Write(LongTo8ByteArray(len(tagsBytes)))
 	out.Write(tagsBytes)

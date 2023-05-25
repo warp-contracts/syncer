@@ -46,3 +46,7 @@ func NewSigner(privateKeyJWK string) (self *Signer, err error) {
 
 	return
 }
+
+func (self *Signer) GetType() int {
+	return 1
+}
