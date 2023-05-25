@@ -115,6 +115,21 @@ func (self *BundleItem) Size() (out int) {
 	return
 }
 
+func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
+	if len(buf) < self.Size() {
+		return 0, errors.New("buffer too small")
+	}
+
+	// NOTE: Normally bytes.Buffer takes ownership of the buf but in this case when we know it's big enough we ensure it won't get reallocated
+	writer := bytes.NewBuffer(buf)
+	err = self.Encode(nil, writer)
+	if err != nil {
+		return
+	}
+
+	return self.Size(), nil
+}
+
 func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, err error) {
 	values := []any{
 		"dataitem",
@@ -147,6 +162,15 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, 
 }
 
 func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
+	// Don't try to allocate more than 4kB. Buffer will grow if needed anyway.
+	initSize := tool.Max(4096, self.Size())
+	out = bytes.NewBuffer(make([]byte, 0, initSize))
+
+	err = self.Encode(signer, out)
+	return
+}
+
+func (self *BundleItem) Encode(signer *Signer, out *bytes.Buffer) (err error) {
 	// Tags
 	err = self.ensureTagsSerialized()
 	if err != nil {
@@ -155,6 +179,10 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 
 	// Crypto
 	if len(self.Owner) == 0 && len(self.Signature) == 0 && len(self.Id) == 0 {
+		if signer == nil {
+			err = errors.New("signer not specified")
+			return
+		}
 		self.SignatureType = signer.GetType()
 		self.Owner = signer.Owner
 
@@ -166,10 +194,6 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 	}
 
 	// Serialization
-	// Don't try to allocate more than 4kB. Buffer will grow if needed anyway.
-	initSize := tool.Max(4096, self.Size())
-	out = bytes.NewBuffer(make([]byte, 0, initSize))
-
 	out.Write(ShortTo2ByteArray(self.SignatureType))
 	out.Write(self.Signature)
 	out.Write(self.Owner)
@@ -199,8 +223,13 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 	return
 }
 
+func (self *BundleItem) Unmarshal(buf []byte) (err error) {
+	reader := bytes.NewReader(buf)
+	return self.UnmarshalFromReader(reader)
+}
+
 // Reverse operation of Reader
-func (self *BundleItem) Unmarshal(reader io.Reader) (err error) {
+func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 	// Signature type
 	signatureType := make([]byte, 2)
 	n, err := reader.Read(signatureType)

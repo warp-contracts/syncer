@@ -42,7 +42,7 @@ func (s *BundleItemTestSuite) TestSerialization() {
 	reader := bytes.NewReader(buf.Bytes())
 	parsed := BundleItem{}
 
-	err = parsed.Unmarshal(reader)
+	err = parsed.UnmarshalFromReader(reader)
 	require.Nil(s.T(), err)
 	require.Equal(s.T(), item.SignatureType, parsed.SignatureType)
 	require.Equal(s.T(), item.Data, parsed.Data)
