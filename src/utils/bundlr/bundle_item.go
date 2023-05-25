@@ -7,7 +7,6 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
-	"errors"
 	"io"
 	"math/big"
 	"strconv"
@@ -63,7 +62,7 @@ var CONFIG = map[int]struct {
 			// Convert owner to public key bytes
 			publicKeyECDSA, err := etherum_crypto.UnmarshalPubkey(self.Owner)
 			if err != nil {
-				err = errors.New("can not unmarshal etherum pubkey")
+				err = ErrUnmarshalEtherumPubKey
 				return
 			}
 			publicKeyBytes := etherum_crypto.FromECDSAPub(publicKeyECDSA)
@@ -76,7 +75,7 @@ var CONFIG = map[int]struct {
 
 			// Check if the public key recovered from the signature matches the owner
 			if !bytes.Equal(sigPublicKey, publicKeyBytes) {
-				err = errors.New("verify etherum signature failed")
+				err = ErrEtherumSignatureMismatch
 				return
 			}
 
@@ -117,7 +116,7 @@ func (self *BundleItem) Size() (out int) {
 
 func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 	if len(buf) < self.Size() {
-		return 0, errors.New("buffer too small")
+		return 0, ErrBufferTooSmall
 	}
 
 	// NOTE: Normally bytes.Buffer takes ownership of the buf but in this case when we know it's big enough we ensure it won't get reallocated
@@ -180,7 +179,7 @@ func (self *BundleItem) Encode(signer *Signer, out *bytes.Buffer) (err error) {
 	// Crypto
 	if len(self.Owner) == 0 && len(self.Signature) == 0 && len(self.Id) == 0 {
 		if signer == nil {
-			err = errors.New("signer not specified")
+			err = ErrSignerNotSpecified
 			return
 		}
 		self.SignatureType = signer.GetType()
@@ -237,14 +236,14 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		return
 	}
 	if n < 2 {
-		err = errors.New("not enough bytes for the signature type")
+		err = ErrNotEnoughBytesForSignatureType
 		return
 	}
 	self.SignatureType = int(binary.LittleEndian.Uint16(signatureType))
 
 	// For now only Arweave signature is supported
 	if self.SignatureType != 1 {
-		err = errors.New("only Arweave signature is supported")
+		err = ErrUnsupportedSignatureType
 		return
 	}
 
@@ -255,7 +254,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		return
 	}
 	if n < CONFIG[self.SignatureType].Signature {
-		err = errors.New("not enough bytes for the signature")
+		err = ErrNotEnoughBytesForSignature
 		return
 	}
 
@@ -266,7 +265,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		return
 	}
 	if n < CONFIG[self.SignatureType].Owner {
-		err = errors.New("not enough bytes for the owner")
+		err = ErrNotEnoughBytesForOwner
 		return
 	}
 
@@ -277,7 +276,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		return err
 	}
 	if n < 1 {
-		err = errors.New("not enough bytes for the target flag")
+		err = ErrNotEnoughBytesForTargetFlag
 		return
 	}
 
@@ -291,7 +290,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 			return err
 		}
 		if n < 32 {
-			err = errors.New("not enough bytes for the target")
+			err = ErrNotEnoughBytesForTarget
 			return
 		}
 	}
@@ -303,7 +302,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		return err
 	}
 	if n < 1 {
-		err = errors.New("not enough bytes for the anchor flag")
+		err = ErrNotEnoughBytesForAnchorFlag
 		return
 	}
 
@@ -317,7 +316,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 			return err
 		}
 		if n < 32 {
-			err = errors.New("not enough bytes for the anchor")
+			err = ErrNotEnoughBytesForAnchor
 			return
 		}
 	}
@@ -329,7 +328,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		return
 	}
 	if n < 8 {
-		err = errors.New("not enough bytes for the number of tags")
+		err = ErrNotEnoughBytesForNumberOfTags
 		return
 	}
 	numTags := int(binary.LittleEndian.Uint64(numTagsBuffer))
@@ -341,7 +340,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		return
 	}
 	if n < 8 {
-		err = errors.New("not enough bytes for the number of bytes for tags")
+		err = ErrNotEnoughBytesForNumberOfTagBytes
 		return
 	}
 	numTagsBytes := int(binary.LittleEndian.Uint64(numTagsBytesBuffer))
@@ -356,7 +355,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 			return
 		}
 		if n < numTagsBytes {
-			err = errors.New("not enough bytes for the tags")
+			err = ErrNotEnoughBytesForTags
 			return
 		}
 
@@ -382,38 +381,38 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 func (self *BundleItem) Verify() (err error) {
 	idArray := sha256.Sum256(self.Signature)
 	if !bytes.Equal(idArray[:], self.Id) {
-		err = errors.New("id doesn't match signature")
+		err = ErrVerifyIdSignatureMismatch
 		return
 	}
 
 	// an anchor isn't more than 32 bytes
 	// with this lib it has to be 0 or 32bytes
 	if len(self.Anchor) != 0 && len(self.Anchor) != 32 {
-		err = errors.New("anchor must be 32 bytes long")
+		err = ErrVerifyBadAnchorLength
 		return
 	}
 
 	// Tags
 	if len(self.Tags) > 128 {
-		err = errors.New("too many tags, max is 128")
+		err = ErrVerifyTooManyTags
 		return
 	}
 
 	for _, tag := range self.Tags {
 		if len(tag.Name) == 0 {
-			err = errors.New("tag name is empty")
+			err = ErrVerifyEmptyTagName
 			return
 		}
 		if len(tag.Name) > 1024 {
-			err = errors.New("tag name is too long, max is 1024 bytes")
+			err = ErrVerifyTooLongTagName
 			return
 		}
 		if len(tag.Value) == 0 {
-			err = errors.New("tag value is empty")
+			err = ErrVerifyEmptyTagValue
 			return
 		}
 		if len(tag.Value) > 3072 {
-			err = errors.New("tag value is too long, max is 3072 bytes")
+			err = ErrVerifyTooLongTagValue
 			return
 		}
 	}
@@ -444,7 +443,7 @@ func (self *BundleItem) VerifySignature() (err error) {
 
 	conf, ok := CONFIG[self.SignatureType]
 	if !ok {
-		err = errors.New("unknown signature type")
+		err = ErrUnsupportedSignatureType
 		return
 	}
 
