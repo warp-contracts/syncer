@@ -27,6 +27,9 @@ type BundleItem struct {
 	Tags          Tags                 `json:"tags"`
 	Data          arweave.Base64String `json:"data"`
 	Id            arweave.Base64String `json:"id"`
+
+	// Not in the standard, used internally
+	tagsBytes []byte
 }
 
 // Arweave signature
@@ -82,7 +85,37 @@ var CONFIG = map[int]struct {
 	},
 }
 
-func (self *BundleItem) sign(privateKey *rsa.PrivateKey, tagsBytes []byte) (id, signature []byte, err error) {
+func (self *BundleItem) ensureTagsSerialized() (err error) {
+	if len(self.tagsBytes) != 0 || len(self.Tags) == 0 {
+		return nil
+	}
+	self.tagsBytes, err = self.Tags.Marshal()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (self *BundleItem) Size() (out int) {
+	out = 2 + CONFIG[self.SignatureType].Signature + CONFIG[self.SignatureType].Owner + 1 + 1 + len(self.Data)
+	if len(self.Target) > 0 {
+		out += len(self.Target)
+	}
+	if len(self.Anchor) > 0 {
+		out += len(self.Anchor)
+	}
+
+	err := self.ensureTagsSerialized()
+	if err != nil {
+		return -1
+	}
+
+	out += len(self.tagsBytes)
+
+	return
+}
+
+func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, err error) {
 	values := []any{
 		"dataitem",
 		"1",
@@ -90,7 +123,7 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey, tagsBytes []byte) (id, 
 		self.Owner,
 		self.Target,
 		self.Anchor,
-		tagsBytes,
+		self.tagsBytes,
 		self.Data,
 	}
 
@@ -115,7 +148,7 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey, tagsBytes []byte) (id, 
 
 func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 	// Tags
-	tagsBytes, err := self.Tags.Marshal()
+	err = self.ensureTagsSerialized()
 	if err != nil {
 		return
 	}
@@ -126,7 +159,7 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 		self.Owner = signer.Owner
 
 		// Signs bundle item
-		self.Id, self.Signature, err = self.sign(signer.PrivateKey, tagsBytes)
+		self.Id, self.Signature, err = self.sign(signer.PrivateKey)
 		if err != nil {
 			return
 		}
@@ -134,7 +167,7 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 
 	// Serialization
 	// Don't try to allocate more than 4kB. Buffer will grow if needed anyway.
-	initSize := tool.Max(4096, 2+ARWEAVE_SIGNATURE_LENGHT+ARWEAVE_OWNER_LENGTH+1+len(self.Target)+1+len(self.Anchor)+len(self.Data))
+	initSize := tool.Max(4096, self.Size())
 	out = bytes.NewBuffer(make([]byte, 0, initSize))
 
 	out.Write(ShortTo2ByteArray(self.SignatureType))
@@ -159,16 +192,14 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 
 	// Rest
 	out.Write(LongTo8ByteArray(len(self.Tags)))
-	out.Write(LongTo8ByteArray(len(tagsBytes)))
-	out.Write(tagsBytes)
+	out.Write(LongTo8ByteArray(len(self.tagsBytes)))
+	out.Write(self.tagsBytes)
 	out.Write(self.Data)
 
 	return
 }
 
-// Reverse operation of Reader, but use subslices instead of copying.
-// Parsed buffer is saved for later reuse.
-// User should ensure data buffer is not modified AFTER calling this method
+// Reverse operation of Reader
 func (self *BundleItem) Unmarshal(reader io.Reader) (err error) {
 	// Signature type
 	signatureType := make([]byte, 2)
@@ -290,8 +321,8 @@ func (self *BundleItem) Unmarshal(reader io.Reader) (err error) {
 	self.Tags = make([]Tag, numTags)
 	if numTags > 0 {
 		// Read tags
-		tagsBuffer := make([]byte, numTagsBytes)
-		n, err = reader.Read(tagsBuffer)
+		self.tagsBytes = make([]byte, numTagsBytes)
+		n, err = reader.Read(self.tagsBytes)
 		if err != nil {
 			return
 		}
@@ -301,7 +332,7 @@ func (self *BundleItem) Unmarshal(reader io.Reader) (err error) {
 		}
 
 		// Parse tags
-		err = self.Tags.Unmarshal(tagsBuffer)
+		err = self.Tags.Unmarshal(self.tagsBytes)
 		if err != nil {
 			return
 		}
@@ -363,7 +394,7 @@ func (self *BundleItem) Verify() (err error) {
 }
 
 func (self *BundleItem) VerifySignature() (err error) {
-	tagsBytes, err := self.Tags.Marshal()
+	err = self.ensureTagsSerialized()
 	if err != nil {
 		return
 	}
@@ -375,7 +406,7 @@ func (self *BundleItem) VerifySignature() (err error) {
 		self.Owner,
 		self.Target,
 		self.Anchor,
-		tagsBytes,
+		self.tagsBytes,
 		self.Data,
 	}
 

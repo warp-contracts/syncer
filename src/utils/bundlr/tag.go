@@ -24,3 +24,12 @@ func (self Tags) Marshal() ([]byte, error) {
 func (self Tags) Unmarshal(data []byte) error {
 	return avro.Unmarshal(avroParser, data, &self)
 }
+
+func (self Tags) Size() int {
+	if len(self) == 0 {
+		return 0
+	}
+
+	data, _ := self.Marshal()
+	return len(data)
+}
