@@ -28,7 +28,7 @@ func (s *BundleItemTestSuite) SetupSuite() {
 
 func (s *BundleItemTestSuite) TestSerialization() {
 	item := BundleItem{
-		SignatureType: 1,
+		SignatureType: SignatureTypeArweave,
 		Target:        arweave.Base64String(tool.RandomString(32)),
 		// Anchor: arweave.Base64String(tool.RandomString(32)),
 		Tags: Tags{Tag{Name: "1", Value: "2"}, Tag{Name: "3", Value: "4"}},

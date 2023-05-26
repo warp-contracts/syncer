@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"io"
 	"math/big"
-	"strconv"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/tool"
@@ -18,7 +17,7 @@ import (
 )
 
 type BundleItem struct {
-	SignatureType int                  `json:"signature_type"`
+	SignatureType SignatureType        `json:"signature_type"`
 	Signature     arweave.Base64String `json:"signature"`
 	Owner         arweave.Base64String `json:"owner"`  //  utils.Base64Encode(pubkey)
 	Target        arweave.Base64String `json:"target"` // optional, if exist must length 32, and is base64 str
@@ -35,12 +34,12 @@ type BundleItem struct {
 const ARWEAVE_SIGNATURE_LENGHT = 512
 const ARWEAVE_OWNER_LENGTH = 512
 
-var CONFIG = map[int]struct {
+var CONFIG = map[SignatureType]struct {
 	Signature int
 	Owner     int
 	Verify    func(hash []byte, self *BundleItem) error
 }{
-	1: {
+	SignatureTypeArweave: {
 		Signature: 512,
 		Owner:     512,
 		Verify: func(hash []byte, self *BundleItem) error {
@@ -55,7 +54,7 @@ var CONFIG = map[int]struct {
 			})
 		},
 	},
-	3: {
+	SignatureTypeEtherum: {
 		Signature: 65,
 		Owner:     65,
 		Verify: func(hash []byte, self *BundleItem) (err error) {
@@ -133,7 +132,7 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, 
 	values := []any{
 		"dataitem",
 		"1",
-		[]byte(strconv.Itoa(self.SignatureType)), // Signature type
+		self.SignatureType.Bytes(),
 		self.Owner,
 		self.Target,
 		self.Anchor,
@@ -193,7 +192,7 @@ func (self *BundleItem) Encode(signer *Signer, out *bytes.Buffer) (err error) {
 	}
 
 	// Serialization
-	out.Write(ShortTo2ByteArray(self.SignatureType))
+	out.Write(ShortTo2ByteArray(int(self.SignatureType)))
 	out.Write(self.Signature)
 	out.Write(self.Owner)
 
@@ -239,7 +238,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		err = ErrNotEnoughBytesForSignatureType
 		return
 	}
-	self.SignatureType = int(binary.LittleEndian.Uint16(signatureType))
+	self.SignatureType = SignatureType(binary.LittleEndian.Uint16(signatureType))
 
 	// For now only Arweave signature is supported
 	if self.SignatureType != 1 {
@@ -430,7 +429,7 @@ func (self *BundleItem) VerifySignature() (err error) {
 	values := []any{
 		"dataitem",
 		"1",
-		[]byte(strconv.Itoa(self.SignatureType)),
+		self.SignatureType.Bytes(),
 		self.Owner,
 		self.Target,
 		self.Anchor,
