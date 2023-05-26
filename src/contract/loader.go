@@ -192,11 +192,18 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 		return
 	}
 
-	// FIXME: Validate manifest
-	// manifest, ok := tx.GetTag(warp.TagManifest)
-	// if !ok {
-	// 	return
-	// }
+	// Optional Manifest
+	manifest, ok := tx.GetTag(warp.TagManifest)
+	if ok {
+		err = tool.CheckJSON([]byte(manifest))
+		if err == nil {
+			// Manifest is valid JSON
+			err = out.Contract.Manifest.Set(manifest)
+			if err != nil {
+				return
+			}
+		}
+	}
 
 	out.Source, err = self.getSource(out.Contract.SrcTxId.String)
 	if err != nil {
