@@ -244,9 +244,9 @@ func (self *Client) getChunk(ctx context.Context, offset big.Int) (out *ChunkDat
 	return
 }
 
-func (self *Client) GetChunks(ctx context.Context, id string) (out bytes.Buffer, err error) {
+func (self *Client) GetChunks(ctx context.Context, tx *Transaction) (out bytes.Buffer, err error) {
 	// Download chunks
-	info, err := self.GetTransactionOffsetInfo(ctx, id)
+	info, err := self.GetTransactionOffsetInfo(ctx, tx.ID)
 	if err != nil {
 		return
 	}
@@ -273,16 +273,21 @@ func (self *Client) GetChunks(ctx context.Context, id string) (out bytes.Buffer,
 		offset = offset.Sub(offset, chunkSize)
 	}
 
+	if out.Len() != int(tx.DataSize.Int64()) {
+		err = ErrDataSizeMismatch
+		return
+	}
+
 	return
 }
 
 // https://docs.arweave.org/developers/server/http-api#get-transaction-field
-func (self *Client) GetTransactionDataById(ctx context.Context, id string) (out bytes.Buffer, err error) {
+func (self *Client) GetTransactionDataById(ctx context.Context, tx *Transaction) (out bytes.Buffer, err error) {
 	req, cancel := self.Request(ctx)
 	defer cancel()
 
 	resp, err := req.
-		SetPathParam("id", id).
+		SetPathParam("id", tx.ID).
 		Get("/tx/{id}/data")
 	if err != nil {
 		return
@@ -296,8 +301,14 @@ func (self *Client) GetTransactionDataById(ctx context.Context, id string) (out 
 
 	out.Write(buf)
 	if out.Len() > 0 {
+		// Do the checks and return
+		if out.Len() != int(tx.DataSize.Int64()) {
+			err = ErrDataSizeMismatch
+			return
+		}
+
 		return
 	}
 
-	return self.GetChunks(ctx, id)
+	return self.GetChunks(ctx, tx)
 }

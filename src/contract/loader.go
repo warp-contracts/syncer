@@ -390,7 +390,7 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 	}
 
 	// Get source from transaction's data
-	src, err := self.client.GetTransactionDataById(self.Ctx, srcId)
+	src, err := self.client.GetTransactionDataById(self.Ctx, srcTx)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get source data")
 		return
@@ -433,10 +433,22 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out []byte, e
 
 	initStateTxId, ok := contractTx.GetTag(warp.TagInitStateTx)
 	if ok {
-		// FIXME: Validate tags, eg. this value should be a valid transaction id
 		// Init state in a separate transaction
+		var initStateTx *arweave.Transaction
+		initStateTx, err = self.client.GetTransactionById(self.Ctx, initStateTxId)
+		if err != nil {
+			return
+		}
+
+		// Check signature
+		err = initStateTx.Verify()
+		if err != nil {
+			return
+		}
+
+		// Get init state from transaction's data
 		var buf bytes.Buffer
-		buf, err = self.client.GetTransactionDataById(self.Ctx, initStateTxId)
+		buf, err = self.client.GetTransactionDataById(self.Ctx, initStateTx)
 		if err != nil {
 			return
 		}
@@ -452,7 +464,7 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out []byte, e
 	}
 
 	// It didn't fit into the data field, fetch chunks
-	buf, err := self.client.GetChunks(self.Ctx, contractTx.ID)
+	buf, err := self.client.GetChunks(self.Ctx, contractTx)
 	if err != nil {
 		return
 	}

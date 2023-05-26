@@ -18,7 +18,7 @@ type Transaction struct {
 	Target    Base64String `json:"target"`
 	Quantity  string       `json:"quantity"`
 	Data      Base64String `json:"data"`
-	DataSize  string       `json:"data_size"`
+	DataSize  BigInt       `json:"data_size"`
 	DataRoot  Base64String `json:"data_root"`
 	Reward    string       `json:"reward"`
 	Signature Base64String `json:"signature"`
