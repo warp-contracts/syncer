@@ -17,12 +17,12 @@ func TestBundleItemTestSuite(t *testing.T) {
 
 type BundleItemTestSuite struct {
 	suite.Suite
-	signer *Signer
+	signer *ArweaveSigner
 }
 
 func (s *BundleItemTestSuite) SetupSuite() {
 	var err error
-	s.signer, err = NewSigner(EMPTY_ARWEAVE_WALLET)
+	s.signer, err = NewArweaveSigner(EMPTY_ARWEAVE_WALLET)
 	require.Nil(s.T(), err)
 }
 

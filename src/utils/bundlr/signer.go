@@ -1,52 +1,24 @@
 package bundlr
 
-import (
-	"crypto/rsa"
-	"errors"
-
-	"github.com/lestrrat-go/jwx/jwk"
-)
-
-type Signer struct {
-	PrivateKey *rsa.PrivateKey
-	Owner      []byte
+type Signer interface {
+	Sign(data []byte) (signature []byte, err error)
+	Verify(data []byte, signature []byte) (err error)
+	GetOwner() []byte
+	GetType() SignatureType
+	GetSignatureLength() int
+	GetOwnerLength() int
 }
 
-func NewSigner(privateKeyJWK string) (self *Signer, err error) {
-	// Parse the private key
-	self = new(Signer)
-	set, err := jwk.Parse([]byte(privateKeyJWK))
-	if err != nil {
-		return
+// Signer created ONLY FOR VERIFICATION of the signature.
+// Private key is not initialized.
+func GetSigner(SignatureType SignatureType, owner []byte) (signer Signer, err error) {
+	switch SignatureType {
+	case SignatureTypeArweave:
+		signer = &ArweaveSigner{
+			Owner: owner,
+		}
+	default:
+		err = ErrUnsupportedSignatureType
 	}
-	if set.Len() != 1 {
-		err = errors.New("too many keys in signer's wallet")
-		return
-	}
-
-	key, ok := set.Get(0)
-	if !ok {
-		err = errors.New("cannot access key in JWK")
-		return
-	}
-
-	var rawkey interface{}
-	err = key.Raw(&rawkey)
-	if err != nil {
-		return
-	}
-
-	self.PrivateKey, ok = rawkey.(*rsa.PrivateKey)
-	if !ok {
-		err = errors.New("private ")
-		return
-	}
-
-	self.Owner = self.PrivateKey.PublicKey.N.Bytes()
-
 	return
-}
-
-func (self *Signer) GetType() SignatureType {
-	return SignatureTypeArweave
 }

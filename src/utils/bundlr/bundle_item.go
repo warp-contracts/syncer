@@ -3,7 +3,6 @@ package bundlr
 import (
 	"bytes"
 	"crypto"
-	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
@@ -95,7 +94,12 @@ func (self *BundleItem) ensureTagsSerialized() (err error) {
 }
 
 func (self *BundleItem) Size() (out int) {
-	out = 2 + CONFIG[self.SignatureType].Signature + CONFIG[self.SignatureType].Owner + 1 + 1 + len(self.Data)
+	signer, err := GetSigner(self.SignatureType, nil)
+	if err != nil {
+		return
+	}
+
+	out = 2 + signer.GetSignatureLength() + signer.GetOwnerLength() + 1 + 1 + len(self.Data)
 	if len(self.Target) > 0 {
 		out += len(self.Target)
 	}
@@ -103,7 +107,7 @@ func (self *BundleItem) Size() (out int) {
 		out += len(self.Anchor)
 	}
 
-	err := self.ensureTagsSerialized()
+	err = self.ensureTagsSerialized()
 	if err != nil {
 		return -1
 	}
@@ -128,7 +132,7 @@ func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 	return self.Size(), nil
 }
 
-func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, err error) {
+func (self *BundleItem) sign(signer Signer) (id, signature []byte, err error) {
 	values := []any{
 		"dataitem",
 		"1",
@@ -144,10 +148,7 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, 
 	hashed := sha256.Sum256(deepHash[:])
 
 	// Compute the signature
-	signature, err = rsa.SignPSS(rand.Reader, privateKey, crypto.SHA256, hashed[:], &rsa.PSSOptions{
-		SaltLength: rsa.PSSSaltLengthAuto,
-		Hash:       crypto.SHA256,
-	})
+	signature, err = signer.Sign(hashed[:])
 	if err != nil {
 		return
 	}
@@ -159,7 +160,7 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, 
 	return
 }
 
-func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
+func (self *BundleItem) Reader(signer Signer) (out *bytes.Buffer, err error) {
 	// Don't try to allocate more than 4kB. Buffer will grow if needed anyway.
 	initSize := tool.Max(4096, self.Size())
 	out = bytes.NewBuffer(make([]byte, 0, initSize))
@@ -168,7 +169,7 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 	return
 }
 
-func (self *BundleItem) Encode(signer *Signer, out *bytes.Buffer) (err error) {
+func (self *BundleItem) Encode(signer Signer, out *bytes.Buffer) (err error) {
 	// Tags
 	err = self.ensureTagsSerialized()
 	if err != nil {
@@ -182,10 +183,10 @@ func (self *BundleItem) Encode(signer *Signer, out *bytes.Buffer) (err error) {
 			return
 		}
 		self.SignatureType = signer.GetType()
-		self.Owner = signer.Owner
+		self.Owner = signer.GetOwner()
 
 		// Signs bundle item
-		self.Id, self.Signature, err = self.sign(signer.PrivateKey)
+		self.Id, self.Signature, err = self.sign(signer)
 		if err != nil {
 			return
 		}
@@ -440,11 +441,10 @@ func (self *BundleItem) VerifySignature() (err error) {
 	deepHash := arweave.DeepHash(values)
 	hashed := sha256.Sum256(deepHash[:])
 
-	conf, ok := CONFIG[self.SignatureType]
-	if !ok {
-		err = ErrUnsupportedSignatureType
+	signer, err := GetSigner(self.SignatureType, self.Owner)
+	if err != nil {
 		return
 	}
 
-	return conf.Verify(hashed[:], self)
+	return signer.Verify(hashed[:], self.Signature)
 }

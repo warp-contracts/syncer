@@ -22,22 +22,22 @@ const EMPTY_ARWEAVE_WALLET = `{
     "qi": "XqpyET1rXxpqflIE_5fpVYzpJy316JgBcoFoaQwJXBV2S-AkiOgSHVP_OClZXj2ondHHpShvNbSmFZ8NDunbZhNqDWpXYWFJsdq8-Hcid-c0kipCfh75i799EdLs2HS8zAbbJiVhl5I0QeTE0n3mEUsNWDSMC0pIbZtKuc1Ij849rIxIDhMOKjEMCNUQJVn-FcajTttoamnUHzb4whFmgnMm8JWVDwdFK0Yt4TbchrHg4gpmGHzn1LD4mUPeqstd_JKgZQYMzZawAupN9C3SXDCYjAI6Glskjm-M5eC3yTEFnOE74cHymtI61rU-4-n2aPzMMPsJsLm7U8hzKkHEZg"
 }`
 
-func TestSignerTestSuite(t *testing.T) {
-	suite.Run(t, new(SignerTestSuite))
+func TestArweaveSignerTestSuite(t *testing.T) {
+	suite.Run(t, new(ArweaveSignerTestSuite))
 }
 
-type SignerTestSuite struct {
+type ArweaveSignerTestSuite struct {
 	suite.Suite
 }
 
-func (s *SignerTestSuite) SetupSuite() {
+func (s *ArweaveSignerTestSuite) SetupSuite() {
 }
 
-func (s *SignerTestSuite) TearDownSuite() {
+func (s *ArweaveSignerTestSuite) TearDownSuite() {
 }
 
-func (s *SignerTestSuite) TestCreation() {
-	signer, err := NewSigner(EMPTY_ARWEAVE_WALLET)
+func (s *ArweaveSignerTestSuite) TestCreation() {
+	signer, err := NewArweaveSigner(EMPTY_ARWEAVE_WALLET)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), signer)
 	owner, err := base64.RawURLEncoding.DecodeString("xEDoW3dIO93QcmK3G1bgNrguKoI1eSsgtBd5IERwJOtpqM2cBDlqkMbMhcy3dzL-0YPSPAB78HudvhnmNlTRWas9zqPX7nj0CtcDlbntAWIyjUXUUbqdRHUkvOpUzEcdU-x9ZLFPOJfAMAZ5Wh0kdASjptyWzQLRErBkX_4nzIJm79SdLkYvkr5toJxPtdxlVXRgcEU1ZuythSGRPKH_CNRsJVMqJxqWBGU4JgVks1LeVZ-sUvQSWVGCMCRRqPdaAEFjFLTeNknLuMDvngc00mE9GeESISENSNiVUc5Zy7pOX0I9NuuUOFl8XjnjIbJBoxX_MnJNhj4pFu3X-l20_ejlKlYrkSFeWHcw0u2_wsCrGuwsNQrrL1iUHSe7ohhB7HLmJ-DQd1BaatUMsRTxLpGR1n_fgq_3xbtm0xsZ83dLJkr8ewNtp63v18LBzJIJmaYW1rICBnmEK8IChDIWjZOk5tQ7ghMNO10bgrnI0Ba0l_arZM3lPISv74kRG_BuS3MiDUqZ5bYD_S5QYknWf6LzBWlSd0aOVScA1ZFBtnuLu4DETCDNivAXqGYbsvDHJsytXgeVWiRog44E1hHR2Xd2W2ax5KsZaxRGwl4KxUF-WnMu8kVgPZFUkIUPQpy7nQNFkyb-F6wemYRZeaPkKy96HD3Zfy_yvEVH4r_LJZs")
