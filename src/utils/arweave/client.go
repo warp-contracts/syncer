@@ -167,6 +167,9 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 	}
 
 	if err != nil {
+		if resp != nil && string(resp.Body()) == "Pending" {
+			err = ErrPending
+		}
 		return
 	}
 
