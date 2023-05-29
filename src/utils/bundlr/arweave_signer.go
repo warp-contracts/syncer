@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"errors"
 	"math/big"
 
@@ -51,19 +52,22 @@ func NewArweaveSigner(privateKeyJWK string) (self *ArweaveSigner, err error) {
 }
 
 func (self *ArweaveSigner) Sign(data []byte) (signature []byte, err error) {
-	return rsa.SignPSS(rand.Reader, self.PrivateKey, crypto.SHA256, data, &rsa.PSSOptions{
+	hashed := sha256.Sum256(data)
+	return rsa.SignPSS(rand.Reader, self.PrivateKey, crypto.SHA256, hashed[:], &rsa.PSSOptions{
 		SaltLength: rsa.PSSSaltLengthAuto,
 		Hash:       crypto.SHA256,
 	})
 }
 
 func (self *ArweaveSigner) Verify(data []byte, signature []byte) (err error) {
+	hashed := sha256.Sum256(data)
+
 	ownerPublicKey := &rsa.PublicKey{
 		N: new(big.Int).SetBytes([]byte(self.Owner)),
 		E: 65537, //"AQAB"
 	}
 
-	return rsa.VerifyPSS(ownerPublicKey, crypto.SHA256, data, []byte(signature), &rsa.PSSOptions{
+	return rsa.VerifyPSS(ownerPublicKey, crypto.SHA256, hashed[:], []byte(signature), &rsa.PSSOptions{
 		SaltLength: rsa.PSSSaltLengthAuto,
 		Hash:       crypto.SHA256,
 	})

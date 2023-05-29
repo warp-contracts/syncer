@@ -145,10 +145,9 @@ func (self *BundleItem) sign(signer Signer) (id, signature []byte, err error) {
 	}
 
 	deepHash := arweave.DeepHash(values)
-	hashed := sha256.Sum256(deepHash[:])
 
 	// Compute the signature
-	signature, err = signer.Sign(hashed[:])
+	signature, err = signer.Sign(deepHash[:])
 	if err != nil {
 		return
 	}
@@ -439,12 +438,11 @@ func (self *BundleItem) VerifySignature() (err error) {
 	}
 
 	deepHash := arweave.DeepHash(values)
-	hashed := sha256.Sum256(deepHash[:])
 
 	signer, err := GetSigner(self.SignatureType, self.Owner)
 	if err != nil {
 		return
 	}
 
-	return signer.Verify(hashed[:], self.Signature)
+	return signer.Verify(deepHash[:], self.Signature)
 }

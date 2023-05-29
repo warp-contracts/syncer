@@ -44,3 +44,18 @@ func (s *ArweaveSignerTestSuite) TestCreation() {
 	require.Nil(s.T(), err)
 	require.Equal(s.T(), signer.Owner, owner)
 }
+
+func (s *ArweaveSignerTestSuite) TestSignAndVerify() {
+	signer, err := NewArweaveSigner(EMPTY_ARWEAVE_WALLET)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), signer)
+
+	data := []byte("to be signed")
+
+	signature, err := signer.Sign(data)
+	require.Nil(s.T(), err)
+	require.Equal(s.T(), len(signature), signer.GetSignatureLength())
+
+	err = signer.Verify(data, signature)
+	require.Nil(s.T(), err)
+}
