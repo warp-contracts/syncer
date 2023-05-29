@@ -76,6 +76,12 @@ func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 }
 
 func (self *BundleItem) sign(signer Signer) (id, signature []byte, err error) {
+	// Tags
+	err = self.ensureTagsSerialized()
+	if err != nil {
+		return
+	}
+
 	values := []any{
 		"dataitem",
 		"1",
@@ -111,27 +117,27 @@ func (self *BundleItem) Reader(signer Signer) (out *bytes.Buffer, err error) {
 	return
 }
 
-func (self *BundleItem) Encode(signer Signer, out *bytes.Buffer) (err error) {
-	// Tags
-	err = self.ensureTagsSerialized()
-	if err != nil {
+func (self *BundleItem) Sign(signer Signer) (err error) {
+	if signer == nil {
+		err = ErrSignerNotSpecified
 		return
 	}
+	if len(self.Owner) != 0 || len(self.Signature) != 0 || len(self.Id) != 0 {
+		// Already signed
+		return
+	}
+	self.SignatureType = signer.GetType()
+	self.Owner = signer.GetOwner()
 
-	// Crypto
-	if len(self.Owner) == 0 && len(self.Signature) == 0 && len(self.Id) == 0 {
-		if signer == nil {
-			err = ErrSignerNotSpecified
-			return
-		}
-		self.SignatureType = signer.GetType()
-		self.Owner = signer.GetOwner()
+	// Signs bundle item
+	self.Id, self.Signature, err = self.sign(signer)
+	return
+}
 
-		// Signs bundle item
-		self.Id, self.Signature, err = self.sign(signer)
-		if err != nil {
-			return
-		}
+func (self *BundleItem) Encode(signer Signer, out *bytes.Buffer) (err error) {
+	err = self.Sign(signer)
+	if err != nil {
+		return
 	}
 
 	// Serialization
