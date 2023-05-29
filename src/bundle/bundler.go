@@ -28,7 +28,7 @@ type Bundler struct {
 
 	// Bundling and signing
 	bundlrClient *bundlr.Client
-	signer       *bundlr.Signer
+	signer       *bundlr.ArweaveSigner
 
 	// Ids of successfully bundled interactions
 	Output chan *Confirmation
@@ -58,7 +58,7 @@ func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 		WithWorkerPool(config.Bundler.BundlerNumBundlingWorkers, config.Bundler.WorkerPoolQueueSize).
 		WithSubtaskFunc(self.run)
 
-	self.signer, err = bundlr.NewSigner(config.Bundlr.Wallet)
+	self.signer, err = bundlr.NewArweaveSigner(config.Bundlr.Wallet)
 	if err != nil {
 		self.Log.WithError(err).Panic("Failed to create bundlr signer")
 	}

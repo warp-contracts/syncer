@@ -19,13 +19,13 @@ type ClientTestSuite struct {
 	suite.Suite
 	ctx    context.Context
 	cancel context.CancelFunc
-	signer *Signer
+	signer *ArweaveSigner
 	client *Client
 }
 
 func (s *ClientTestSuite) SetupSuite() {
 	var err error
-	s.signer, err = NewSigner(EMPTY_ARWEAVE_WALLET)
+	s.signer, err = NewArweaveSigner(EMPTY_ARWEAVE_WALLET)
 	require.Nil(s.T(), err)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.client = NewClient(s.ctx, &config.Default().Bundlr)

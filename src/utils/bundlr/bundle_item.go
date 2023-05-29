@@ -2,23 +2,16 @@ package bundlr
 
 import (
 	"bytes"
-	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"io"
-	"math/big"
-	"strconv"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/tool"
-
-	etherum_crypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 type BundleItem struct {
-	SignatureType int                  `json:"signature_type"`
+	SignatureType SignatureType        `json:"signature_type"`
 	Signature     arweave.Base64String `json:"signature"`
 	Owner         arweave.Base64String `json:"owner"`  //  utils.Base64Encode(pubkey)
 	Target        arweave.Base64String `json:"target"` // optional, if exist must length 32, and is base64 str
@@ -28,60 +21,8 @@ type BundleItem struct {
 	Id            arweave.Base64String `json:"id"`
 
 	// Not in the standard, used internally
-	tagsBytes []byte
-}
-
-// Arweave signature
-const ARWEAVE_SIGNATURE_LENGHT = 512
-const ARWEAVE_OWNER_LENGTH = 512
-
-var CONFIG = map[int]struct {
-	Signature int
-	Owner     int
-	Verify    func(hash []byte, self *BundleItem) error
-}{
-	1: {
-		Signature: 512,
-		Owner:     512,
-		Verify: func(hash []byte, self *BundleItem) error {
-			ownerPublicKey := &rsa.PublicKey{
-				N: new(big.Int).SetBytes([]byte(self.Owner)),
-				E: 65537, //"AQAB"
-			}
-
-			return rsa.VerifyPSS(ownerPublicKey, crypto.SHA256, hash, []byte(self.Signature), &rsa.PSSOptions{
-				SaltLength: rsa.PSSSaltLengthAuto,
-				Hash:       crypto.SHA256,
-			})
-		},
-	},
-	3: {
-		Signature: 65,
-		Owner:     65,
-		Verify: func(hash []byte, self *BundleItem) (err error) {
-			// Convert owner to public key bytes
-			publicKeyECDSA, err := etherum_crypto.UnmarshalPubkey(self.Owner)
-			if err != nil {
-				err = ErrUnmarshalEtherumPubKey
-				return
-			}
-			publicKeyBytes := etherum_crypto.FromECDSAPub(publicKeyECDSA)
-
-			// Get the public key from the signature
-			sigPublicKey, err := etherum_crypto.Ecrecover(hash, self.Signature)
-			if err != nil {
-				return
-			}
-
-			// Check if the public key recovered from the signature matches the owner
-			if !bytes.Equal(sigPublicKey, publicKeyBytes) {
-				err = ErrEtherumSignatureMismatch
-				return
-			}
-
-			return
-		},
-	},
+	tagsBytes []byte `json:"-"`
+	Signer    Signer `json:"-"`
 }
 
 func (self *BundleItem) ensureTagsSerialized() (err error) {
@@ -96,7 +37,12 @@ func (self *BundleItem) ensureTagsSerialized() (err error) {
 }
 
 func (self *BundleItem) Size() (out int) {
-	out = 2 + CONFIG[self.SignatureType].Signature + CONFIG[self.SignatureType].Owner + 1 + 1 + len(self.Data)
+	signer, err := GetSigner(self.SignatureType, nil)
+	if err != nil {
+		return
+	}
+
+	out = 2 + signer.GetSignatureLength() + signer.GetOwnerLength() + 1 + 1 + len(self.Data)
 	if len(self.Target) > 0 {
 		out += len(self.Target)
 	}
@@ -104,7 +50,7 @@ func (self *BundleItem) Size() (out int) {
 		out += len(self.Anchor)
 	}
 
-	err := self.ensureTagsSerialized()
+	err = self.ensureTagsSerialized()
 	if err != nil {
 		return -1
 	}
@@ -121,7 +67,7 @@ func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 
 	// NOTE: Normally bytes.Buffer takes ownership of the buf but in this case when we know it's big enough we ensure it won't get reallocated
 	writer := bytes.NewBuffer(buf)
-	err = self.Encode(nil, writer)
+	err = self.Encode(self.Signer, writer)
 	if err != nil {
 		return
 	}
@@ -129,11 +75,11 @@ func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 	return self.Size(), nil
 }
 
-func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, err error) {
+func (self *BundleItem) sign(signer Signer) (id, signature []byte, err error) {
 	values := []any{
 		"dataitem",
 		"1",
-		[]byte(strconv.Itoa(self.SignatureType)), // Signature type
+		self.SignatureType.Bytes(),
 		self.Owner,
 		self.Target,
 		self.Anchor,
@@ -142,13 +88,9 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, 
 	}
 
 	deepHash := arweave.DeepHash(values)
-	hashed := sha256.Sum256(deepHash[:])
 
 	// Compute the signature
-	signature, err = rsa.SignPSS(rand.Reader, privateKey, crypto.SHA256, hashed[:], &rsa.PSSOptions{
-		SaltLength: rsa.PSSSaltLengthAuto,
-		Hash:       crypto.SHA256,
-	})
+	signature, err = signer.Sign(deepHash[:])
 	if err != nil {
 		return
 	}
@@ -160,7 +102,7 @@ func (self *BundleItem) sign(privateKey *rsa.PrivateKey) (id, signature []byte, 
 	return
 }
 
-func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
+func (self *BundleItem) Reader(signer Signer) (out *bytes.Buffer, err error) {
 	// Don't try to allocate more than 4kB. Buffer will grow if needed anyway.
 	initSize := tool.Max(4096, self.Size())
 	out = bytes.NewBuffer(make([]byte, 0, initSize))
@@ -169,7 +111,7 @@ func (self *BundleItem) Reader(signer *Signer) (out *bytes.Buffer, err error) {
 	return
 }
 
-func (self *BundleItem) Encode(signer *Signer, out *bytes.Buffer) (err error) {
+func (self *BundleItem) Encode(signer Signer, out *bytes.Buffer) (err error) {
 	// Tags
 	err = self.ensureTagsSerialized()
 	if err != nil {
@@ -183,17 +125,17 @@ func (self *BundleItem) Encode(signer *Signer, out *bytes.Buffer) (err error) {
 			return
 		}
 		self.SignatureType = signer.GetType()
-		self.Owner = signer.Owner
+		self.Owner = signer.GetOwner()
 
 		// Signs bundle item
-		self.Id, self.Signature, err = self.sign(signer.PrivateKey)
+		self.Id, self.Signature, err = self.sign(signer)
 		if err != nil {
 			return
 		}
 	}
 
 	// Serialization
-	out.Write(ShortTo2ByteArray(self.SignatureType))
+	out.Write(ShortTo2ByteArray(int(self.SignatureType)))
 	out.Write(self.Signature)
 	out.Write(self.Owner)
 
@@ -239,7 +181,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		err = ErrNotEnoughBytesForSignatureType
 		return
 	}
-	self.SignatureType = int(binary.LittleEndian.Uint16(signatureType))
+	self.SignatureType = SignatureType(binary.LittleEndian.Uint16(signatureType))
 
 	// For now only Arweave signature is supported
 	if self.SignatureType != 1 {
@@ -247,24 +189,29 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		return
 	}
 
+	signer, err := GetSigner(self.SignatureType, nil)
+	if err != nil {
+		return
+	}
+
 	// Signature (different length depending on the signature type)
-	self.Signature = make([]byte, CONFIG[self.SignatureType].Signature)
+	self.Signature = make([]byte, signer.GetSignatureLength())
 	n, err = reader.Read(self.Signature)
 	if err != nil {
 		return
 	}
-	if n < CONFIG[self.SignatureType].Signature {
+	if n < signer.GetSignatureLength() {
 		err = ErrNotEnoughBytesForSignature
 		return
 	}
 
 	// Owner - public key (different length depending on the signature type)
-	self.Signature = make([]byte, CONFIG[self.SignatureType].Owner)
+	self.Signature = make([]byte, signer.GetOwnerLength())
 	n, err = reader.Read(self.Signature)
 	if err != nil {
 		return
 	}
-	if n < CONFIG[self.SignatureType].Owner {
+	if n < signer.GetOwnerLength() {
 		err = ErrNotEnoughBytesForOwner
 		return
 	}
@@ -430,7 +377,7 @@ func (self *BundleItem) VerifySignature() (err error) {
 	values := []any{
 		"dataitem",
 		"1",
-		[]byte(strconv.Itoa(self.SignatureType)),
+		self.SignatureType.Bytes(),
 		self.Owner,
 		self.Target,
 		self.Anchor,
@@ -439,13 +386,11 @@ func (self *BundleItem) VerifySignature() (err error) {
 	}
 
 	deepHash := arweave.DeepHash(values)
-	hashed := sha256.Sum256(deepHash[:])
 
-	conf, ok := CONFIG[self.SignatureType]
-	if !ok {
-		err = ErrUnsupportedSignatureType
+	signer, err := GetSigner(self.SignatureType, self.Owner)
+	if err != nil {
 		return
 	}
 
-	return conf.Verify(hashed[:], self)
+	return signer.Verify(deepHash[:], self.Signature)
 }
