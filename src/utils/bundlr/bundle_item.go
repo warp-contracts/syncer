@@ -21,7 +21,8 @@ type BundleItem struct {
 	Id            arweave.Base64String `json:"id"`
 
 	// Not in the standard, used internally
-	tagsBytes []byte
+	tagsBytes []byte `json:"-"`
+	Signer    Signer `json:"-"`
 }
 
 func (self *BundleItem) ensureTagsSerialized() (err error) {
@@ -66,7 +67,7 @@ func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 
 	// NOTE: Normally bytes.Buffer takes ownership of the buf but in this case when we know it's big enough we ensure it won't get reallocated
 	writer := bytes.NewBuffer(buf)
-	err = self.Encode(nil, writer)
+	err = self.Encode(self.Signer, writer)
 	if err != nil {
 		return
 	}
