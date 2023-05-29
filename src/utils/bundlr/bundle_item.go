@@ -364,6 +364,16 @@ func (self *BundleItem) Verify() (err error) {
 		}
 	}
 
+	// Bundlr won't accept more tags than 4KB, so check that
+	err = self.ensureTagsSerialized()
+	if err != nil {
+		return
+	}
+	if len(self.tagsBytes) > 4096 {
+		err = ErrVerifyTooManyTagsBytes
+		return
+	}
+
 	return
 }
 
