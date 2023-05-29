@@ -2,17 +2,12 @@ package bundlr
 
 import (
 	"bytes"
-	"crypto"
-	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"io"
-	"math/big"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/tool"
-
-	etherum_crypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 type BundleItem struct {
@@ -27,59 +22,6 @@ type BundleItem struct {
 
 	// Not in the standard, used internally
 	tagsBytes []byte
-}
-
-// Arweave signature
-const ARWEAVE_SIGNATURE_LENGHT = 512
-const ARWEAVE_OWNER_LENGTH = 512
-
-var CONFIG = map[SignatureType]struct {
-	Signature int
-	Owner     int
-	Verify    func(hash []byte, self *BundleItem) error
-}{
-	SignatureTypeArweave: {
-		Signature: 512,
-		Owner:     512,
-		Verify: func(hash []byte, self *BundleItem) error {
-			ownerPublicKey := &rsa.PublicKey{
-				N: new(big.Int).SetBytes([]byte(self.Owner)),
-				E: 65537, //"AQAB"
-			}
-
-			return rsa.VerifyPSS(ownerPublicKey, crypto.SHA256, hash, []byte(self.Signature), &rsa.PSSOptions{
-				SaltLength: rsa.PSSSaltLengthAuto,
-				Hash:       crypto.SHA256,
-			})
-		},
-	},
-	SignatureTypeEtherum: {
-		Signature: 65,
-		Owner:     65,
-		Verify: func(hash []byte, self *BundleItem) (err error) {
-			// Convert owner to public key bytes
-			publicKeyECDSA, err := etherum_crypto.UnmarshalPubkey(self.Owner)
-			if err != nil {
-				err = ErrUnmarshalEtherumPubKey
-				return
-			}
-			publicKeyBytes := etherum_crypto.FromECDSAPub(publicKeyECDSA)
-
-			// Get the public key from the signature
-			sigPublicKey, err := etherum_crypto.Ecrecover(hash, self.Signature)
-			if err != nil {
-				return
-			}
-
-			// Check if the public key recovered from the signature matches the owner
-			if !bytes.Equal(sigPublicKey, publicKeyBytes) {
-				err = ErrEtherumSignatureMismatch
-				return
-			}
-
-			return
-		},
-	},
 }
 
 func (self *BundleItem) ensureTagsSerialized() (err error) {
@@ -246,24 +188,29 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 		return
 	}
 
+	signer, err := GetSigner(self.SignatureType, nil)
+	if err != nil {
+		return
+	}
+
 	// Signature (different length depending on the signature type)
-	self.Signature = make([]byte, CONFIG[self.SignatureType].Signature)
+	self.Signature = make([]byte, signer.GetSignatureLength())
 	n, err = reader.Read(self.Signature)
 	if err != nil {
 		return
 	}
-	if n < CONFIG[self.SignatureType].Signature {
+	if n < signer.GetSignatureLength() {
 		err = ErrNotEnoughBytesForSignature
 		return
 	}
 
 	// Owner - public key (different length depending on the signature type)
-	self.Signature = make([]byte, CONFIG[self.SignatureType].Owner)
+	self.Signature = make([]byte, signer.GetOwnerLength())
 	n, err = reader.Read(self.Signature)
 	if err != nil {
 		return
 	}
-	if n < CONFIG[self.SignatureType].Owner {
+	if n < signer.GetOwnerLength() {
 		err = ErrNotEnoughBytesForOwner
 		return
 	}
