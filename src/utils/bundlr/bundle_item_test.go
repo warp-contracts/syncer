@@ -51,3 +51,23 @@ func (s *BundleItemTestSuite) TestSerialization() {
 	require.Equal(s.T(), item.Data, parsed.Data)
 	require.Equal(s.T(), item.Tags, parsed.Tags)
 }
+
+func (s *BundleItemTestSuite) TestSize() {
+	item := BundleItem{
+		SignatureType: SignatureTypeArweave,
+		Target:        arweave.Base64String(tool.RandomString(32)),
+		Anchor:        arweave.Base64String(tool.RandomString(32)),
+		Tags:          Tags{Tag{Name: "1", Value: "2"}, Tag{Name: "3", Value: "4"}},
+		Data:          arweave.Base64String(tool.RandomString(100)),
+	}
+
+	err := item.Sign(s.signer)
+	require.Nil(s.T(), err)
+	require.Nil(s.T(), item.Verify())
+	require.Nil(s.T(), item.VerifySignature())
+
+	buf, err := item.Reader()
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), buf)
+	require.Equal(s.T(), item.Size(), len(buf.Bytes()))
+}

@@ -41,7 +41,7 @@ func (self *BundleItem) Size() (out int) {
 		return
 	}
 
-	out = 2 + signer.GetSignatureLength() + signer.GetOwnerLength() + 1 + 1 + len(self.Data)
+	out = 2 /*signature type */ + signer.GetSignatureLength() + signer.GetOwnerLength() + 1 /*target flag*/ + 1 /*anchor flag*/ + len(self.Data) + 8 /*len tags*/ + 8 /*len tags bytes*/
 	if len(self.Target) > 0 {
 		out += len(self.Target)
 	}
@@ -192,12 +192,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 	}
 	self.SignatureType = SignatureType(binary.LittleEndian.Uint16(signatureType))
 
-	// For now only Arweave signature is supported
-	if self.SignatureType != 1 {
-		err = ErrUnsupportedSignatureType
-		return
-	}
-
+	// Signer, used only getting config
 	signer, err := GetSigner(self.SignatureType, nil)
 	if err != nil {
 		return
