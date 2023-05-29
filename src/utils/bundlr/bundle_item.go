@@ -65,7 +65,7 @@ func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 	}
 
 	// NOTE: Normally bytes.Buffer takes ownership of the buf but in this case when we know it's big enough we ensure it won't get reallocated
-	writer := bytes.NewBuffer(buf)
+	writer := tool.NewBuffer(buf)
 	err = self.Encode(writer)
 	if err != nil {
 		return
@@ -137,38 +137,77 @@ func (self *BundleItem) IsSigned() bool {
 	return len(self.Signature) != 0 && len(self.Id) != 0 && len(self.Owner) != 0
 }
 
-func (self *BundleItem) Encode(out *bytes.Buffer) (err error) {
+func (self *BundleItem) Encode(out io.Writer) (err error) {
 	if !self.IsSigned() {
 		err = ErrNotSigned
 		return
 	}
 
 	// Serialization
-	out.Write(ShortTo2ByteArray(int(self.SignatureType)))
-	out.Write(self.Signature)
-	out.Write(self.Owner)
+	_, err = out.Write(ShortTo2ByteArray(int(self.SignatureType)))
+	if err != nil {
+		return
+	}
+	_, err = out.Write(self.Signature)
+	if err != nil {
+		return
+	}
+	_, err = out.Write(self.Owner)
+	if err != nil {
+		return
+	}
 
 	// Optional target
 	if len(self.Target) == 0 {
-		out.WriteByte(0)
+		_, err = out.Write([]byte{0})
+		if err != nil {
+			return
+		}
 	} else {
-		out.WriteByte(1)
-		out.Write(self.Target)
+		_, err = out.Write([]byte{1})
+		if err != nil {
+			return
+		}
+		_, err = out.Write(self.Target)
+		if err != nil {
+			return
+		}
 	}
 
 	// Optional anchor
 	if len(self.Anchor) == 0 {
-		out.WriteByte(0)
+		_, err = out.Write([]byte{0})
+		if err != nil {
+			return
+		}
 	} else {
-		out.WriteByte(1)
-		out.Write(self.Anchor)
+		_, err = out.Write([]byte{1})
+		if err != nil {
+			return
+		}
+		_, err = out.Write(self.Anchor)
+		if err != nil {
+			return
+		}
 	}
 
 	// Rest
-	out.Write(LongTo8ByteArray(len(self.Tags)))
-	out.Write(LongTo8ByteArray(len(self.tagsBytes)))
-	out.Write(self.tagsBytes)
-	out.Write(self.Data)
+	_, err = out.Write(LongTo8ByteArray(len(self.Tags)))
+	if err != nil {
+		return
+	}
+	_, err = out.Write(LongTo8ByteArray(len(self.tagsBytes)))
+	if err != nil {
+		return
+	}
+	_, err = out.Write(self.tagsBytes)
+	if err != nil {
+		return
+	}
+	_, err = out.Write(self.Data)
+	if err != nil {
+		return
+	}
 
 	return
 }

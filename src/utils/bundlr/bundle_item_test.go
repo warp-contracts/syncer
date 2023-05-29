@@ -71,3 +71,22 @@ func (s *BundleItemTestSuite) TestSize() {
 	require.NotNil(s.T(), buf)
 	require.Equal(s.T(), item.Size(), len(buf.Bytes()))
 }
+
+func (s *BundleItemTestSuite) TestMarshal() {
+	item := BundleItem{
+		SignatureType: SignatureTypeArweave,
+		Target:        arweave.Base64String(tool.RandomString(32)),
+		Anchor:        arweave.Base64String(tool.RandomString(32)),
+		Tags:          Tags{Tag{Name: "1", Value: "2"}, Tag{Name: "3", Value: "4"}},
+		Data:          arweave.Base64String(tool.RandomString(100)),
+	}
+
+	err := item.Sign(s.signer)
+	require.Nil(s.T(), err)
+
+	buf := make([]byte, item.Size())
+	n, err := item.MarshalTo(buf)
+	require.Nil(s.T(), err)
+	require.Equal(s.T(), item.Size(), n)
+	require.Equal(s.T(), item.Size(), len(buf))
+}
