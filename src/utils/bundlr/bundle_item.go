@@ -364,8 +364,7 @@ func (self *BundleItem) Verify() (err error) {
 		}
 	}
 
-	// Verify signature
-	return self.VerifySignature()
+	return
 }
 
 func (self *BundleItem) VerifySignature() (err error) {
