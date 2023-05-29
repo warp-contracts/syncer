@@ -27,4 +27,5 @@ var (
 	ErrVerifyTooLongTagValue             = errors.New("tag value is too long, max is 3072 bytes")
 	ErrBufferTooSmall                    = errors.New("buffer too small")
 	ErrUnsupportedSignatureType          = errors.New("unsupported signature type")
+	ErrFailedToParseEtherumPublicKey     = errors.New("failed to parse etherum public key")
 )
