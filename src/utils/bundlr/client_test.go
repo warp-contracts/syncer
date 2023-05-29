@@ -40,7 +40,10 @@ func (s *ClientTestSuite) TestUpload() {
 		Data: []byte("asdf"),
 		Tags: Tags{Tag{Name: "name", Value: "value"}},
 	}
-	resp, r, err := s.client.Upload(s.ctx, s.signer, item)
+	err := item.Sign(s.signer)
+	require.Nil(s.T(), err)
+
+	resp, r, err := s.client.Upload(s.ctx, item)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), r)
 	require.NotNil(s.T(), resp)

@@ -20,8 +20,8 @@ func NewClient(ctx context.Context, config *config.Bundlr) (self *Client) {
 	return
 }
 
-func (self *Client) Upload(ctx context.Context, signer Signer, item *BundleItem) (out *responses.Upload, resp *resty.Response, err error) {
-	reader, err := item.Reader(signer)
+func (self *Client) Upload(ctx context.Context, item *BundleItem) (out *responses.Upload, resp *resty.Response, err error) {
+	reader, err := item.Reader()
 	if err != nil {
 		return
 	}

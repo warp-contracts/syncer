@@ -140,9 +140,15 @@ func (self *Bundler) run() (err error) {
 				return
 			}
 
+			err = bundleItem.Sign(self.signer)
+			if err != nil {
+				self.Log.WithError(err).Error("Failed to sign bundle item")
+				return
+			}
+
 			// self.Log.WithField("id", item.InteractionID).Trace("Sending interaction to Bundlr")
 			// Send the bundle item to bundlr
-			uploadResponse, resp, err := self.bundlrClient.Upload(self.Ctx, self.signer, bundleItem)
+			uploadResponse, resp, err := self.bundlrClient.Upload(self.Ctx, bundleItem)
 			if err != nil {
 				if resp != nil {
 					self.Log.WithError(err).

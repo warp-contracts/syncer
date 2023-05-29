@@ -35,7 +35,10 @@ func (s *BundleItemTestSuite) TestSerialization() {
 		Data: arweave.Base64String(tool.RandomString(100)),
 	}
 
-	buf, err := item.Reader(s.signer)
+	err := item.Sign(s.signer)
+	require.Nil(s.T(), err)
+
+	buf, err := item.Reader()
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), buf)
 

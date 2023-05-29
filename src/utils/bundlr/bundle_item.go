@@ -22,7 +22,6 @@ type BundleItem struct {
 
 	// Not in the standard, used internally
 	tagsBytes []byte `json:"-"`
-	Signer    Signer `json:"-"`
 }
 
 func (self *BundleItem) ensureTagsSerialized() (err error) {
@@ -67,7 +66,7 @@ func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 
 	// NOTE: Normally bytes.Buffer takes ownership of the buf but in this case when we know it's big enough we ensure it won't get reallocated
 	writer := bytes.NewBuffer(buf)
-	err = self.Encode(self.Signer, writer)
+	err = self.Encode(writer)
 	if err != nil {
 		return
 	}
@@ -108,12 +107,12 @@ func (self *BundleItem) sign(signer Signer) (id, signature []byte, err error) {
 	return
 }
 
-func (self *BundleItem) Reader(signer Signer) (out *bytes.Buffer, err error) {
+func (self *BundleItem) Reader() (out *bytes.Buffer, err error) {
 	// Don't try to allocate more than 4kB. Buffer will grow if needed anyway.
 	initSize := tool.Max(4096, self.Size())
 	out = bytes.NewBuffer(make([]byte, 0, initSize))
 
-	err = self.Encode(signer, out)
+	err = self.Encode(out)
 	return
 }
 
@@ -134,9 +133,13 @@ func (self *BundleItem) Sign(signer Signer) (err error) {
 	return
 }
 
-func (self *BundleItem) Encode(signer Signer, out *bytes.Buffer) (err error) {
-	err = self.Sign(signer)
-	if err != nil {
+func (self *BundleItem) IsSigned() bool {
+	return len(self.Signature) != 0 && len(self.Id) != 0 && len(self.Owner) != 0
+}
+
+func (self *BundleItem) Encode(out *bytes.Buffer) (err error) {
+	if !self.IsSigned() {
+		err = ErrNotSigned
 		return
 	}
 

@@ -29,4 +29,5 @@ var (
 	ErrBufferTooSmall                    = errors.New("buffer too small")
 	ErrUnsupportedSignatureType          = errors.New("unsupported signature type")
 	ErrFailedToParseEtherumPublicKey     = errors.New("failed to parse etherum public key")
+	ErrNotSigned                         = errors.New("bundle item not signed")
 )
