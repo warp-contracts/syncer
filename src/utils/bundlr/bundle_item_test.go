@@ -72,7 +72,7 @@ func (s *BundleItemTestSuite) TestSize() {
 	require.Equal(s.T(), item.Size(), len(buf.Bytes()))
 }
 
-func (s *BundleItemTestSuite) TestMarshal() {
+func (s *BundleItemTestSuite) TestMarshalTo() {
 	item := BundleItem{
 		SignatureType: SignatureTypeArweave,
 		Target:        arweave.Base64String(tool.RandomString(32)),
@@ -89,4 +89,35 @@ func (s *BundleItemTestSuite) TestMarshal() {
 	require.Nil(s.T(), err)
 	require.Equal(s.T(), item.Size(), n)
 	require.Equal(s.T(), item.Size(), len(buf))
+}
+
+func (s *BundleItemTestSuite) TestMarshalUnmarshal() {
+	item := BundleItem{
+		SignatureType: SignatureTypeArweave,
+		Target:        arweave.Base64String(tool.RandomString(32)),
+		Anchor:        arweave.Base64String(tool.RandomString(32)),
+		Tags:          Tags{Tag{Name: "1", Value: "2"}, Tag{Name: "3", Value: "4"}},
+		Data:          arweave.Base64String(tool.RandomString(100)),
+	}
+
+	err := item.Sign(s.signer)
+	require.Nil(s.T(), err)
+	require.Nil(s.T(), item.Verify())
+	require.Nil(s.T(), item.VerifySignature())
+
+	buf, err := item.Marshal()
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), buf)
+
+	parsed := BundleItem{}
+	err = parsed.Unmarshal(buf)
+	require.Nil(s.T(), err)
+	// fmt.Printf("BUF %s\n", string(buf))
+	// fmt.Printf("ITEM %v\n", item.String())
+	// fmt.Printf("PARSED %v\n", parsed.String())
+
+	require.Nil(s.T(), parsed.Verify())
+	require.Nil(s.T(), parsed.VerifySignature())
+	require.Equal(s.T(), item.Size(), parsed.Size())
+	require.Equal(s.T(), item.Signature, parsed.Signature)
 }

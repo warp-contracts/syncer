@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/json"
 	"io"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
@@ -59,6 +60,14 @@ func (self *BundleItem) Size() (out int) {
 	return
 }
 
+func (self *BundleItem) String() string {
+	buf, err := json.MarshalIndent(self, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(buf)
+}
+
 func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 	if len(buf) < self.Size() {
 		return 0, ErrBufferTooSmall
@@ -72,6 +81,12 @@ func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 	}
 
 	return self.Size(), nil
+}
+
+func (self *BundleItem) Marshal() ([]byte, error) {
+	buffer := make([]byte, self.Size())
+	_, err := self.MarshalTo(buffer)
+	return buffer, err
 }
 
 func (self *BundleItem) sign(signer Signer) (id, signature []byte, err error) {
@@ -249,8 +264,8 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 	}
 
 	// Owner - public key (different length depending on the signature type)
-	self.Signature = make([]byte, signer.GetOwnerLength())
-	n, err = reader.Read(self.Signature)
+	self.Owner = make([]byte, signer.GetOwnerLength())
+	n, err = reader.Read(self.Owner)
 	if err != nil {
 		return
 	}
@@ -364,6 +379,9 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 	}
 	self.Data = data.Bytes()
 
+	// Id is calculated from the signature
+	idArray := sha256.Sum256(self.Signature)
+	self.Id = idArray[:]
 	return
 }
 
