@@ -89,6 +89,22 @@ func (self *BundleItem) Marshal() ([]byte, error) {
 	return buffer, err
 }
 
+func (self *BundleItem) MarshalJSON() ([]byte, error) {
+	type BundleItemAlias BundleItem
+	return json.Marshal(&struct {
+		*BundleItemAlias
+	}{BundleItemAlias: (*BundleItemAlias)(self)})
+}
+
+func (self *BundleItem) UnmarshalJSON(data []byte) error {
+	type BundleItemAlias BundleItem
+	aux := &struct {
+		*BundleItemAlias
+	}{BundleItemAlias: (*BundleItemAlias)(self)}
+
+	return json.Unmarshal(data, aux)
+}
+
 func (self *BundleItem) sign(signer Signer) (id, signature []byte, err error) {
 	// Tags
 	err = self.ensureTagsSerialized()

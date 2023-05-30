@@ -121,3 +121,31 @@ func (s *BundleItemTestSuite) TestMarshalUnmarshal() {
 	require.Equal(s.T(), item.Size(), parsed.Size())
 	require.Equal(s.T(), item.Signature, parsed.Signature)
 }
+
+func (s *BundleItemTestSuite) TestMarshalUnmarshalJSON() {
+	item := BundleItem{
+		SignatureType: SignatureTypeArweave,
+		Target:        arweave.Base64String(tool.RandomString(32)),
+		Anchor:        arweave.Base64String(tool.RandomString(32)),
+		Tags:          Tags{Tag{Name: "1", Value: "2"}, Tag{Name: "3", Value: "4"}},
+		Data:          arweave.Base64String(tool.RandomString(100)),
+	}
+
+	err := item.Sign(s.signer)
+	require.Nil(s.T(), err)
+	require.Nil(s.T(), item.Verify())
+	require.Nil(s.T(), item.VerifySignature())
+
+	buf, err := item.MarshalJSON()
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), buf)
+
+	parsed := BundleItem{}
+	err = parsed.UnmarshalJSON(buf)
+	require.Nil(s.T(), err)
+
+	require.Nil(s.T(), parsed.Verify())
+	require.Nil(s.T(), parsed.VerifySignature())
+	require.Equal(s.T(), item.Size(), parsed.Size())
+	require.Equal(s.T(), item.Signature, parsed.Signature)
+}
