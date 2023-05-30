@@ -68,7 +68,7 @@ func (self *BundleItem) String() string {
 	return string(buf)
 }
 
-func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
+func (self BundleItem) MarshalTo(buf []byte) (n int, err error) {
 	if len(buf) < self.Size() {
 		return 0, ErrBufferTooSmall
 	}
@@ -83,17 +83,17 @@ func (self *BundleItem) MarshalTo(buf []byte) (n int, err error) {
 	return self.Size(), nil
 }
 
-func (self *BundleItem) Marshal() ([]byte, error) {
+func (self BundleItem) Marshal() ([]byte, error) {
 	buffer := make([]byte, self.Size())
 	_, err := self.MarshalTo(buffer)
 	return buffer, err
 }
 
-func (self *BundleItem) MarshalJSON() ([]byte, error) {
+func (self BundleItem) MarshalJSON() ([]byte, error) {
 	type BundleItemAlias BundleItem
 	return json.Marshal(&struct {
 		*BundleItemAlias
-	}{BundleItemAlias: (*BundleItemAlias)(self)})
+	}{BundleItemAlias: (*BundleItemAlias)(&self)})
 }
 
 func (self *BundleItem) UnmarshalJSON(data []byte) error {

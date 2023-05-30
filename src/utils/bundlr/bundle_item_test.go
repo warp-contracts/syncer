@@ -144,6 +144,10 @@ func (s *BundleItemTestSuite) TestMarshalUnmarshalJSON() {
 	err = parsed.UnmarshalJSON(buf)
 	require.Nil(s.T(), err)
 
+	// fmt.Printf("BUF %s\n", string(buf))
+	// fmt.Printf("ITEM %v\n", item.String())
+	// fmt.Printf("PARSED %v\n", parsed.String())
+
 	require.Nil(s.T(), parsed.Verify())
 	require.Nil(s.T(), parsed.VerifySignature())
 	require.Equal(s.T(), item.Size(), parsed.Size())
