@@ -38,6 +38,7 @@ type Config struct {
 	Contract              Contract
 	Redis                 []Redis
 	AppSync               AppSync
+	Forwarder             Forwarder
 }
 
 func setDefaults() {

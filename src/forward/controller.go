@@ -32,10 +32,17 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor).
 		WithInitStartHeight(db)
 
+	// Fetches L1 interactions from the DB every time the block height changes
+	fetcher := NewFetcher(config).
+		WithDB(db).
+		WithMonitor(monitor).
+		WithInputChannel(sequencer.Output)
+
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
 		WithSubtask(sequencer.Task).
 		WithSubtask(monitor.Task).
+		WithSubtask(fetcher.Task).
 		WithSubtask(server.Task)
 	return
 }
