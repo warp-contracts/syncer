@@ -17,24 +17,25 @@ type Fetcher struct {
 
 	input  chan uint64
 	Output chan *Payload
-}
 
-type Payload struct {
-	IsFirst     bool
-	IsLast      bool
-	Interaction *model.Interaction
+	// Possible values: "arweave", "sequencer"
+	source string
 }
 
 func NewFetcher(config *config.Config) (self *Fetcher) {
 	self = new(Fetcher)
 
-	self.input = make(chan uint64)
 	self.Output = make(chan *Payload)
 
 	self.Task = task.NewTask(config, "fetcher").
 		WithSubtaskFunc(self.run)
 
 	return
+}
+
+func (self *Fetcher) WithSource(source string) *Fetcher {
+	self.source = source
+	return self
 }
 
 func (self *Fetcher) WithDB(db *gorm.DB) *Fetcher {
@@ -61,7 +62,7 @@ func (self *Fetcher) run() (err error) {
 			var interactions []*model.Interaction
 			err = self.db.Table(model.TableInteraction).
 				Where("block_height = ?", height).
-				Where("source=?", "arweave").
+				Where("source=?", self.source).
 				Limit(self.Config.Forwarder.FetcherBatchSize).
 				Offset(offset * self.Config.Forwarder.FetcherBatchSize).
 
@@ -78,8 +79,8 @@ func (self *Fetcher) run() (err error) {
 
 			for i, interaction := range interactions {
 				payload := &Payload{
-					IsFirst:     isFirstBatch && i == 0,
-					IsLast:      isLastBatch && i == len(interactions)-1,
+					First:       isFirstBatch && i == 0,
+					Last:        isLastBatch && i == len(interactions)-1,
 					Interaction: interaction,
 				}
 

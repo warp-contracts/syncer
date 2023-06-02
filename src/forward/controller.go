@@ -38,11 +38,17 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor).
 		WithInputChannel(sequencer.Output)
 
+	// Joins L1 and L2 interactions.
+	// L1 interactions take over the output chanel
+	joiner := task.NewJoiner[*Payload](config, "l1-l2-joiner").
+		WithInputChannel(fetcher.Output)
+
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
 		WithSubtask(sequencer.Task).
 		WithSubtask(monitor.Task).
 		WithSubtask(fetcher.Task).
+		WithSubtask(joiner.Task).
 		WithSubtask(server.Task)
 	return
 }
