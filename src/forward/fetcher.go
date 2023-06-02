@@ -84,12 +84,9 @@ func (self *Fetcher) run() (err error) {
 					Interaction: interaction,
 				}
 
-				select {
 				// NOTE: Quit only when the whole batch is processed
-				// case <-self.Ctx.Done():
-				// 	return
-				case self.Output <- payload:
-				}
+				// That's why we're not waiting for closing of this task
+				self.Output <- payload
 			}
 
 			isFirstBatch = false

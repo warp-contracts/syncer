@@ -71,9 +71,7 @@ func (self *Joiner[In]) handleOneInput(input chan In) error {
 			}
 		}
 
-		select {
-		case self.Output <- in:
-		}
+		self.Output <- in
 
 		if isOwner && in.IsLast() {
 			self.mtx.Unlock()
