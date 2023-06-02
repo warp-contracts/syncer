@@ -25,6 +25,7 @@ type Interaction struct {
 	ConfirmationStatus string
 	InteractWrite      pq.StringArray `gorm:"type:text[]"`
 	SortKey            string
+	LastSortKey        string
 
 	// https://github.com/warp-contracts/gateway/blob/main/src/gateway/tasks/syncTransactions.ts#L175
 	Evolve sql.NullString

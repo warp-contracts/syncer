@@ -10,8 +10,12 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 	return task.NewMapper[*Payload, *model.InteractionNotification](config, "map-redis-notification").
 		WithWorkerPool(1, config.Forwarder.FetcherBatchSize).
 		WithProcessFunc(func(data *Payload, out chan *model.InteractionNotification) (err error) {
-			// TODO: Neglect messages that are too big
+			// Neglect empty messages
+			if data.Interaction == nil {
+				return nil
+			}
 
+			// TODO: Neglect messages that are too big
 			select {
 			case <-self.Ctx.Done():
 			case out <- &model.InteractionNotification{

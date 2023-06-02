@@ -8,7 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Gets L1 interactions from the DB
+// Gets L1 interactions from the DB in batches
+// Fills in last_sort_key for each interaction
 type Fetcher struct {
 	*task.Task
 	db *gorm.DB
@@ -62,17 +63,23 @@ func (self *Fetcher) run() (err error) {
 			var interactions []*model.Interaction
 			err = self.db.Table(model.TableInteraction).
 				Where("block_height = ?", height).
-				Where("source=?", self.source).
+				Where("source=?", "arweave").
 				Limit(self.Config.Forwarder.FetcherBatchSize).
 				Offset(offset * self.Config.Forwarder.FetcherBatchSize).
 
 				// FIXME: -----------------> IS THIS ORDERING CORRECT? <-----------------
 				// This is the order DRE gets L1 interactions
-				Order("id ASC").
+				Order("sort_key ASC").
 				Find(&interactions).
 				Error
 			if err != nil {
 				return
+			}
+
+			if len(interactions) == 0 && offset != 0 {
+				// Edge case: num of interactions is a multiple of batch size
+				payload := &Payload{First: false, Last: true, Interaction: nil}
+				self.Output <- payload
 			}
 
 			isLastBatch := len(interactions) < self.Config.Forwarder.FetcherBatchSize
