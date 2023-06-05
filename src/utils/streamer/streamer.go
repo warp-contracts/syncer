@@ -87,7 +87,7 @@ func (self *Streamer) Resume() (err error) {
 		return
 	}
 
-	self.Log.Info("Resume streamer")
+	self.Log.WithField("channel", self.channelName).Info("Resume streamer")
 
 	err = self.connection.Listen(self.channelName)
 	if err != nil {

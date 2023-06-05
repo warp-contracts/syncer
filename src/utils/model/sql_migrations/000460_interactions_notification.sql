@@ -23,7 +23,7 @@ BEGIN
 	END IF;
 
     -- Neglect big interactions
-    SELECT pg_column_size(NEW.transaction) > 7950 INTO is_too_big;
+    SELECT pg_column_size(NEW.interaction) > 7950 INTO is_too_big;
 
 	-- Skip if there's no forwarder listening
 	SELECT EXISTS(SELECT pid FROM pg_stat_activity WHERE query='listen "interactions"') INTO is_forwarder_listening;
