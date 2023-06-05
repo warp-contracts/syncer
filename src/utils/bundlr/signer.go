@@ -17,8 +17,8 @@ func GetSigner(SignatureType SignatureType, owner []byte) (signer Signer, err er
 		signer = &ArweaveSigner{
 			Owner: owner,
 		}
-	case SignatureTypeEtherum:
-		signer = &EtherumSigner{
+	case SignatureTypeEthereum:
+		signer = &EthereumSigner{
 			Owner: owner,
 		}
 	default:
