@@ -4,8 +4,8 @@ import "errors"
 
 var (
 	ErrSignerNotSpecified                = errors.New("signer not specified")
-	ErrUnmarshalEtherumPubKey            = errors.New("cannot unmarshal etherum pubkey")
-	ErrEtherumSignatureMismatch          = errors.New("etherum signature mismatch")
+	ErrUnmarshalEthereumPubKey            = errors.New("cannot unmarshal ethereum pubkey")
+	ErrEthereumSignatureMismatch          = errors.New("ethereum signature mismatch")
 	ErrFailedToParse                     = errors.New("failed to parse response")
 	ErrIdEmpty                           = errors.New("bundle id is empty")
 	ErrNotEnoughBytesForSignatureType    = errors.New("not enough bytes for the signature type")
@@ -28,6 +28,6 @@ var (
 	ErrVerifyTooManyTagsBytes            = errors.New("serialized tags are too long, max is 4KB")
 	ErrBufferTooSmall                    = errors.New("buffer too small")
 	ErrUnsupportedSignatureType          = errors.New("unsupported signature type")
-	ErrFailedToParseEtherumPublicKey     = errors.New("failed to parse etherum public key")
+	ErrFailedToParseEthereumPublicKey     = errors.New("failed to parse ethereum public key")
 	ErrNotSigned                         = errors.New("bundle item not signed")
 )

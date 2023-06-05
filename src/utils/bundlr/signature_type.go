@@ -8,7 +8,7 @@ type SignatureType int
 // https://github.com/Bundlr-Network/arbundles/blob/5413fe576098355f7502a5fa9456f8db6a861492/src/constants.ts#L4
 const (
 	SignatureTypeArweave SignatureType = 1
-	SignatureTypeEtherum SignatureType = 3
+	SignatureTypeEthereum SignatureType = 3
 )
 
 func (self SignatureType) Bytes() []byte {
