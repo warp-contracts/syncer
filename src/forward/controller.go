@@ -62,7 +62,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	redisPublishers := make([]*task.Task, 0, len(config.Redis))
 	for i := range config.Redis {
 		redisPublisher := publisher.NewRedisPublisher[*model.InteractionNotification](config, config.Redis[i], fmt.Sprintf("interaction-redis-publisher-%d", i)).
-			WithChannelName(config.Contract.PublisherRedisChannelName).
+			WithChannelName(config.Forwarder.PublisherRedisChannelName).
 			WithMonitor(monitor).
 			WithInputChannel(redisDuplicator.NextChannel())
 		redisPublishers = append(redisPublishers, redisPublisher.Task)
