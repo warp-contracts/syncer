@@ -11,7 +11,7 @@ DECLARE
 	payload jsonb;
 BEGIN
     -- Notify only upon L2 changes
-    IF NEW.name != 'redstone-sequencer' THEN
+    IF NEW.source != 'redstone-sequencer' THEN
         RETURN NEW;
     END IF;
 

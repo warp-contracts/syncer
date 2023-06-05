@@ -31,7 +31,7 @@ func NewInteractionStreamer(config *config.Config) (self *InteractionStreamer) {
 		WithNotificationChannelName("interactions").
 		WithCapacity(10)
 
-	self.Task = task.NewTask(config, "sequencer").
+	self.Task = task.NewTask(config, "interaction").
 		// Live source of interactions
 		WithSubtask(self.streamer.Task).
 		// Parse and pass the interaction
@@ -63,6 +63,8 @@ func (self *InteractionStreamer) run() (err error) {
 				self.Log.WithError(err).Error("Failed to unmarshal sequencer sync state")
 				return
 			}
+
+			self.Log.Info("AAAAAAAAAAAAAAAAAAa")
 
 			payload := &Payload{
 				Interaction: &interaction,
