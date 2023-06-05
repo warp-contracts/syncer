@@ -72,8 +72,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	self.Task.
 		WithSubtask(sequencer.Task).
 		WithSubtask(monitor.Task).
-		WithSubtask(fetcher.Task).
 		WithSubtask(joiner.Task).
+		WithSubtask(fetcher.Task).
+		WithSubtask(interactionStreamer.Task).
 		WithSubtaskSlice(redisPublishers).
 		WithSubtask(redisDuplicator.Task).
 		WithSubtask(redisMapper.Task).
