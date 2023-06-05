@@ -86,6 +86,13 @@ func (self *ArweaveFetcher) run() (err error) {
 					if err != nil {
 						return
 					}
+
+					// Updat sync height
+					err = self.updateSyncedHeight(tx, height)
+					if err != nil {
+						return
+					}
+
 					return
 				})
 			if err != nil {
@@ -113,6 +120,36 @@ func (self *ArweaveFetcher) run() (err error) {
 			}
 
 			isFirstBatch = false
+		}
+	}
+	return
+}
+
+func (self *ArweaveFetcher) updateSyncedHeight(tx *gorm.DB, height uint64) (err error) {
+	var state model.State
+	err = tx.WithContext(self.Ctx).
+		Where("name = ?", model.SyncedComponentForwarder).
+		First(&state).
+		Error
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to get state")
+		return err
+	}
+
+	if state.FinishedBlockHeight < height {
+		state.FinishedBlockHeight = height
+
+		err = tx.Model(&model.State{
+			Name: model.SyncedComponentForwarder,
+		}).
+			Updates(model.State{
+				FinishedBlockHeight: height,
+			}).
+			Error
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to update stmonitorate after last block")
+			self.monitor.GetReport().Contractor.Errors.DbLastTransactionBlockHeight.Inc()
+			return err
 		}
 	}
 	return
