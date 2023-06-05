@@ -46,7 +46,7 @@ func (self *Store) save(payloads []*Payload) error {
 	err := self.db.Transaction(func(tx *gorm.DB) (err error) {
 		for _, payload := range payloads {
 			self.Log.WithField("id", payload.Interaction.InteractionId).Info("Interaction")
-			err = tx.WithContext(self.Ctx).Debug().Raw(`
+			err = tx.WithContext(self.Ctx).Raw(`
 			WITH ins_interaction AS (
 				INSERT INTO interactions (interaction_id,
 										  interaction,
