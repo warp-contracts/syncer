@@ -14,9 +14,9 @@ const (
 )
 
 type Interaction struct {
-	ID                 int
+	ID                 int `json:"id"`
 	InteractionId      string
-	Interaction        string
+	Interaction        string `json:"interaction"`
 	BlockHeight        int64
 	BlockId            arweave.Base64String
 	ContractId         string

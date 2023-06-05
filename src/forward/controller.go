@@ -41,10 +41,15 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor).
 		WithInputChannel(sequencer.Output)
 
+	// Gets L2 interactions (just the needed fields) through Postgres notifications, parses an passes further
+	interactionStreamer := NewInteractionStreamer(config).
+		WithMonitor(monitor)
+
 	// Joins L1 and L2 interactions.
 	// L1 interactions take over the output chanel
 	joiner := task.NewJoiner[*Payload](config, "l1-l2-joiner").
-		WithInputChannel(fetcher.Output)
+		WithInputChannel(fetcher.Output).
+		WithInputChannel(interactionStreamer.Output)
 
 	// Publish to all redis instances
 	redisMapper := redisMapper(config).

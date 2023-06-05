@@ -98,7 +98,6 @@ func (self *ArweaveFetcher) run() (err error) {
 				payload := &Payload{First: false, Last: true, Interaction: nil}
 				self.Output <- payload
 			} else {
-
 				isLastBatch := len(interactions) < self.Config.Forwarder.FetcherBatchSize
 				for i, interaction := range interactions {
 					payload := &Payload{
