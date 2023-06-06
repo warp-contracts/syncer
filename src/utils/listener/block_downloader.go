@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/go-resty/resty/v2"
 	"math"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -32,13 +33,15 @@ type BlockDownloader struct {
 
 	client  *arweave.Client
 	monitor monitoring.Monitor
+	db      *gorm.DB
 
 	input  chan *arweave.NetworkInfo
 	Output chan *arweave.Block
 
 	// Parameters
-	maxElapsedTime time.Duration
-	maxInterval    time.Duration
+	maxElapsedTime  time.Duration
+	maxInterval     time.Duration
+	syncedComponent model.SyncedComponent
 }
 
 // Using Arweave client periodically checks for blocks of transactions
@@ -67,6 +70,16 @@ func (self *BlockDownloader) WithMonitor(monitor monitoring.Monitor) *BlockDownl
 
 func (self *BlockDownloader) WithClient(client *arweave.Client) *BlockDownloader {
 	self.client = client
+	return self
+}
+
+func (self *BlockDownloader) WithSyncedComponent(component model.SyncedComponent) *BlockDownloader {
+	self.syncedComponent = component
+	return self
+}
+
+func (self *BlockDownloader) WithDB(db *gorm.DB) *BlockDownloader {
+	self.db = db
 	return self
 }
 
@@ -134,6 +147,8 @@ func (self *BlockDownloader) run() error {
 			WithField("numNewBlocks", uint64(networkInfo.Height)-lastSyncedHeight).
 			Debug("Discovered new blocks")
 
+	rewind_block_download:
+
 		// Download transactions from
 		for height := lastSyncedHeight + 1; height <= uint64(networkInfo.Height) && height >= self.startHeight && height <= self.stopBlockHeight; height++ {
 			self.monitor.GetReport().BlockDownloader.State.CurrentHeight.Store(int64(height))
@@ -141,6 +156,7 @@ func (self *BlockDownloader) run() error {
 			self.Log.WithField("height", height).Trace("Downloading block")
 
 			var block *arweave.Block
+			var isBlockDownloadRewinded bool
 			err := task.NewRetry().
 				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.maxElapsedTime).
@@ -169,24 +185,6 @@ func (self *BlockDownloader) run() error {
 						return err
 					}
 
-					if len(lastProcessedBlockHash) > 0 &&
-						!bytes.Equal(lastProcessedBlockHash, block.PreviousBlock) {
-						self.Log.
-							WithField("height", height).
-							WithField("age", resp.Header().Get("Age")).
-							WithField("x-trace", resp.Header().Get("X-Trace")).
-							WithField("last_processed_block_hash", lastProcessedBlockHash).
-							WithField("previous_block", block.PreviousBlock).
-							Error("Previous block hash isn't valid")
-
-						self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
-
-						// TODO: Try downloading with another peer
-						// TODO: Log malicious peer
-						err = errors.New("previous block hash isn't valid")
-						return
-					}
-
 					if !block.IsValid() {
 						self.Log.
 							WithField("height", height).
@@ -198,12 +196,47 @@ func (self *BlockDownloader) run() error {
 						return
 					}
 
+					if len(lastProcessedBlockHash) > 0 &&
+						!bytes.Equal(lastProcessedBlockHash, block.PreviousBlock) {
+						self.Log.
+							WithField("height", height).
+							WithField("age", resp.Header().Get("Age")).
+							WithField("x-trace", resp.Header().Get("X-Trace")).
+							WithField("last_processed_block_hash", lastProcessedBlockHash.Base64()).
+							WithField("previous_block", block.PreviousBlock.Base64()).
+							Error("Previous block hash isn't valid")
+
+						self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
+
+						var previousBlock *arweave.Block
+						previousBlock, err = self.rewindSyncState(block)
+						if err != nil {
+							return
+						}
+
+						// Prepare for the next block
+						lastSyncedHeight = uint64(previousBlock.Height)
+						lastProcessedBlockHash = previousBlock.IndepHash
+						isBlockDownloadRewinded = true
+
+						self.Log.WithError(err).WithField("to_height", previousBlock.Height).WithField("from_height", height-1).Warn("Rewinding block download")
+
+						// Start syncing the wrong block again
+						return
+
+						// TODO: Try downloading with another peer
+						// TODO: Log malicious peer
+					}
+
 					return
 				})
-
 			if err != nil {
 				self.Log.WithError(err).WithField("height", height).Error("Failed to download block, stop retrying")
 				return err
+			}
+
+			if isBlockDownloadRewinded {
+				goto rewind_block_download
 			}
 
 			self.Log.
@@ -224,4 +257,36 @@ func (self *BlockDownloader) run() error {
 	}
 
 	return nil
+}
+
+func (self *BlockDownloader) rewindSyncState(block *arweave.Block) (previousBlock *arweave.Block, err error) {
+	// There is a bug with arweave.net that sometimes returns bad blocks.
+	// Upon detecting this we rewind one block and try again.
+	// This means that the block we just downloaded gets neglected (will be downloaded again later)
+	// Sync state that is stored in the database will be neglected and download will be restarted for the block (height-1)
+	var resp *resty.Response
+	previousBlock, resp, err = self.client.GetBlockByHeight(self.Ctx, int64(block.Height-2))
+	if err != nil {
+		return
+	}
+
+	if !previousBlock.IsValid() {
+		self.Log.
+			WithField("height", block.Height-2).
+			WithField("age", resp.Header().Get("Age")).
+			WithField("x-trace", resp.Header().Get("X-Trace")).
+			Error("Block hash isn't valid")
+		self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
+		err = errors.New("previous block isn't valid")
+		return
+	}
+
+	state := &model.State{
+		FinishedBlockHeight:    uint64(previousBlock.Height),
+		FinishedBlockHash:      previousBlock.IndepHash,
+		FinishedBlockTimestamp: uint64(previousBlock.Timestamp),
+	}
+
+	err = self.db.WithContext(self.Ctx).Model(&model.State{Name: self.syncedComponent}).Updates(state).Error
+	return
 }

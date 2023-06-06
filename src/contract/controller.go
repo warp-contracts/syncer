@@ -53,6 +53,8 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 
 		blockDownloader := listener.NewBlockDownloader(config).
 			WithClient(client).
+			WithDB(db).
+			WithSyncedComponent(model.SyncedComponentContracts).
 			WithInputChannel(networkMonitor.Output).
 			WithBackoff(0, config.Contract.TransactionMaxInterval).
 			WithMonitor(monitor)

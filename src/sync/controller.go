@@ -50,6 +50,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 		blockDownloader := listener.NewBlockDownloader(config).
 			WithClient(client).
+			WithDB(db).
+			WithSyncedComponent(model.SyncedComponentInteractions).
 			WithInputChannel(networkMonitor.Output).
 			WithMonitor(monitor).
 			WithBackoff(0, config.Syncer.TransactionMaxInterval).
