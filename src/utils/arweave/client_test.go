@@ -61,7 +61,7 @@ func (s *ClientTestSuite) TestCheckPeer() {
 }
 
 func (s *ClientTestSuite) TestGetBlockByHeight() {
-	out, err := s.client.GetBlockByHeight(s.ctx, 1082024)
+	out, _, err := s.client.GetBlockByHeight(s.ctx, 1082024)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), out)
 	require.NotZero(s.T(), out.Height)
