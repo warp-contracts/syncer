@@ -3,6 +3,7 @@ package forward
 import (
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -131,6 +132,7 @@ func (self *Sequencer) run() (err error) {
 
 func (self *Sequencer) emit(newHeight uint64) (err error) {
 	for newHeight > self.currentHeight {
+		time.Sleep(self.Config.Forwarder.HeightDelay)
 		// Update height that we are currently at
 		self.currentHeight += 1
 		select {
