@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"github.com/go-resty/resty/v2"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -110,11 +111,11 @@ func (self *Client) CheckPeerConnection(ctx context.Context, peer string) (out *
 }
 
 // https://docs.arweave.org/developers/server/http-api#get-block-by-height
-func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Block, err error) {
+func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Block, resp *resty.Response, err error) {
 	req, cancel := self.Request(ctx)
 	defer cancel()
 
-	resp, err := req.
+	resp, err = req.
 		SetResult(&Block{}).
 		SetPathParam("height", strconv.FormatInt(height, 10)).
 		ForceContentType("application/json").

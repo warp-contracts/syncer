@@ -60,7 +60,7 @@ func (self *BlockDownloader) run() (err error) {
 
 	retry:
 
-		block, err := self.client.GetBlockByHeight(self.Ctx, networkInfo.Height)
+		block, _, err := self.client.GetBlockByHeight(self.Ctx, networkInfo.Height)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to get block")
 			time.Sleep(10 * time.Second)

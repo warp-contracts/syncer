@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/go-resty/resty/v2"
 	"math"
 	"time"
 
@@ -77,7 +78,7 @@ func (self *BlockDownloader) WithBackoff(maxElapsedTime, maxInterval time.Durati
 
 func (self *BlockDownloader) WithHeightRange(start, stop uint64) *BlockDownloader {
 	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
-		block, err := self.client.GetBlockByHeight(self.Ctx, int64(start-1))
+		block, _, err := self.client.GetBlockByHeight(self.Ctx, int64(start-1))
 		if err != nil {
 			return err
 		}
@@ -162,14 +163,18 @@ func (self *BlockDownloader) run() error {
 					return err
 				}).
 				Run(func() (err error) {
-					block, err = self.client.GetBlockByHeight(self.Ctx, int64(height))
+					var resp *resty.Response
+					block, resp, err = self.client.GetBlockByHeight(self.Ctx, int64(height))
 					if err != nil {
 						return err
 					}
 
 					if len(lastProcessedBlockHash) > 0 &&
 						!bytes.Equal(lastProcessedBlockHash, block.PreviousBlock) {
-						self.Log.WithField("height", height).
+						self.Log.
+							WithField("height", height).
+							WithField("age", resp.Header().Get("Age")).
+							WithField("x-trace", resp.Header().Get("X-Trace")).
 							WithField("last_processed_block_hash", lastProcessedBlockHash).
 							WithField("previous_block", block.PreviousBlock).
 							Error("Previous block hash isn't valid")
@@ -183,7 +188,11 @@ func (self *BlockDownloader) run() error {
 					}
 
 					if !block.IsValid() {
-						self.Log.WithField("height", height).Error("Block hash isn't valid")
+						self.Log.
+							WithField("height", height).
+							WithField("age", resp.Header().Get("Age")).
+							WithField("x-trace", resp.Header().Get("X-Trace")).
+							Error("Block hash isn't valid")
 						self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
 						err = errors.New("block isn't valid")
 						return
