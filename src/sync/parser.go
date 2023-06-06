@@ -68,9 +68,10 @@ func (self *Parser) run() error {
 		case <-self.Ctx.Done():
 			return nil
 		case self.Output <- &Payload{
-			BlockHeight:  uint64(payload.BlockHeight),
-			BlockHash:    payload.BlockHash,
-			Interactions: interactions,
+			BlockHeight:    uint64(payload.BlockHeight),
+			BlockHash:      payload.BlockHash,
+			BlockTimestamp: uint64(payload.BlockTimestamp),
+			Interactions:   interactions,
 		}:
 		}
 	}

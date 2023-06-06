@@ -6,7 +6,8 @@ import (
 )
 
 type Payload struct {
-	BlockHeight  uint64
-	BlockHash    arweave.Base64String
-	Interactions []*model.Interaction
+	BlockHeight    uint64
+	BlockHash      arweave.Base64String
+	BlockTimestamp uint64
+	Interactions   []*model.Interaction
 }

@@ -22,6 +22,7 @@ type Store struct {
 	monitor monitoring.Monitor
 
 	savedBlockHeight  uint64
+	finishedTimestamp uint64
 	finishedHeight    uint64
 	finishedBlockHash []byte
 }
@@ -54,6 +55,7 @@ func (self *Store) WithDB(v *gorm.DB) *Store {
 }
 
 func (self *Store) process(payload *Payload) (out []*model.Interaction, err error) {
+	self.finishedTimestamp = payload.BlockTimestamp
 	self.finishedHeight = payload.BlockHeight
 	self.finishedBlockHash = payload.BlockHash
 	out = payload.Interactions
@@ -79,8 +81,9 @@ func (self *Store) flush(data []*model.Interaction) (out []*model.Interaction, e
 					Name: model.SyncedComponentInteractions,
 				}).
 				Updates(model.State{
-					FinishedBlockHeight: self.finishedHeight,
-					FinishedBlockHash:   self.finishedBlockHash,
+					FinishedBlockTimestamp: self.finishedTimestamp,
+					FinishedBlockHeight:    self.finishedHeight,
+					FinishedBlockHash:      self.finishedBlockHash,
 				}).
 				Error
 			if err != nil {
