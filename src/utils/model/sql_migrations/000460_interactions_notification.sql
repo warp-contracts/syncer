@@ -10,10 +10,10 @@ DECLARE
    	is_too_big boolean;
 	payload jsonb;
 BEGIN
-    -- Notify only upon L2 changes
-    IF NEW.source != 'redstone-sequencer' THEN
-        RETURN NEW;
-    END IF;
+	-- Notify only upon L2 changes
+	IF NEW.source != 'redstone-sequencer' THEN
+		RETURN NEW;
+	END IF;
 
 	-- Skip if there's a risk pg_notify would fail
 	SELECT pg_notification_queue_usage() > 0.9 INTO is_queue_full;
@@ -22,9 +22,6 @@ BEGIN
 		RETURN NEW;
 	END IF;
 
-    -- Neglect big interactions
-    SELECT pg_column_size(NEW.interaction) > 7950 INTO is_too_big;
-
 	-- Skip if there's no forwarder listening
 	SELECT EXISTS(SELECT pid FROM pg_stat_activity WHERE query='listen "interactions"') INTO is_forwarder_listening;
 	IF NOT is_forwarder_listening THEN
@@ -32,14 +29,17 @@ BEGIN
 		RETURN NEW;
 	END IF;
 
-    IF NOT is_too_big THEN
-        payload = jsonb_build_object(
-            'interaction', NEW.interaction
-        );
-		PERFORM pg_notify('interactions', payload::TEXT);
-    END IF;
+	-- Neglect big interactions
+	SELECT pg_column_size(NEW.interaction) > 7950 INTO is_too_big;
 
-    RETURN NEW;
+	IF NOT is_too_big THEN
+		payload = jsonb_build_object(
+			'interaction', NEW.interaction
+		);
+		PERFORM pg_notify('interactions', payload::TEXT);
+	END IF;
+
+	RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 -- +migrate StatementEnd

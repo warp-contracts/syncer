@@ -9,10 +9,10 @@ DECLARE
 	is_forwarder_listening boolean;
 	payload jsonb;
 BEGIN
-    -- Notify only upon Sequencer's changes
-    IF NEW.name != 'Syncer' THEN
-        RETURN NEW;
-    END IF;
+	-- Notify only upon Sequencer's changes
+	IF NEW.name != 'Syncer' THEN
+		RETURN NEW;
+	END IF;
 
 	-- Skip if there's a risk pg_notify would fail
 	SELECT pg_notification_queue_usage() > 0.999 INTO is_queue_full;
@@ -29,12 +29,12 @@ BEGIN
 		RETURN NEW;
 	END IF;
 
-    PERFORM pg_notify('sync_state_syncer', jsonb_build_object(
-        'finished_block_height', NEW.finished_block_height,
-        'finished_block_hash', NEW.finished_block_hash
-    )::TEXT);
+	PERFORM pg_notify('sync_state_syncer', jsonb_build_object(
+		'finished_block_height', NEW.finished_block_height,
+		'finished_block_hash', NEW.finished_block_hash
+	)::TEXT);
 
-    RETURN NEW;
+	RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 -- +migrate StatementEnd

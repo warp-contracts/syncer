@@ -41,7 +41,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor).
 		WithInputChannel(sequencer.Output)
 
-	// Gets L2 interactions (just the needed fields) through Postgres notifications, parses an passes further
+	// Gets L2 interactions (just the needed fields) through Postgres notifications, parses and passes further
 	interactionStreamer := NewInteractionStreamer(config).
 		WithMonitor(monitor)
 

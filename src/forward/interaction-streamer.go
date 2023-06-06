@@ -64,8 +64,6 @@ func (self *InteractionStreamer) run() (err error) {
 				return
 			}
 
-			self.Log.Info("AAAAAAAAAAAAAAAAAAa")
-
 			payload := &Payload{
 				Interaction: &interaction,
 			}

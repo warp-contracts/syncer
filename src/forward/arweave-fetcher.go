@@ -87,13 +87,8 @@ func (self *ArweaveFetcher) run() (err error) {
 						return
 					}
 
-					// Updat sync height
-					err = self.updateSyncedHeight(tx, height)
-					if err != nil {
-						return
-					}
-
-					return
+					// Update sync height
+					return self.updateSyncedHeight(tx, height)
 				})
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to fetch interactions from DB")
@@ -171,7 +166,8 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 
 	// Fill in last sort key for each interaction
 	for _, interaction := range interactions {
-		interaction.LastSortKey = lastSortKeys[interaction.ContractId]
+		interaction.LastSortKey = out[interaction.ContractId]
+		out[interaction.ContractId] = interaction.SortKey
 	}
 
 	// Update last sort key for each contract
@@ -214,7 +210,6 @@ func (self *ArweaveFetcher) getLastSortKeys(tx *gorm.DB, contractIds []string, h
 		Where("contract_id IN ?", contractIds).
 		Where("block_height < ?", height).
 		Group("contract_id").
-		Order("sort_key DESC").
 		Find(&interactions).
 		Error
 	if err != nil {

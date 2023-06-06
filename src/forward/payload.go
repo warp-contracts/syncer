@@ -13,5 +13,5 @@ func (self *Payload) IsFirst() bool {
 }
 
 func (self *Payload) IsLast() bool {
-	return self.First
+	return self.Last
 }

@@ -1,5 +1,5 @@
 -- +migrate Down
-DROP TRIGGER IF EXISTS interactions_notify_l2 ON bundle_items;
+DROP TRIGGER IF EXISTS interactions_notify_l2 ON interactions;
 
 -- +migrate Up
 
