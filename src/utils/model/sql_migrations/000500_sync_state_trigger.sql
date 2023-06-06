@@ -1,5 +1,5 @@
 -- +migrate Down
-DROP TRIGGER IF EXISTS sync_state_notify ON bundle_items;
+DROP TRIGGER IF EXISTS sync_state_notify ON sync_state;
 
 -- +migrate Up
 
@@ -14,7 +14,7 @@ DO $$ BEGIN IF NOT EXISTS (
 ) THEN CREATE TRIGGER sync_state_notify
 AFTER
 INSERT
-    ON interactions FOR EACH ROW EXECUTE PROCEDURE notify_sync_state();
+    ON sync_state FOR EACH ROW EXECUTE PROCEDURE notify_sync_state();
 END IF;
 END $$;
 -- +migrate StatementEnd
