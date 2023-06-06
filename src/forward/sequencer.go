@@ -2,6 +2,8 @@ package forward
 
 import (
 	"encoding/json"
+	"errors"
+	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -57,7 +59,7 @@ func (self *Sequencer) WithMonitor(monitor monitoring.Monitor) *Sequencer {
 
 func (self *Sequencer) WithInitStartHeight(db *gorm.DB) *Sequencer {
 	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
-		// Get the last storeserverd block height from the database
+		// Get the last block height from the database
 		var sequencerState, forwarderState model.State
 
 		err = db.WithContext(self.Ctx).
@@ -83,15 +85,12 @@ func (self *Sequencer) WithInitStartHeight(db *gorm.DB) *Sequencer {
 			WithField("forwarder_finished_height", forwarderState.FinishedBlockHeight).
 			Info("Downloaded sync state")
 
-		if sequencerState.FinishedBlockHeight > forwarderState.FinishedBlockHeight {
-			select {
-			case <-self.Ctx.Done():
-				return nil
-			case self.Output <- sequencerState.FinishedBlockHeight:
-			}
-		}
-
+		// Emit height change one by one
 		self.currentHeight = forwarderState.FinishedBlockHeight
+		err = self.emit(sequencerState.FinishedBlockHeight)
+		if err != nil {
+			return
+		}
 
 		return nil
 	})
@@ -106,7 +105,7 @@ func (self *Sequencer) run() (err error) {
 			return nil
 		case msg, ok := <-self.streamer.Output:
 			if !ok {
-				self.Log.Info("Syncer changed its finished height")
+				self.Log.Error("Streamer closed, can't receive sequencer's state changes!")
 				return nil
 			}
 
@@ -122,18 +121,28 @@ func (self *Sequencer) run() (err error) {
 				continue
 			}
 
-			// Update height that we are currently at
-			self.currentHeight = state.FinishedBlockHeight
-
-			// Update metrics
-			self.monitor.GetReport().Forwarder.State.CurrentHeight.Inc()
-
-			select {
-			case <-self.Ctx.Done():
-				return nil
-			case self.Output <- state.FinishedBlockHeight:
+			// Emit height change one by one
+			err = self.emit(state.FinishedBlockHeight)
+			if err != nil {
+				return
 			}
-
 		}
 	}
+}
+
+func (self *Sequencer) emit(newHeight uint64) (err error) {
+	for newHeight > self.currentHeight {
+		time.Sleep(self.Config.Forwarder.HeightDelay)
+		// Update height that we are currently at
+		self.currentHeight += 1
+		select {
+		case <-self.Ctx.Done():
+			return errors.New("Sequencer stopped")
+		case self.Output <- self.currentHeight:
+		}
+
+		// Update metrics
+		self.monitor.GetReport().Forwarder.State.CurrentHeight.Inc()
+	}
+	return
 }

@@ -14,9 +14,9 @@ const (
 )
 
 type Interaction struct {
-	ID                 int
+	ID                 int `json:"id"`
 	InteractionId      string
-	Interaction        string
+	Interaction        string `json:"interaction"`
 	BlockHeight        int64
 	BlockId            arweave.Base64String
 	ContractId         string
@@ -25,6 +25,7 @@ type Interaction struct {
 	ConfirmationStatus string
 	InteractWrite      pq.StringArray `gorm:"type:text[]"`
 	SortKey            string
+	LastSortKey        string
 
 	// https://github.com/warp-contracts/gateway/blob/main/src/gateway/tasks/syncTransactions.ts#L175
 	Evolve sql.NullString
