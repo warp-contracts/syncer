@@ -362,6 +362,12 @@ func (self *BaseClient) SetPeers(peers []string) {
 	self.mtx.Unlock()
 }
 
+func (self *BaseClient) GetCachedPeers() []string {
+	self.mtx.RLock()
+	defer self.mtx.RUnlock()
+	return self.peers
+}
+
 func (self *BaseClient) Request(ctx context.Context) (*resty.Request, context.CancelFunc) {
 	self.mtx.RLock()
 	defer self.mtx.RUnlock()

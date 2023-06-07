@@ -5,9 +5,8 @@ import (
 	"context"
 	"errors"
 	"math"
+	"sync"
 	"time"
-
-	"github.com/go-resty/resty/v2"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -54,6 +53,7 @@ func NewBlockDownloader(config *config.Config) (self *BlockDownloader) {
 
 	self.Task = task.NewTask(config, "block-downloader").
 		WithSubtaskFunc(self.run).
+		WithWorkerPool(config.PeerMonitor.MaxPeers, 1).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})
@@ -164,40 +164,12 @@ func (self *BlockDownloader) run() error {
 					return err
 				}).
 				Run(func() (err error) {
-					var resp *resty.Response
-					block, resp, err = self.client.GetBlockByHeight(self.Ctx, int64(height))
+					blocks, err := self.downloadBlocks(height, lastProcessedBlockHash)
 					if err != nil {
 						return err
 					}
 
-					if len(lastProcessedBlockHash) > 0 &&
-						!bytes.Equal(lastProcessedBlockHash, block.PreviousBlock) {
-						self.Log.
-							WithField("height", height).
-							WithField("age", resp.Header().Get("Age")).
-							WithField("x-trace", resp.Header().Get("X-Trace")).
-							WithField("last_processed_block_hash", lastProcessedBlockHash.Base64()).
-							WithField("previous_block", block.PreviousBlock.Base64()).
-							Error("Previous block hash isn't valid")
-
-						self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
-
-						// TODO: Try downloading with another peer
-						// TODO: Log malicious peer
-						err = errors.New("previous block hash isn't valid")
-						return
-					}
-
-					if !block.IsValid() {
-						self.Log.
-							WithField("height", height).
-							WithField("age", resp.Header().Get("Age")).
-							WithField("x-trace", resp.Header().Get("X-Trace")).
-							Error("Block hash isn't valid")
-						self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
-						err = errors.New("block isn't valid")
-						return
-					}
+					block, err = self.vote(blocks)
 
 					return
 				})
@@ -225,4 +197,125 @@ func (self *BlockDownloader) run() error {
 	}
 
 	return nil
+}
+
+func (self *BlockDownloader) downloadBlocks(height uint64, lastProcessedBlockHash arweave.Base64String) (out []*arweave.Block, err error) {
+	var mtx sync.Mutex
+	var wg sync.WaitGroup
+
+	peers := append(self.client.GetCachedPeers(), self.Config.Arweave.NodeUrl)
+	out = make([]*arweave.Block, 0, len(peers))
+	wg.Add(len(peers))
+
+	// Download blocks from all peers in parallel
+	for _, peer := range peers {
+		peer := peer
+		self.SubmitToWorker(func() {
+			block, err := self.downloadOneBlock(height, lastProcessedBlockHash, peer)
+			if err != nil {
+				block = nil
+			}
+			mtx.Lock()
+			if block != nil {
+				out = append(out, block)
+			}
+			mtx.Unlock()
+			wg.Done()
+		})
+	}
+
+	// Wait for all workers to finish
+	wg.Wait()
+
+	return
+}
+
+func (self *BlockDownloader) downloadOneBlock(height uint64, lastProcessedBlockHash arweave.Base64String, peer string) (block *arweave.Block, err error) {
+	ctx := context.WithValue(self.Ctx, arweave.ContextDisablePeers, true)
+	if len(peer) > 0 {
+		// Force using this peer if set
+		// Otherwise use arweave.net
+		ctx = context.WithValue(ctx, arweave.ContextForcePeer, peer)
+	}
+
+	block, resp, err := self.client.GetBlockByHeight(ctx, int64(height))
+	if err != nil {
+		self.Log.
+			WithError(err).
+			WithField("height", height).
+			WithField("peer", peer).
+			Error("Failed to download block")
+		return
+	}
+
+	if !block.IsValid() {
+		self.Log.
+			WithField("height", height).
+			WithField("peer", peer).
+			WithField("age", resp.Header().Get("Age")).
+			WithField("x-trace", resp.Header().Get("X-Trace")).
+			Error("Block hash isn't valid")
+		self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
+		err = errors.New("block isn't valid")
+		return
+	}
+
+	if len(lastProcessedBlockHash) > 0 &&
+		!bytes.Equal(lastProcessedBlockHash, block.PreviousBlock) {
+		self.Log.
+			WithField("height", height).
+			WithField("age", resp.Header().Get("Age")).
+			WithField("x-trace", resp.Header().Get("X-Trace")).
+			WithField("last_processed_block_hash", lastProcessedBlockHash.Base64()).
+			WithField("previous_block", block.PreviousBlock.Base64()).
+			WithField("peer", peer).
+			Warn("Previous block hash isn't valid")
+		// This doesn't mean it's a bad block, we may have a fork
+	}
+
+	return
+}
+
+func (self *BlockDownloader) vote(blocks []*arweave.Block) (out *arweave.Block, err error) {
+	minNumberOfVotes := math.Min((math.Round(2.0 * float64(len(blocks)) / 3.0)), float64(len(blocks)))
+	self.Log.WithField("min_number_of_votes", minNumberOfVotes).Info("Voting for the best block")
+	// Pick the most common block
+	votes := make(map[string]int)
+	for _, block := range blocks {
+		votes[block.IndepHash.Base64()] += 1
+	}
+
+	if len(votes) > 1 {
+		self.Log.
+			WithField("votes", votes).
+			WithField("min_number_of_votes", minNumberOfVotes).
+			Warn("Detected non-unanimous vote")
+	} else {
+		self.Log.WithField("num_votes", len(blocks)).Debug("Unanimous vote")
+	}
+
+	// Pick the most voted block
+	for hash, count := range votes {
+		if float64(count) < minNumberOfVotes {
+			continue
+		}
+
+		// This block got enough votes
+		for _, block := range blocks {
+			if block.IndepHash.Base64() == hash {
+				out = block
+				break
+			}
+		}
+		break
+	}
+
+	if out == nil {
+		self.Log.WithField("votes", votes).
+			WithField("min_number_of_votes", minNumberOfVotes).
+			Error("None of the blocks got enough vote")
+		err = errors.New("none of the blocks got enough votes")
+		return
+	}
+	return
 }
