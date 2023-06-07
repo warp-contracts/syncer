@@ -24,6 +24,7 @@ type Store struct {
 
 	savedBlockHeight  uint64
 	finishedHeight    uint64
+	finishedTimestamp uint64
 	finishedBlockHash []byte
 
 	replaceExistingData bool
@@ -63,6 +64,7 @@ func (self *Store) WithDB(v *gorm.DB) *Store {
 
 func (self *Store) process(payload *Payload) (data []*ContractData, err error) {
 	self.finishedHeight = payload.BlockHeight
+	self.finishedTimestamp = payload.BlockTimestamp
 	self.finishedBlockHash = payload.BlockHash
 	data = payload.Data
 	return
@@ -116,8 +118,9 @@ func (self *Store) flush(data []*ContractData) (out []*ContractData, err error) 
 						Name: model.SyncedComponentContracts,
 					}).
 					Updates(model.State{
-						FinishedBlockHeight: self.finishedHeight,
-						FinishedBlockHash:   self.finishedBlockHash,
+						FinishedBlockHeight:    self.finishedHeight,
+						FinishedBlockTimestamp: self.finishedTimestamp,
+						FinishedBlockHash:      self.finishedBlockHash,
 					}).
 					Error
 				if err != nil {

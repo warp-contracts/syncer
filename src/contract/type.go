@@ -11,7 +11,8 @@ type ContractData struct {
 }
 
 type Payload struct {
-	BlockHeight uint64
-	BlockHash   arweave.Base64String
-	Data        []*ContractData
+	BlockHeight    uint64
+	BlockTimestamp uint64
+	BlockHash      arweave.Base64String
+	Data           []*ContractData
 }

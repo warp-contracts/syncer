@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/go-resty/resty/v2"
 	"math"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -175,8 +176,8 @@ func (self *BlockDownloader) run() error {
 							WithField("height", height).
 							WithField("age", resp.Header().Get("Age")).
 							WithField("x-trace", resp.Header().Get("X-Trace")).
-							WithField("last_processed_block_hash", lastProcessedBlockHash).
-							WithField("previous_block", block.PreviousBlock).
+							WithField("last_processed_block_hash", lastProcessedBlockHash.Base64()).
+							WithField("previous_block", block.PreviousBlock.Base64()).
 							Error("Previous block hash isn't valid")
 
 						self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
