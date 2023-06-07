@@ -277,7 +277,7 @@ func (self *BlockDownloader) downloadOneBlock(height uint64, lastProcessedBlockH
 }
 
 func (self *BlockDownloader) vote(blocks []*arweave.Block) (out *arweave.Block, err error) {
-	minNumberOfVotes := math.Min((math.Round(2.0 * float64(len(blocks)) / 3.0)), float64(len(blocks)))
+	minNumberOfVotes := int(math.Round(2.0 * float64(len(blocks)) / 3.0))
 	self.Log.WithField("min_number_of_votes", minNumberOfVotes).Info("Voting for the best block")
 	// Pick the most common block
 	votes := make(map[string]int)
@@ -295,27 +295,33 @@ func (self *BlockDownloader) vote(blocks []*arweave.Block) (out *arweave.Block, 
 	}
 
 	// Pick the most voted block
-	for hash, count := range votes {
-		if float64(count) < minNumberOfVotes {
-			continue
-		}
-
-		// This block got enough votes
-		for _, block := range blocks {
-			if block.IndepHash.Base64() == hash {
-				out = block
-				break
-			}
-		}
-		break
-	}
-
-	if out == nil {
+	hash := getHashWithMaxVotes(votes, minNumberOfVotes)
+	if len(hash) == 0 {
 		self.Log.WithField("votes", votes).
 			WithField("min_number_of_votes", minNumberOfVotes).
 			Error("None of the blocks got enough vote")
 		err = errors.New("none of the blocks got enough votes")
 		return
 	}
+
+	// Get the most voted block
+	for _, block := range blocks {
+		if block.IndepHash.Base64() == hash {
+			out = block
+			break
+		}
+	}
+
 	return
+}
+
+func getHashWithMaxVotes(votes map[string]int, minNumberOfVotes int) string {
+	// Pick the most voted block
+	for hash, count := range votes {
+		if count >= minNumberOfVotes {
+			return hash
+		}
+	}
+
+	return ""
 }
