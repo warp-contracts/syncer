@@ -125,14 +125,31 @@ func (self *Sequencer) catchUp() (err error) {
 
 	// Emit height change one by one
 	self.currentHeight = forwarderState.FinishedBlockHeight
-	err = self.emit(syncerState.FinishedBlockHeight)
-	if err != nil {
-		return
+
+	// Emitting may take a while, so we need to check if we are still in sync
+	for syncerState.FinishedBlockHeight <= self.currentHeight {
+		err = self.emit(syncerState.FinishedBlockHeight)
+		if err != nil {
+			return
+		}
+
+		syncerState, err = self.getSyncerState()
+		if err != nil {
+			return
+		}
 	}
 
 	self.Log.Info("Height changes emitted")
 
 	return nil
+}
+
+func (self *Sequencer) getSyncerState() (state model.State, err error) {
+	err = self.db.WithContext(self.Ctx).
+		Table(model.TableState).
+		Find(&state, model.SyncedComponentInteractions).
+		Error
+	return
 }
 
 func (self *Sequencer) emit(newHeight uint64) (err error) {
