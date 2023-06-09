@@ -35,7 +35,7 @@ func NewSequencer(config *config.Config) (self *Sequencer) {
 	self.Output = make(chan uint64)
 
 	self.streamer = streamer.NewStreamer(config, "sequence-sync-state").
-		WithNotificationChannelName("sync_state_sequencer").
+		WithNotificationChannelName("sync_state_syncer").
 		WithCapacity(10)
 
 	self.Task = task.NewTask(config, "sequencer").
@@ -114,11 +114,11 @@ func (self *Sequencer) catchUp() (err error) {
 				Error
 		})
 	if err != nil {
-		self.Log.WithError(err).Error("Failed to sync state for forwarder and sequencer")
+		self.Log.WithError(err).Error("Failed to sync state for forwarder and syncer")
 		return
 	}
 
-	self.Log.WithField("sequencer_finished_height", syncerState.FinishedBlockHeight).
+	self.Log.WithField("syncer_finished_height", syncerState.FinishedBlockHeight).
 		WithField("forwarder_finished_height", forwarderState.FinishedBlockHeight).
 		Info("Downloaded sync state. Emitting height changes...")
 
