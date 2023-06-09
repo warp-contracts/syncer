@@ -57,47 +57,12 @@ func (self *Sequencer) WithMonitor(monitor monitoring.Monitor) *Sequencer {
 	return self
 }
 
-func (self *Sequencer) WithInitStartHeight(db *gorm.DB) *Sequencer {
-	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
-		// Get the last block height from the database
-		var sequencerState, forwarderState model.State
-
-		err = db.WithContext(self.Ctx).
-			Transaction(func(tx *gorm.DB) error {
-				err = tx.WithContext(self.Ctx).
-					Table(model.TableState).
-					Find(&forwarderState, model.SyncedComponentForwarder).
-					Error
-				if err != nil {
-					return err
-				}
-				return tx.WithContext(self.Ctx).
-					Table(model.TableState).
-					Find(&sequencerState, model.SyncedComponentSequencer).
-					Error
-			})
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to sync state for forwarder and sequencer")
-			return
-		}
-
-		self.Log.WithField("sequencer_finished_height", sequencerState.FinishedBlockHeight).
-			WithField("forwarder_finished_height", forwarderState.FinishedBlockHeight).
-			Info("Downloaded sync state")
-
-		// Emit height change one by one
-		self.currentHeight = forwarderState.FinishedBlockHeight
-		err = self.emit(sequencerState.FinishedBlockHeight)
-		if err != nil {
-			return
-		}
-
-		return nil
-	})
-	return self
-}
-
 func (self *Sequencer) run() (err error) {
+	err = self.catchUp()
+	if err != nil {
+		return
+	}
+
 	for {
 		select {
 		case <-self.Ctx.Done():
@@ -130,11 +95,51 @@ func (self *Sequencer) run() (err error) {
 	}
 }
 
+func (self *Sequencer) catchUp() (err error) {
+	// Get the last block height from the database
+	var syncerState, forwarderState model.State
+
+	err = self.db.WithContext(self.Ctx).
+		Transaction(func(tx *gorm.DB) error {
+			err = tx.WithContext(self.Ctx).
+				Table(model.TableState).
+				Find(&forwarderState, model.SyncedComponentForwarder).
+				Error
+			if err != nil {
+				return err
+			}
+			return tx.WithContext(self.Ctx).
+				Table(model.TableState).
+				Find(&syncerState, model.SyncedComponentInteractions).
+				Error
+		})
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to sync state for forwarder and sequencer")
+		return
+	}
+
+	self.Log.WithField("sequencer_finished_height", syncerState.FinishedBlockHeight).
+		WithField("forwarder_finished_height", forwarderState.FinishedBlockHeight).
+		Info("Downloaded sync state. Emitting height changes...")
+
+	// Emit height change one by one
+	self.currentHeight = forwarderState.FinishedBlockHeight
+	err = self.emit(syncerState.FinishedBlockHeight)
+	if err != nil {
+		return
+	}
+
+	self.Log.Info("Height changes emitted")
+
+	return nil
+}
+
 func (self *Sequencer) emit(newHeight uint64) (err error) {
 	for newHeight > self.currentHeight {
 		time.Sleep(self.Config.Forwarder.HeightDelay)
 		// Update height that we are currently at
 		self.currentHeight += 1
+		self.Log.WithField("current_height", self.currentHeight).Debug("Emitting height change")
 		select {
 		case <-self.Ctx.Done():
 			return errors.New("Sequencer stopped")

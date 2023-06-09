@@ -33,7 +33,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Block height changes from sequencer
 	sequencer := NewSequencer(config).
 		WithMonitor(monitor).
-		WithInitStartHeight(db)
+		WithDB(db)
 
 	// Fetches L1 interactions from the DB every time the block height changes
 	fetcher := NewArweaveFetcher(config).

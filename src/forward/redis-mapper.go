@@ -15,6 +15,8 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 				return nil
 			}
 
+			self.Log.WithField("contract_id", data.Interaction.ContractId).Debug("Publishing interaction to Redis")
+
 			// TODO: Neglect messages that are too big
 			select {
 			case <-self.Ctx.Done():

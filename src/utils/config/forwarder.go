@@ -14,11 +14,12 @@ type Forwarder struct {
 	PublisherRedisChannelName string
 
 	// How long to wait before after receiving a new block height before sending L1 interactions
+	// This delay ensures sequencer finishes handling requests in time
 	HeightDelay time.Duration
 }
 
 func setForwarderDefaults() {
-	viper.SetDefault("Forwarder.FetcherBatchSize", "100")
+	viper.SetDefault("Forwarder.FetcherBatchSize", "10")
 	viper.SetDefault("Forwarder.PublisherRedisChannelName", "interactions")
 	viper.SetDefault("Forwarder.HeightDelay", "1s")
 }
