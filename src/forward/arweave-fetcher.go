@@ -96,6 +96,10 @@ func (self *ArweaveFetcher) run() (err error) {
 				return
 			}
 
+			if len(interactions) == 0 && offset == 0 {
+				self.Log.WithField("height", height).Info("No interactions for this height")
+			}
+
 			if len(interactions) == 0 && offset != 0 {
 				// Edge case: num of interactions is a multiple of batch size
 				payload := &Payload{First: false, Last: true, Interaction: nil}

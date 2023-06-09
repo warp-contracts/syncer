@@ -120,6 +120,7 @@ func (self *Sequencer) catchUp() (err error) {
 
 	self.Log.WithField("syncer_finished_height", syncerState.FinishedBlockHeight).
 		WithField("forwarder_finished_height", forwarderState.FinishedBlockHeight).
+		WithField("heigh_to_catch_up", syncerState.FinishedBlockHeight-forwarderState.FinishedBlockHeight).
 		Info("Downloaded sync state. Emitting height changes...")
 
 	// Emit height change one by one

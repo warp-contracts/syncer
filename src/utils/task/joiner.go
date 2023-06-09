@@ -58,6 +58,8 @@ func (self *Joiner[In]) handleOneInput(input chan In) error {
 	var isOwner bool
 
 	for in := range input {
+		self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Received message from input channel")
+
 		// Lock only if it's not already owned
 		if !isOwner {
 			if in.IsFirst() {
