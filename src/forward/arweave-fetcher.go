@@ -48,7 +48,6 @@ func (self *ArweaveFetcher) WithInputChannel(input chan uint64) *ArweaveFetcher 
 }
 
 func (self *ArweaveFetcher) run() (err error) {
-	self.Log.Debug("START FETDCHING")
 	for height := range self.input {
 		self.Log.WithField("height", height).Debug("New height to fetch")
 		// Cache Contract id -> interaction sort key
