@@ -127,7 +127,7 @@ func (self *Sequencer) catchUp() (err error) {
 	self.currentHeight = forwarderState.FinishedBlockHeight
 
 	// Emitting may take a while, so we need to check if we are still in sync
-	for syncerState.FinishedBlockHeight <= self.currentHeight {
+	for syncerState.FinishedBlockHeight > self.currentHeight {
 		err = self.emit(syncerState.FinishedBlockHeight)
 		if err != nil {
 			return
