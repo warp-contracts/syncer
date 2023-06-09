@@ -10,7 +10,7 @@ DECLARE
 	payload jsonb;
 BEGIN
 	-- Notify only upon Sequencer's changes
-	IF NEW.name != 'Syncer' THEN
+	IF NEW.name != 'Interactions' THEN
 		RETURN NEW;
 	END IF;
 
