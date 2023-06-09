@@ -98,12 +98,12 @@ func (self *ArweaveFetcher) run() (err error) {
 
 			if len(interactions) == 0 && offset == 0 {
 				self.Log.WithField("height", height).Info("No interactions for this height")
-			}
-
-			if len(interactions) == 0 && offset != 0 {
+				break
+			} else if len(interactions) == 0 && offset != 0 {
 				// Edge case: num of interactions is a multiple of batch size
 				payload := &Payload{First: false, Last: true, Interaction: nil}
 				self.Output <- payload
+				break
 			} else {
 				isLastBatch := len(interactions) < self.Config.Forwarder.FetcherBatchSize
 				for i, interaction := range interactions {
@@ -116,6 +116,11 @@ func (self *ArweaveFetcher) run() (err error) {
 					// NOTE: Quit only when the whole batch is processed
 					// That's why we're not waiting for closing of this task
 					self.Output <- payload
+				}
+
+				// No more batches for this height
+				if isLastBatch {
+					break
 				}
 			}
 
