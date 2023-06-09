@@ -77,15 +77,14 @@ func (self *ArweaveFetcher) run() (err error) {
 					if err != nil {
 						return
 					}
-					if len(interactions) == 0 {
-						return
-					}
 
-					// Update last_sort_key for each interaction in the database
-					// As a optimization lastSortKeys are cached in memory
-					lastSortKeys, err = self.updateLastSortKey(tx, interactions, height, lastSortKeys)
-					if err != nil {
-						return
+					if len(interactions) != 0 {
+						// Update last_sort_key for each interaction in the database
+						// As a optimization lastSortKeys are cached in memory
+						lastSortKeys, err = self.updateLastSortKey(tx, interactions, height, lastSortKeys)
+						if err != nil {
+							return
+						}
 					}
 
 					// Update sync height
