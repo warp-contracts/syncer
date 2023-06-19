@@ -10,6 +10,7 @@ const (
 	TagSequencerBlockHeight    = "Sequencer-Block-Height"
 	TagSequencerBlockId        = "Sequencer-Block-Id"
 	TagSequencerBlockTimestamp = "Sequencer-Block-Timestamp"
+	TagSequencerNonce          = "Sequencer-Nonce"
 	TagInitState               = "Init-State"
 	TagInitStateTx             = "Init-State-TX"
 	TagInteractWrite           = "Interact-Write"
