@@ -20,6 +20,6 @@ type Forwarder struct {
 
 func setForwarderDefaults() {
 	viper.SetDefault("Forwarder.FetcherBatchSize", "10")
-	viper.SetDefault("Forwarder.PublisherRedisChannelName", "interactions")
+	viper.SetDefault("Forwarder.PublisherRedisChannelName", "contracts")
 	viper.SetDefault("Forwarder.HeightDelay", "1s")
 }
