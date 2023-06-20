@@ -20,7 +20,7 @@ type Interaction struct {
 	Interaction        pgtype.JSONB `json:"interaction"`
 	BlockHeight        int64
 	BlockId            arweave.Base64String
-	ContractId         string
+	ContractId         string `json:"contractId"`
 	Function           string
 	Input              string
 	ConfirmationStatus string
