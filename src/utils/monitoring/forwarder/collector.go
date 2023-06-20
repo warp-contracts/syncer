@@ -68,10 +68,10 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.UpForSeconds, prometheus.GaugeValue, float64(self.monitor.Report.Run.State.UpForSeconds.Load()))
 
 	// Forwarder
-	ch <- prometheus.MustNewConstMetric(self.FinishedHeight, prometheus.CounterValue, float64(self.monitor.Report.Forwarder.State.FinishedHeight.Load()))
+	ch <- prometheus.MustNewConstMetric(self.FinishedHeight, prometheus.GaugeValue, float64(self.monitor.Report.Forwarder.State.FinishedHeight.Load()))
 	ch <- prometheus.MustNewConstMetric(self.L1Interactions, prometheus.CounterValue, float64(self.monitor.Report.Forwarder.State.L1Interactions.Load()))
 	ch <- prometheus.MustNewConstMetric(self.L2Interactions, prometheus.CounterValue, float64(self.monitor.Report.Forwarder.State.L2Interactions.Load()))
-	ch <- prometheus.MustNewConstMetric(self.BlocksBehindSyncer, prometheus.CounterValue, float64(self.monitor.Report.Forwarder.State.BlocksBehindSyncer.Load()))
+	ch <- prometheus.MustNewConstMetric(self.BlocksBehindSyncer, prometheus.GaugeValue, float64(self.monitor.Report.Forwarder.State.BlocksBehindSyncer.Load()))
 
 	// Redis publisher
 	ch <- prometheus.MustNewConstMetric(self.RedisPublishErrors, prometheus.CounterValue, float64(self.monitor.Report.RedisPublisher.Errors.Publish.Load()))
