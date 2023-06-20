@@ -34,7 +34,7 @@ BEGIN
 
 	IF NOT is_too_big THEN
 		payload = jsonb_build_object(
-            'contractId', NEW.contractId,
+            'contractId', NEW.contract_id,
 			'interaction', NEW.interaction
 		);
 		PERFORM pg_notify('interactions', payload::TEXT);

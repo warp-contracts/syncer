@@ -68,9 +68,6 @@ func (self *ArweaveFetcher) run() (err error) {
 						Where("source=?", "arweave").
 						Limit(self.Config.Forwarder.FetcherBatchSize).
 						Offset(offset * self.Config.Forwarder.FetcherBatchSize).
-
-						// FIXME: -----------------> IS THIS ORDERING CORRECT? <-----------------
-						// This is the order DRE gets L1 interactions
 						Order("sort_key ASC").
 						Find(&interactions).
 						Error
@@ -92,6 +89,7 @@ func (self *ArweaveFetcher) run() (err error) {
 				})
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to fetch interactions from DB")
+				self.monitor.GetReport().Forwarder.Errors.DbFetchL1Interactions.Inc()
 				return
 			}
 
@@ -115,6 +113,9 @@ func (self *ArweaveFetcher) run() (err error) {
 					// NOTE: Quit only when the whole batch is processed
 					// That's why we're not waiting for closing of this task
 					self.Output <- payload
+
+					// Increment L1 interaction counter
+					self.monitor.GetReport().Forwarder.State.L1Interactions.Inc()
 				}
 
 				// No more batches for this height
@@ -151,11 +152,16 @@ func (self *ArweaveFetcher) updateSyncedHeight(tx *gorm.DB, height uint64) (err 
 			}).
 			Error
 		if err != nil {
-			self.Log.WithError(err).Error("Failed to update stmonitorate after last block")
-			self.monitor.GetReport().Contractor.Errors.DbLastTransactionBlockHeight.Inc()
+			self.Log.WithError(err).Error("Failed to update sync state after last block")
+			self.monitor.GetReport().Forwarder.Errors.DbLastTransactionBlockHeight.Inc()
 			return err
 		}
 	}
+
+	// Update monitoring
+	self.monitor.GetReport().Forwarder.State.FinishedHeight.Store(height)
+	self.monitor.GetReport().Forwarder.State.BlocksBehindSyncer.Store(self.monitor.GetReport().Forwarder.State.CurrentSyncerHeight.Load() - height)
+
 	return
 }
 

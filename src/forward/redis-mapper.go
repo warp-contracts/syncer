@@ -18,8 +18,10 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 			self.Log.WithField("contract_id", data.Interaction.ContractId).Debug("Publishing interaction to Redis")
 			interactionStr, err := data.Interaction.Interaction.MarshalJSON()
 			if err != nil {
+				self.Log.WithField("contract_id", data.Interaction.ContractId).Warn("Failed to marshal interaction")
 				return err
 			}
+
 			// TODO: Neglect messages that are too big
 			select {
 			case <-self.Ctx.Done():

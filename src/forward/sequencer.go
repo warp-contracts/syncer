@@ -165,7 +165,7 @@ func (self *Sequencer) emit(newHeight uint64) (err error) {
 		}
 
 		// Update metrics
-		self.monitor.GetReport().Forwarder.State.CurrentHeight.Inc()
+		self.monitor.GetReport().Forwarder.State.CurrentSyncerHeight.Store(newHeight)
 	}
 	return
 }

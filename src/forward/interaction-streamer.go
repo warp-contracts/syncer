@@ -61,6 +61,7 @@ func (self *InteractionStreamer) run() (err error) {
 			err = json.Unmarshal([]byte(msg), &interaction)
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to unmarshal interaction")
+				self.monitor.GetReport().Forwarder.Errors.DbFetchL2Interactions.Inc()
 				return
 			}
 
@@ -74,6 +75,9 @@ func (self *InteractionStreamer) run() (err error) {
 				return errors.New("InteractionStreamer stopped")
 			case self.Output <- payload:
 			}
+
+			// Update monitoring
+			self.monitor.GetReport().Forwarder.State.L2Interactions.Inc()
 		}
 	}
 }
