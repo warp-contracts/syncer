@@ -84,8 +84,11 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 		self.log.Error("Failed to marshal interaction")
 		return
 	}
-	out.Interaction = string(swInteractionJson)
-
+	err = out.Interaction.Set(swInteractionJson)
+	if err != nil {
+		self.log.Error("Failed set interaction JSON")
+		return
+	}
 	return
 }
 

@@ -16,7 +16,10 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 			}
 
 			self.Log.WithField("contract_id", data.Interaction.ContractId).Debug("Publishing interaction to Redis")
-
+			interactionStr, err := data.Interaction.Interaction.MarshalJSON()
+			if err != nil {
+				return err
+			}
 			// TODO: Neglect messages that are too big
 			select {
 			case <-self.Ctx.Done():
@@ -24,7 +27,7 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 				ContractTxId: data.Interaction.ContractId,
 				Test:         false,
 				Source:       "warp-gw",
-				Interaction:  data.Interaction.Interaction,
+				Interaction:  string(interactionStr),
 			}:
 			}
 

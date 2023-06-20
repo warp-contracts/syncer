@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 
+	"github.com/jackc/pgtype"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/smartweave"
 
@@ -16,7 +17,7 @@ const (
 type Interaction struct {
 	ID                 int `json:"id"`
 	InteractionId      string
-	Interaction        string `json:"interaction"`
+	Interaction        pgtype.JSONB `json:"interaction"`
 	BlockHeight        int64
 	BlockId            arweave.Base64String
 	ContractId         string

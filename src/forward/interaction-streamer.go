@@ -60,7 +60,7 @@ func (self *InteractionStreamer) run() (err error) {
 			var interaction model.Interaction
 			err = json.Unmarshal([]byte(msg), &interaction)
 			if err != nil {
-				self.Log.WithError(err).Error("Failed to unmarshal sequencer sync state")
+				self.Log.WithError(err).Error("Failed to unmarshal interaction")
 				return
 			}
 
