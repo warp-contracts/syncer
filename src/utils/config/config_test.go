@@ -42,5 +42,5 @@ func TestLoadConfigFromEnv(t *testing.T) {
 		panic(err)
 	}
 
-	assert.Equal(t, "qwer", c.Database.Name)
+	assert.Equal(t, "warp", c.Database.Name)
 }
