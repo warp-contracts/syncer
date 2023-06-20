@@ -2,6 +2,7 @@ package sync
 
 import (
 	"errors"
+	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -70,6 +71,16 @@ func (self *Store) flush(data []*model.Interaction) (out []*model.Interaction, e
 
 	self.Log.WithField("count", len(data)).Trace("Flushing contracts")
 	defer self.Log.Trace("Flushing contracts done")
+
+	// Set sync timestamp
+	now := time.Now().UnixMilli()
+	for _, interaction := range data {
+		err = interaction.SyncTimestamp.Set(now)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to set sync_timestamp")
+			return
+		}
+	}
 
 	err = self.DB.WithContext(self.Ctx).
 		Transaction(func(tx *gorm.DB) error {

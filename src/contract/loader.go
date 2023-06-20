@@ -227,7 +227,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 		return
 	}
 
-	err = out.SyncTimestamp.Set(time.Now().Unix())
+	err = out.SyncTimestamp.Set(time.Now().UnixMilli())
 	if err != nil {
 		return
 	}

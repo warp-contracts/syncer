@@ -28,6 +28,9 @@ type Interaction struct {
 	SortKey            string
 	LastSortKey        string
 
+	// Time when interaction was synced to te database
+	SyncTimestamp pgtype.Int8
+
 	// https://github.com/warp-contracts/gateway/blob/main/src/gateway/tasks/syncTransactions.ts#L175
 	Evolve sql.NullString
 
