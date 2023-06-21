@@ -130,7 +130,7 @@ func (self *Store) flush(data []*model.Interaction) (out []*model.Interaction, e
 	// Update saved block height
 	self.savedBlockHeight = self.finishedHeight
 
-	self.monitor.GetReport().Syncer.State.SyncerFinishedHeight.Store(int64(self.savedBlockHeight))
+	self.monitor.GetReport().Syncer.State.FinishedHeight.Store(int64(self.savedBlockHeight))
 
 	// Processing stops here, no need to return anything
 	out = nil

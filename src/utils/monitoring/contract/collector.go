@@ -13,6 +13,7 @@ type Collector struct {
 	NumWatchdogRestarts *prometheus.Desc
 
 	// Network
+	NetworkInfoDownloadErrors       *prometheus.Desc
 	ArweaveCurrentHeight            *prometheus.Desc
 	ArweaveLastNetworkInfoTimestamp *prometheus.Desc
 
@@ -26,10 +27,9 @@ type Collector struct {
 	NumPeers         *prometheus.Desc
 
 	// BlockDownloader
-	BlockValidationErrors     *prometheus.Desc
-	BlockDownloadErrors       *prometheus.Desc
-	PeerDownloadErrors        *prometheus.Desc
-	NetworkInfoDownloadErrors *prometheus.Desc
+	BlockValidationErrors *prometheus.Desc
+	BlockDownloadErrors   *prometheus.Desc
+	PeerDownloadErrors    *prometheus.Desc
 
 	// TransactionDownloader
 	TransactionsDownloaded                *prometheus.Desc

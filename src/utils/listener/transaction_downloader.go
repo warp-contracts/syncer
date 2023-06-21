@@ -220,7 +220,7 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 			// Verify transaction signature
 			err = tx.Verify()
 			if err != nil {
-				self.monitor.GetReport().Syncer.Errors.TxValidationErrors.Inc()
+				self.monitor.GetReport().TransactionDownloader.Errors.Validation.Inc()
 				self.Log.Error("Transaction failed to verify")
 				goto end
 			}
