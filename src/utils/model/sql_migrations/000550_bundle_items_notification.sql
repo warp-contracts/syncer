@@ -47,7 +47,7 @@ BEGIN
 		PERFORM pg_notify('bundle_items_pending', payload::TEXT);
 	ELSE
 		payload = jsonb_build_object(
-            'di', NEW.data_item,;
+            'di', NEW.data_item,
 			'tx', NEW.transaction,
             'tg', NEW.tags,
 			'id', NEW.interaction_id
