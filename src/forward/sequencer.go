@@ -60,6 +60,7 @@ func (self *Sequencer) WithMonitor(monitor monitoring.Monitor) *Sequencer {
 func (self *Sequencer) run() (err error) {
 	err = self.catchUp()
 	if err != nil {
+		self.Log.WithError(err).Debug("Failed to catch up")
 		return
 	}
 

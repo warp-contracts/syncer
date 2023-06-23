@@ -103,6 +103,8 @@ func (self *ArweaveFetcher) run() (err error) {
 				self.Output <- payload
 				break
 			} else {
+				self.Log.WithField("height", height).WithField("num", len(interactions)).Info("Got batch of L1 interactions from DB")
+
 				isLastBatch := len(interactions) < self.Config.Forwarder.FetcherBatchSize
 				for i, interaction := range interactions {
 					payload := &Payload{
