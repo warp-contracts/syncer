@@ -109,7 +109,11 @@ func (self *Store) flush(data []*model.Interaction) (out []*model.Interaction, e
 
 			err = tx.WithContext(self.Ctx).
 				Table("interactions").
-				Clauses(clause.OnConflict{DoNothing: true}).
+				Clauses(clause.OnConflict{
+					DoNothing: true,
+					Columns:   []clause.Column{{Name: "interaction_id"}},
+					UpdateAll: false,
+				}).
 				CreateInBatches(data, len(data)).
 				Error
 			if err != nil {
