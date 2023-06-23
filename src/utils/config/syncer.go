@@ -7,14 +7,6 @@ import (
 )
 
 type Syncer struct {
-
-	// Time between requests to the Warp's Gateway for network info
-	ListenerPeriod time.Duration
-
-	// Minimum amount of confirmations (blocks on top of the given block) that are required to consider
-	// a given block as confirmed (i.e. not being a fork)
-	ListenerRequiredConfirmationBlocks int64
-
 	// Max time for a transaction to be downloaded. 0 means no limit
 	BlockMaxElapsedTime time.Duration
 
@@ -47,7 +39,4 @@ func setSyncerDefaults() {
 	viper.SetDefault("Syncer.StoreBatchSize", "500")
 	viper.SetDefault("Syncer.StoreMaxTimeInQueue", "10s")
 	viper.SetDefault("Syncer.StoreMaxBackoffInterval", "30s")
-	viper.SetDefault("ListenerPeriod", "1s")
-	viper.SetDefault("ListenerRequiredConfirmationBlocks", "10")
-
 }
