@@ -141,8 +141,8 @@ func (self *BaseClient) onRetryCondition(resp *resty.Response, err error) bool {
 
 // Handles rate limiting. There's one limiter per peer/hostname
 func (self *BaseClient) onRateLimit(c *resty.Client, req *resty.Request) (err error) {
-	self.log.Trace("Start rate limiter")
-	defer self.log.Trace("Finish rate limiter")
+	// self.log.Trace("Start rate limiter")
+	// defer self.log.Trace("Finish rate limiter")
 	// Get the limiter, create it if needed
 	var (
 		limiter *rate.Limiter
