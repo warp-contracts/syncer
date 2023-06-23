@@ -36,6 +36,61 @@ func (self *BundleItem) ensureTagsSerialized() (err error) {
 	return nil
 }
 
+func (self *BundleItem) NestBundles(dataItems []*BundleItem) (err error) {
+	// Serialize bundles first to get the sizes
+	var bundleSizes int
+	binaries := make([][]byte, len(dataItems))
+	for i, item := range dataItems {
+		binaries[i], err = item.Marshal()
+		if err != nil {
+			return err
+		}
+
+		bundleSizes += len(binaries[i])
+	}
+
+	// Init data, clean it
+	self.Data = make(arweave.Base64String, 0, 8+64*len(dataItems)+bundleSizes)
+
+	out := tool.NewBuffer(self.Data)
+	n, err := out.Write(LongTo8ByteArray(len(dataItems)))
+	if err != nil {
+		return err
+	}
+	if n != 8 {
+		return ErrNestedBundleInvalidLength
+	}
+
+	// Headers
+	for i, item := range dataItems {
+		n, err = out.Write(LongTo8ByteArray(len(binaries[i])))
+		if err != nil {
+			return err
+		}
+		if n != 8 {
+			return ErrNestedBundleInvalidLength
+		}
+
+		n, err = out.Write(item.Id)
+		if err != nil {
+			return err
+		}
+		if n != 32 {
+			return ErrNestedBundleInvalidLength
+		}
+	}
+
+	// Binaries
+	for _, binary := range binaries {
+		_, err = out.Write(binary)
+		if err != nil {
+			return err
+		}
+	}
+
+	return
+}
+
 func (self *BundleItem) Size() (out int) {
 	signer, err := GetSigner(self.SignatureType, nil)
 	if err != nil {

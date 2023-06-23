@@ -9,4 +9,5 @@ type BundleItemNotification struct {
 	InteractionID int           `json:"id"`
 	Transaction   *pgtype.JSONB `json:"tx"`
 	Tags          *pgtype.JSONB `json:"tg"`
+	DataItem      *pgtype.Bytea `json:"di"`
 }
