@@ -26,7 +26,7 @@ type Interaction struct {
 	ConfirmationStatus string
 	InteractWrite      pq.StringArray `gorm:"type:text[]"`
 	SortKey            string
-	LastSortKey        string
+	LastSortKey        pgtype.Text
 
 	// Time when interaction was synced to te database
 	SyncTimestamp pgtype.Int8

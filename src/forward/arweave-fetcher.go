@@ -1,6 +1,7 @@
 package forward
 
 import (
+	"github.com/jackc/pgtype"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
@@ -181,7 +182,8 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 
 	// Fill in last sort key for each interaction
 	for _, interaction := range interactions {
-		interaction.LastSortKey = out[interaction.ContractId]
+		interaction.LastSortKey.String = out[interaction.ContractId]
+		interaction.LastSortKey.Status = pgtype.Present
 		out[interaction.ContractId] = interaction.SortKey
 	}
 

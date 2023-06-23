@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jackc/pgtype"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/logger"
@@ -44,6 +45,9 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 		Source:             "arweave",
 		BlockTimestamp:     blockTimestamp,
 	}
+
+	// Last sort key will be set by the forwarder
+	out.LastSortKey.Status = pgtype.Null
 
 	// Fill tags, already decoded from base64
 	err = self.fillTags(tx, out)
