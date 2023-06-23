@@ -85,16 +85,16 @@ func (self *Notifier) run() error {
 				bundleItem := model.BundleItem{
 					InteractionID: notification.InteractionID,
 				}
-				if notification.Transaction != nil {
-					// FIXME: This copies a lot of data
+				if notification.Transaction != nil || notification.DataItem != nil {
 					bundleItem.Transaction = *notification.Transaction
 					bundleItem.Tags = *notification.Tags
+					bundleItem.DataItem = *notification.DataItem
 				} else {
 					// Transaction was too big to fit into the notification channel
 					// Only id is there, we need to fetch the rest of the data from the database
 					err = self.db.WithContext(self.Ctx).
 						Model(&model.BundleItem{}).
-						Select("transaction", "tags").
+						Select("transaction", "tags", "data_item").
 						Where("interaction_id = ?", notification.InteractionID).
 						Scan(&bundleItem).
 						Error

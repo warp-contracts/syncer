@@ -91,58 +91,16 @@ func (self *Bundler) run() (err error) {
 
 		// Copy the pointer so it's not overwritten in the next iteration
 		item := item
-		self.SubmitToWorker(func() {
-			// Fill bundle item
-			bundleItem := new(bundlr.BundleItem)
 
-			if item.Transaction.Status != pgtype.Present {
+		self.SubmitToWorker(func() {
+			if item.Transaction.Status != pgtype.Present && item.DataItem.Status != pgtype.Present {
 				// Data needed for creating the bundle isn't present
 				// Mark it as uploaded, so it's not processed again
 				return
 			}
 
-			// Anchor is needed to avoid problem with same data being uploaded multiple times in Data field
-			// Bundlr rejects such transaction with error like "Transaction ... already received"
-			bundleItem.Anchor = make([]byte, 32)
-			n, err := crypto_rand.Read(bundleItem.Anchor)
-			// n, err := self.rand.Read(bundleItem.Anchor)
-			if n != 32 {
-				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to generate anchor, will retry later.")
-				return
-			}
+			bundleItem, err := self.createDataItem(item)
 			if err != nil {
-				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Error when generating anchor, will retry later.")
-				return
-			}
-
-			// Put transaction into the data field
-			data, err := item.Transaction.MarshalJSON()
-			if err != nil {
-				self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to get interaction data")
-				return
-			}
-			bundleItem.Data = arweave.Base64String(tool.MinifyJSON(data))
-
-			tagBytes, err := item.Tags.MarshalJSON()
-			if err != nil {
-				self.Log.WithError(err).WithField("len", len(tagBytes)).WithField("id", item.InteractionID).Error("Failed to get transaction tags")
-				return
-			}
-
-			// Accept {} as empty tags
-			if len(tagBytes) == 2 && string(tagBytes) == "{}" {
-				tagBytes = []byte("[]")
-			}
-
-			err = json.Unmarshal(tagBytes, &bundleItem.Tags)
-			if err != nil {
-				self.Log.WithError(err).WithField("len", len(tagBytes)).WithField("id", item.InteractionID).Error("Failed to unmarshal transaction tags")
-				return
-			}
-
-			err = bundleItem.Sign(self.signer)
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to sign bundle item")
 				return
 			}
 
@@ -217,4 +175,140 @@ func (self *Bundler) run() (err error) {
 	}
 
 	return nil
+}
+
+func (self *Bundler) createDataItem(item *model.BundleItem) (bundleItem *bundlr.BundleItem, err error) {
+	if len(item.DataItem.Bytes) > 0 {
+		// NEW WAY OF SENDING BUNDLES
+		// GW sends the data item, bundler creates a nested bundle and sends it to bundlr
+		bundleItem, err = self.createNestedBundle(item)
+		if err != nil {
+			return
+		}
+	} else {
+		// OLD WAY OF SENDING BUNDLES
+		// GW sent transaction + tags, bundler created the data item
+		bundleItem, err = self.createBundle(item)
+		if err != nil {
+			return
+		}
+	}
+
+	// Anchor is needed to avoid problem with same data being uploaded multiple times in Data field
+	// Bundlr rejects such transaction with error like "Transaction ... already received"
+	bundleItem.Anchor = make([]byte, 32)
+	n, err := crypto_rand.Read(bundleItem.Anchor)
+	// n, err := self.rand.Read(bundleItem.Anchor)
+	if n != 32 {
+		self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Failed to generate anchor, will retry later.")
+		return
+	}
+	if err != nil {
+		self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Error when generating anchor, will retry later.")
+		return
+	}
+
+	err = bundleItem.Sign(self.signer)
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to sign bundle item")
+		return
+	}
+
+	return
+}
+
+func (self *Bundler) createBundle(item *model.BundleItem) (bundleItem *bundlr.BundleItem, err error) {
+	bundleItem = new(bundlr.BundleItem)
+
+	// Put transaction into the data field
+	data, err := item.Transaction.MarshalJSON()
+	if err != nil {
+		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to get interaction data")
+		return
+	}
+	bundleItem.Data = arweave.Base64String(tool.MinifyJSON(data))
+
+	// Parse tags
+	bundleItem.Tags, err = self.getTags(item)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (self *Bundler) createNestedBundle(item *model.BundleItem) (bundleItem *bundlr.BundleItem, err error) {
+	// Parse bundle item
+	nestedBundle := new(bundlr.BundleItem)
+	err = nestedBundle.Unmarshal(item.DataItem.Bytes)
+	if err != nil {
+		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to unmarshal nested bundle item")
+		return
+	}
+	bundleItem = new(bundlr.BundleItem)
+
+	// Tags stored in the bundle_items table
+	bundleItem.Tags, err = self.getTags(item)
+	if err != nil {
+		return
+	}
+
+	// Additional tags
+	tags := bundlr.Tags{
+		{
+			Name:  "Bundle-Format",
+			Value: "binary",
+		},
+		{
+			Name:  "Bundle-Version",
+			Value: "2.0.0",
+		},
+		{
+			Name:  "App-Name",
+			Value: "Warp",
+		},
+		{
+			Name:  "Action",
+			Value: "WarpInteraction",
+		},
+	}
+	bundleItem.Tags = append(bundleItem.Tags, tags...)
+
+	// Nest the bundle
+	err = bundleItem.NestBundles([]*bundlr.BundleItem{nestedBundle})
+	if err != nil {
+		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to nest bundle")
+		return
+	}
+
+	err = bundleItem.Sign(self.signer)
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to sign bundle item")
+		return
+	}
+
+	return
+}
+
+func (self *Bundler) getTags(item *model.BundleItem) (tags bundlr.Tags, err error) {
+	tags = make(bundlr.Tags, 0, 10)
+
+	tagBytes, err := item.Tags.MarshalJSON()
+	if err != nil {
+		self.Log.WithError(err).WithField("len", len(tagBytes)).WithField("id", item.InteractionID).Error("Failed to get transaction tags")
+		return
+	}
+
+	// Accept {} as empty tags
+	if len(tagBytes) == 2 && string(tagBytes) == "{}" {
+		tagBytes = []byte("[]")
+	}
+
+	err = json.Unmarshal(tagBytes, &tags)
+	if err != nil {
+		self.Log.WithError(err).WithField("len", len(tagBytes)).WithField("id", item.InteractionID).Error("Failed to unmarshal transaction tags")
+		return
+	}
+
+	return
 }

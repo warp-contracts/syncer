@@ -16,6 +16,8 @@ const (
 type BundleItem struct {
 	// Numerical id of the interaction
 	InteractionID int
+	// Alternative way of bundling. GW creates data items and stores them in this column
+	DataItem pgtype.Bytea
 	// Can be preloaded by gorm, but isn't by default.
 	Interaction Interaction
 	// Oryginal transaction needed to create the bundle
