@@ -89,7 +89,13 @@ func (self *ArweaveFetcher) run() (err error) {
 					return self.updateSyncedHeight(tx, height)
 				})
 			if err != nil {
-				self.Log.WithError(err).Error("Failed to fetch interactions from DB")
+				self.Log.WithError(err).WithField("height", height).Error("Failed to fetch interactions from DB")
+
+				// Dump interactions to the log
+				for _, interaction := range interactions {
+					self.Log.WithField("interaction", interaction).Error("Neglected interactions")
+				}
+
 				self.monitor.GetReport().Forwarder.Errors.DbFetchL1Interactions.Inc()
 				return
 			}
@@ -180,7 +186,7 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 	}
 
 	// Merge new LSK into the existing map
-	out = tool.AppendMap(lastSortKeys, newLastSortKeys)
+	out = tool.AppendMap(newLastSortKeys, lastSortKeys)
 
 	// Fill in last sort key for each interaction
 	for _, interaction := range interactions {
@@ -222,8 +228,8 @@ func (self *ArweaveFetcher) getNewContractIds(interactions []*model.Interaction,
 func (self *ArweaveFetcher) getLastSortKeys(tx *gorm.DB, contractIds []string, height uint64) (out map[string]string, err error) {
 	out = make(map[string]string)
 
-	// TODO: Receive a dedicated structure, not Interaction
-	var interactions []*model.Interaction
+	var interactions = make([]*model.Interaction, 0, len(contractIds))
+
 	err = tx.Table(model.TableInteraction).
 		Select("contract_id, MAX(sort_key) AS sort_key").
 		Where("contract_id IN ?", contractIds).
