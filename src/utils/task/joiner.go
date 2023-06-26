@@ -54,7 +54,7 @@ func (self *Joiner[In]) WithCapacity(capacity int) *Joiner[In] {
 
 // Handles receiving messages from a single channel and forwarding them to the output channel
 func (self *Joiner[In]) handleOneInput(input chan In) error {
-	// This gorouting took over the output channel
+	// This goroutine took over the output channel
 	var isOwner bool
 
 	for in := range input {
@@ -66,19 +66,26 @@ func (self *Joiner[In]) handleOneInput(input chan In) error {
 				// This will be the only goroutine sending messages to the output channel
 				self.mtx.Lock()
 				isOwner = true
+				self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Exlusive lock")
 			} else {
 				// Multiple channels may be sending messages at the same time
 				// They are synchronized with the self.Output channel
 				self.mtx.RLock()
+				self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Read lock")
+
 			}
 		}
 
+		self.Log.Debug("Sending")
 		self.Output <- in
+		self.Log.Debug("Sent")
 
 		if isOwner && in.IsLast() {
-			self.mtx.Unlock()
 			isOwner = false
+			self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Release exlusive lock")
+			self.mtx.Unlock()
 		} else if !isOwner {
+			self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Release read lock")
 			self.mtx.RUnlock()
 		}
 	}
