@@ -49,25 +49,22 @@ func (self *BundleItem) NestBundles(dataItems []*BundleItem) (err error) {
 		bundleSizes += len(binaries[i])
 	}
 
-	// Init data, clean it
-	self.Data = make(arweave.Base64String, 0, 8+64*len(dataItems)+bundleSizes)
-
 	var out bytes.Buffer
-	n, err := out.Write(LongTo8ByteArray(len(dataItems)))
+	n, err := out.Write(LongTo32ByteArray(len(dataItems)))
 	if err != nil {
 		return err
 	}
-	if n != 8 {
+	if n != 32 {
 		return ErrNestedBundleInvalidLength
 	}
 
 	// Headers
 	for i, item := range dataItems {
-		n, err = out.Write(LongTo8ByteArray(len(binaries[i])))
+		n, err = out.Write(LongTo32ByteArray(len(binaries[i])))
 		if err != nil {
 			return err
 		}
-		if n != 8 {
+		if n != 32 {
 			return ErrNestedBundleInvalidLength
 		}
 
