@@ -52,7 +52,7 @@ func (self *BundleItem) NestBundles(dataItems []*BundleItem) (err error) {
 	// Init data, clean it
 	self.Data = make(arweave.Base64String, 0, 8+64*len(dataItems)+bundleSizes)
 
-	out := tool.NewBuffer(self.Data)
+	var out bytes.Buffer
 	n, err := out.Write(LongTo8ByteArray(len(dataItems)))
 	if err != nil {
 		return err
@@ -87,6 +87,8 @@ func (self *BundleItem) NestBundles(dataItems []*BundleItem) (err error) {
 			return err
 		}
 	}
+
+	self.Data = arweave.Base64String(out.Bytes())
 
 	return
 }
