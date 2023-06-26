@@ -245,6 +245,9 @@ func (self *Bundler) createNestedBundle(item *model.BundleItem) (bundleItem *bun
 		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to unmarshal nested bundle item")
 		return
 	}
+
+	self.Log.WithField("nested", nestedBundle.String()).Debug("Nested bundle item")
+
 	bundleItem = new(bundlr.BundleItem)
 
 	// Tags stored in the bundle_items table
