@@ -95,7 +95,11 @@ func (self *Notifier) run() error {
 					}
 
 					if notification.DataItem != nil {
-						bundleItem.DataItem = *notification.DataItem
+						err = bundleItem.DataItem.Scan(*notification.DataItem)
+						if err != nil {
+							self.Log.WithError(err).Error("Failed to scan data item from notification")
+							return
+						}
 					}
 				} else {
 					// Transaction was too big to fit into the notification channel
