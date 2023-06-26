@@ -86,9 +86,17 @@ func (self *Notifier) run() error {
 					InteractionID: notification.InteractionID,
 				}
 				if notification.Transaction != nil || notification.DataItem != nil {
-					bundleItem.Transaction = *notification.Transaction
-					bundleItem.Tags = *notification.Tags
-					bundleItem.DataItem = *notification.DataItem
+					if notification.Transaction != nil {
+						bundleItem.Transaction = *notification.Transaction
+					}
+
+					if notification.Tags != nil {
+						bundleItem.Tags = *notification.Tags
+					}
+
+					if notification.DataItem != nil {
+						bundleItem.DataItem = *notification.DataItem
+					}
 				} else {
 					// Transaction was too big to fit into the notification channel
 					// Only id is there, we need to fetch the rest of the data from the database
