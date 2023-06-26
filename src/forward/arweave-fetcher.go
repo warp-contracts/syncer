@@ -93,7 +93,7 @@ func (self *ArweaveFetcher) run() (err error) {
 
 				// Dump interactions to the log
 				for _, interaction := range interactions {
-					self.Log.WithField("interaction", interaction).Error("Neglected interactions")
+					self.Log.WithField("interaction_id", interaction.InteractionId).Error("Neglected interactions")
 				}
 
 				self.monitor.GetReport().Forwarder.Errors.DbFetchL1Interactions.Inc()
