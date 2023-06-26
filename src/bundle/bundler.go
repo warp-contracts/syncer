@@ -214,6 +214,19 @@ func (self *Bundler) createDataItem(item *model.BundleItem) (bundleItem *bundlr.
 		return
 	}
 
+	// TODO: Remove verification
+	err = bundleItem.Verify()
+	if err != nil {
+		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to verify bundle item")
+		return
+	}
+
+	err = bundleItem.VerifySignature()
+	if err != nil {
+		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to verify bundle item")
+		return
+	}
+
 	return
 }
 
@@ -243,6 +256,18 @@ func (self *Bundler) createNestedBundle(item *model.BundleItem) (bundleItem *bun
 	err = nestedBundle.Unmarshal(item.DataItem.Bytes)
 	if err != nil {
 		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to unmarshal nested bundle item")
+		return
+	}
+
+	err = nestedBundle.Verify()
+	if err != nil {
+		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to verify nested bundle item")
+		return
+	}
+
+	err = nestedBundle.VerifySignature()
+	if err != nil {
+		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to verify nested bundle item signature")
 		return
 	}
 
