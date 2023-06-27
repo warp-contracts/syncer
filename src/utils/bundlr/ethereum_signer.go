@@ -1,7 +1,6 @@
 package bundlr
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
 
@@ -37,12 +36,14 @@ func (self *EthereumSigner) Sign(data []byte) (signature []byte, err error) {
 }
 
 func (self *EthereumSigner) Verify(data []byte, signature []byte) (err error) {
-	hashed := sha256.Sum256(data)
+	if len(signature) == ethereum_crypto.SignatureLength {
+		// remove recovery ID (V) if contained in the signature
+		signature = signature[:len(signature)-1]
+	}
 
 	if len(self.Owner) == 0 {
 		self.Owner = self.GetOwner()
 	}
-
 	// Convert owner to public key bytes
 	publicKeyECDSA, err := ethereum_crypto.UnmarshalPubkey(self.Owner)
 	if err != nil {
@@ -51,20 +52,45 @@ func (self *EthereumSigner) Verify(data []byte, signature []byte) (err error) {
 	}
 	publicKeyBytes := ethereum_crypto.FromECDSAPub(publicKeyECDSA)
 
-	// Get the public key from the signature
-	sigPublicKey, err := ethereum_crypto.Ecrecover(hashed[:], signature)
-	if err != nil {
-		return
-	}
-
-	// Check if the public key recovered from the signature matches the owner
-	if !bytes.Equal(sigPublicKey, publicKeyBytes) {
+	hashed := sha256.Sum256(data)
+	ok := ethereum_crypto.VerifySignature(publicKeyBytes, hashed[:], signature)
+	if !ok {
 		err = ErrEthereumSignatureMismatch
 		return
 	}
 
 	return
 }
+
+// func (self *EthereumSigner) Verify(data []byte, signature []byte) (err error) {
+// 	hashed := sha256.Sum256(data)
+
+// 	if len(self.Owner) == 0 {
+// 		self.Owner = self.GetOwner()
+// 	}
+
+// 	// Convert owner to public key bytes
+// 	publicKeyECDSA, err := ethereum_crypto.UnmarshalPubkey(self.Owner)
+// 	if err != nil {
+// 		err = ErrUnmarshalEthereumPubKey
+// 		return
+// 	}
+// 	publicKeyBytes := ethereum_crypto.FromECDSAPub(publicKeyECDSA)
+
+// 	// Get the public key from the signature
+// 	sigPublicKey, err := ethereum_crypto.Ecrecover(hashed[:], signature)
+// 	if err != nil {
+// 		return
+// 	}
+
+// 	// Check if the public key recovered from the signature matches the owner
+// 	if !bytes.Equal(sigPublicKey, publicKeyBytes) {
+// 		err = ErrEthereumSignatureMismatch
+// 		return
+// 	}
+
+// 	return
+// }
 
 func (self *EthereumSigner) GetOwner() []byte {
 	publicKeyECDSA, ok := self.PrivateKey.Public().(*ecdsa.PublicKey)
