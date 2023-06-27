@@ -2,9 +2,9 @@ package bundlr
 
 import (
 	"crypto/ecdsa"
-	"crypto/sha256"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	ethereum_crypto "github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -31,7 +31,7 @@ func NewEthereumSigner(privateKeyHex string) (self *EthereumSigner, err error) {
 }
 
 func (self *EthereumSigner) Sign(data []byte) (signature []byte, err error) {
-	hashed := sha256.Sum256(data)
+	hashed := crypto.Keccak256Hash(data)
 	return ethereum_crypto.Sign(hashed[:], self.PrivateKey)
 }
 
@@ -44,16 +44,9 @@ func (self *EthereumSigner) Verify(data []byte, signature []byte) (err error) {
 	if len(self.Owner) == 0 {
 		self.Owner = self.GetOwner()
 	}
-	// Convert owner to public key bytes
-	publicKeyECDSA, err := ethereum_crypto.UnmarshalPubkey(self.Owner)
-	if err != nil {
-		err = ErrUnmarshalEthereumPubKey
-		return
-	}
-	publicKeyBytes := ethereum_crypto.FromECDSAPub(publicKeyECDSA)
 
-	hashed := sha256.Sum256(data)
-	ok := ethereum_crypto.VerifySignature(publicKeyBytes, hashed[:], signature)
+	hashed := crypto.Keccak256Hash(data)
+	ok := ethereum_crypto.VerifySignature(self.Owner, hashed[:], signature)
 	if !ok {
 		err = ErrEthereumSignatureMismatch
 		return
