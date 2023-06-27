@@ -1,6 +1,7 @@
 package forward
 
 import (
+	"github.com/jackc/pgtype"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/task"
@@ -15,7 +16,16 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 				return nil
 			}
 
+			if data.Interaction.LastSortKey.Status == pgtype.Null || data.Interaction.LastSortKey.String == "" {
+				self.Log.WithField("contract_id", data.Interaction.ContractId).
+					WithField("interaction_id", data.Interaction.InteractionId).
+					Error("Missing last sort key")
+
+				return nil
+			}
+
 			self.Log.WithField("contract_id", data.Interaction.ContractId).Debug("Publishing interaction to Redis")
+
 			interactionStr, err := data.Interaction.Interaction.MarshalJSON()
 			if err != nil {
 				self.Log.WithField("contract_id", data.Interaction.ContractId).Warn("Failed to marshal interaction")
