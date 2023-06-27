@@ -97,25 +97,21 @@ func (self *ArweaveFetcher) run() (err error) {
 				}
 
 				self.monitor.GetReport().Forwarder.Errors.DbFetchL1Interactions.Inc()
-				return
+
+				// We can't simply return here, because it could potentially lead to blocking out L2 interactions.
+				// Ensure "last" message is sent downstream
+				goto finish
 			}
 
 			if len(interactions) == 0 && offset == 0 {
 				self.Log.WithField("height", height).Info("No interactions for this height")
 				break
-			} else if len(interactions) == 0 && offset != 0 {
-				// Edge case: num of interactions is a multiple of batch size
-				payload := &Payload{First: false, Last: true, Interaction: nil}
-				self.Output <- payload
-				break
 			} else {
 				self.Log.WithField("height", height).WithField("num", len(interactions)).Info("Got batch of L1 interactions from DB")
 
-				isLastBatch := len(interactions) < self.Config.Forwarder.FetcherBatchSize
 				for i, interaction := range interactions {
 					payload := &Payload{
 						First:       isFirstBatch && i == 0,
-						Last:        isLastBatch && i == len(interactions)-1,
 						Interaction: interaction,
 					}
 
@@ -127,13 +123,21 @@ func (self *ArweaveFetcher) run() (err error) {
 					self.monitor.GetReport().Forwarder.State.L1Interactions.Inc()
 				}
 
-				// No more batches for this height
-				if isLastBatch {
-					break
-				}
+			}
+
+		finish:
+			// No more batches for this height
+			if (len(interactions) < self.Config.Forwarder.FetcherBatchSize) ||
+				// Edge case: num of interactions is a multiple of batch size
+				(len(interactions) == 0 && offset != 0) {
+				// Pass downstream that this is the end of L1 interactions for this height
+				payload := &Payload{First: false, Last: true, Interaction: nil}
+				self.Output <- payload
+				break
 			}
 
 			isFirstBatch = false
+
 		}
 	}
 	return
