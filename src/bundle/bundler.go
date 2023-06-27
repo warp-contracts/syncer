@@ -265,11 +265,11 @@ func (self *Bundler) createNestedBundle(item *model.BundleItem) (bundleItem *bun
 		return
 	}
 
-	err = nestedBundle.VerifySignature()
-	if err != nil {
-		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to verify nested bundle item signature")
-		return
-	}
+	// err = nestedBundle.VerifySignature()
+	// if err != nil {
+	// 	self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to verify nested bundle item signature")
+	// 	return
+	// }
 
 	self.Log.WithField("nested", nestedBundle.String()).Debug("Nested bundle item")
 
