@@ -193,14 +193,26 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 	out = tool.AppendMap(newLastSortKeys, lastSortKeys)
 
 	// Fill in last sort key for each interaction
+	var ok bool
 	for _, interaction := range interactions {
-		interaction.LastSortKey.String = out[interaction.ContractId]
-		interaction.LastSortKey.Status = pgtype.Present
+		interaction.LastSortKey.String, ok = out[interaction.ContractId]
+		if ok {
+			interaction.LastSortKey.Status = pgtype.Present
+		} else {
+			// First interaction in contract
+			interaction.LastSortKey.Status = pgtype.Null
+		}
+
 		out[interaction.ContractId] = interaction.SortKey
 	}
 
 	// Update last sort key for each contract
 	for _, interaction := range interactions {
+		if interaction.LastSortKey.Status == pgtype.Null {
+			// This is the first interaction for this contract, skip updating
+			continue
+		}
+
 		err = tx.Transaction(func(tx2 *gorm.DB) error {
 			// TX inside TX in order to avoid rolling back whole transaction upon error with one interaction
 			return tx2.Model(interaction).
