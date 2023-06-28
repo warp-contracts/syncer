@@ -271,7 +271,7 @@ func (self *Bundler) createNestedBundle(item *model.BundleItem) (bundleItem *bun
 	// 	return
 	// }
 
-	self.Log.WithField("nested", nestedBundle.String()).Debug("Nested bundle item")
+	// self.Log.WithField("nested", nestedBundle.String()).Debug("Nested bundle item")
 
 	bundleItem = new(bundlr.BundleItem)
 
