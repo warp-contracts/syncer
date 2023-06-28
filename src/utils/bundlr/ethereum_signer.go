@@ -31,7 +31,7 @@ func NewEthereumSigner(privateKeyHex string) (self *EthereumSigner, err error) {
 }
 
 func (self *EthereumSigner) Sign(data []byte) (signature []byte, err error) {
-	hashed := crypto.Keccak256Hash(data)
+	hashed := crypto.Keccak256Hash(data).Bytes()
 	return ethereum_crypto.Sign(hashed[:], self.PrivateKey)
 }
 
@@ -45,7 +45,7 @@ func (self *EthereumSigner) Verify(data []byte, signature []byte) (err error) {
 		self.Owner = self.GetOwner()
 	}
 
-	hashed := crypto.Keccak256Hash(data)
+	hashed := crypto.Keccak256Hash(data).Bytes()
 	ok := ethereum_crypto.VerifySignature(self.Owner, hashed[:], signature)
 	if !ok {
 		err = ErrEthereumSignatureMismatch
