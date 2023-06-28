@@ -88,7 +88,7 @@ func (self *Sequencer) run() (err error) {
 			}
 
 			// Emit height change one by one
-			err = self.emit(state.FinishedBlockHeight)
+			err = self.emit(state.FinishedBlockHeight, false /* sleep before emitting to let outstanding GW requests finish*/)
 			if err != nil {
 				return
 			}
@@ -129,7 +129,7 @@ func (self *Sequencer) catchUp() (err error) {
 
 	// Emitting may take a while, so we need to check if we are still in sync
 	for syncerState.FinishedBlockHeight > self.currentHeight {
-		err = self.emit(syncerState.FinishedBlockHeight)
+		err = self.emit(syncerState.FinishedBlockHeight, true /* skip sleep, we're catching up L2 interactions won't intersect anyway since they use syncer's height for sort key generation */)
 		if err != nil {
 			return
 		}
@@ -153,9 +153,11 @@ func (self *Sequencer) getSyncerState() (state model.State, err error) {
 	return
 }
 
-func (self *Sequencer) emit(newHeight uint64) (err error) {
+func (self *Sequencer) emit(newHeight uint64, skipSleep bool) (err error) {
 	for newHeight > self.currentHeight {
-		time.Sleep(self.Config.Forwarder.HeightDelay)
+		if !skipSleep {
+			time.Sleep(self.Config.Forwarder.HeightDelay)
+		}
 		// Update height that we are currently at
 		self.currentHeight += 1
 		self.Log.WithField("current_height", self.currentHeight).Debug("Emitting height change")
