@@ -141,7 +141,7 @@ func (self *RedisPublisher[In]) ping() (err error) {
 	}
 
 	// Test the connection with a PING message
-	self.Log.Debug("Monitor Redis connection")
+	self.Log.Debug("Monitor Redis connectiond")
 	err = self.client.Ping(ctx).Err()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to ping Redis")
@@ -179,7 +179,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 			}
 
 			self.monitor.GetReport().RedisPublisher.State.MessagesPublished.Inc()
-			self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(uint64(time.Now().Unix()))
+			self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
 		})
 
 		if self.redisConfig.MaxQueueSize > 3 {

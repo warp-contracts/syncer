@@ -51,7 +51,13 @@ func (self *Monitor) GetPrometheusCollector() (collector prometheus.Collector) {
 }
 
 func (self *Monitor) IsOK() bool {
-	return true
+	now := time.Now().Unix()
+	if now-self.Report.Run.State.StartTimestamp.Load() > 300 {
+		// Give it 5 minutes to start
+		return true
+	}
+
+	return now-self.Report.RedisPublisher.State.LastSuccessfulMessageTimestamp.Load() < 300
 }
 
 func (self *Monitor) monitor() (err error) {

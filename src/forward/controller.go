@@ -59,25 +59,41 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithOutputChannels(len(config.Redis), 0).
 		WithInputChannel(redisMapper.Output)
 
-	redisPublishers := make([]*task.Task, 0, len(config.Redis))
-	for i := range config.Redis {
-		redisPublisher := publisher.NewRedisPublisher[*model.InteractionNotification](config, config.Redis[i], fmt.Sprintf("interaction-redis-publisher-%d", i)).
-			WithChannelName(config.Forwarder.PublisherRedisChannelName).
-			WithMonitor(monitor).
-			WithInputChannel(redisDuplicator.NextChannel())
-		redisPublishers = append(redisPublishers, redisPublisher.Task)
+	watched := func() *task.Task {
+		redisPublishers := make([]*task.Task, 0, len(config.Redis))
+		for i := range config.Redis {
+			redisPublisher := publisher.NewRedisPublisher[*model.InteractionNotification](config, config.Redis[i], fmt.Sprintf("interaction-redis-publisher-%d", i)).
+				WithChannelName(config.Forwarder.PublisherRedisChannelName).
+				WithMonitor(monitor).
+				WithInputChannel(redisDuplicator.NextChannel())
+			redisPublishers = append(redisPublishers, redisPublisher.Task)
+		}
+
+		return task.NewTask(config, "watched").
+			WithSubtaskSlice(redisPublishers)
 	}
+
+	watchdog := task.NewWatchdog(config).
+		WithTask(watched).
+		WithIsOK(func() bool {
+			isOK := monitor.IsOK()
+			if !isOK {
+				monitor.Clear()
+				monitor.GetReport().Run.Errors.NumWatchdogRestarts.Inc()
+			}
+			return isOK
+		})
 
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
 		WithSubtask(sequencer.Task).
 		WithSubtask(monitor.Task).
 		WithSubtask(joiner.Task).
-		WithSubtask(fetcher.Task).
-		WithSubtask(interactionStreamer.Task).
-		WithSubtaskSlice(redisPublishers).
 		WithSubtask(redisDuplicator.Task).
 		WithSubtask(redisMapper.Task).
+		WithSubtask(fetcher.Task).
+		WithSubtask(watchdog.Task).
+		WithSubtask(interactionStreamer.Task).
 		WithSubtask(server.Task)
 	return
 }
