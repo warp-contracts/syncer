@@ -39,6 +39,7 @@ func NewRedisPublisher[In encoding.BinaryMarshaler](config *config.Config, redis
 		WithSubtaskFunc(self.run).
 		WithOnBeforeStart(self.connect).
 		WithOnAfterStop(self.disconnect).
+		WithPeriodicSubtaskFunc(time.Second*30, self.ping).
 		WithWorkerPool(redisConfig.MaxWorkers, redisConfig.MaxQueueSize)
 
 	return
@@ -130,23 +131,37 @@ func (self *RedisPublisher[In]) connect() (err error) {
 	return
 }
 
+func (self *RedisPublisher[In]) ping() (err error) {
+	ctx, cancel := context.WithTimeout(self.Ctx, 30*time.Second)
+	defer cancel()
+
+	err = self.client.Ping(ctx).Err()
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to ping Redis")
+		return
+	}
+
+	return nil
+}
+
 func (self *RedisPublisher[In]) run() (err error) {
 	for payload := range self.input {
 
 		self.SubmitToWorker(func() {
-			self.Log.Trace("Redis publish...")
-			defer self.Log.Trace("...Redis publish done")
+			self.Log.Debug("Redis publish...")
+			defer self.Log.Debug("...Redis publish done")
 			err = task.NewRetry().
 				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.redisConfig.MaxElapsedTime).
 				WithMaxInterval(self.redisConfig.MaxInterval).
 				WithOnError(func(err error, isDurationAcceptable bool) error {
-					self.Log.WithError(err).Warn("Failed to publish message, retrying")
+					self.Log.WithError(err).Warn(" , retrying")
 					self.monitor.GetReport().RedisPublisher.Errors.Publish.Inc()
 					return err
 				}).
 				Run(func() (err error) {
-					self.Log.Trace("Publish message to Redis")
+					self.Log.Debug("-> Publish message to Redis")
+					defer self.Log.Debug("<- Publish message to Redis")
 					return self.client.Publish(self.Ctx, self.channelName, payload).Err()
 				})
 			if err != nil {
