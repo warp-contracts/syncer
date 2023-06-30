@@ -230,10 +230,13 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 			self.Log.WithError(err).
 				WithField("contract_id", interaction.ContractId).
 				WithField("interaction_id", interaction.InteractionId).
-				Error("Failed to update last sort key")
+				Error("Failed to update last sort key, continuuing with other contracts")
 			continue
 		}
+
 	}
+	// Ignore errors from helper transaction
+	err = nil
 
 	out = lastSortKeys
 
