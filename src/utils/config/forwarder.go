@@ -17,9 +17,13 @@ type Forwarder struct {
 	// This delay ensures sequencer finishes handling requests in time
 	HeightDelay time.Duration
 
-	// How many L1 interactions are fetched from the DB at once
+	// How many L1 interactions are cached in queue
 	// This should be at least 1000 since this is how many tx are in Arweave block
 	ArweaveFetcherQueueSize int
+
+	// How many L2 interactions are cached in queue
+	// Those are L2 interactions streamed live from the database
+	InteractionsStreamerQueueSize int
 }
 
 func setForwarderDefaults() {
@@ -27,4 +31,5 @@ func setForwarderDefaults() {
 	viper.SetDefault("Forwarder.PublisherRedisChannelName", "contracts")
 	viper.SetDefault("Forwarder.HeightDelay", "1s")
 	viper.SetDefault("Forwarder.ArweaveFetcherQueueSize", "3000")
+	viper.SetDefault("Forwarder.InteractionsStreamerQueueSize", "10")
 }

@@ -25,7 +25,7 @@ type InteractionStreamer struct {
 func NewInteractionStreamer(config *config.Config) (self *InteractionStreamer) {
 	self = new(InteractionStreamer)
 
-	self.Output = make(chan *Payload)
+	self.Output = make(chan *Payload, config.Forwarder.InteractionsStreamerQueueSize)
 
 	self.streamer = streamer.NewStreamer(config, "interaction-stream").
 		WithNotificationChannelName("interactions").
