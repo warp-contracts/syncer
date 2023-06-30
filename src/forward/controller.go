@@ -55,11 +55,11 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	redisMapper := redisMapper(config).
 		WithInputChannel(joiner.Output)
 
-	redisDuplicator := task.NewDuplicator[*model.InteractionNotification](config, "redis-duplicator").
-		WithOutputChannels(len(config.Redis), 0).
-		WithInputChannel(redisMapper.Output)
-
 	watched := func() *task.Task {
+		redisDuplicator := task.NewDuplicator[*model.InteractionNotification](config, "redis-duplicator").
+			WithOutputChannels(len(config.Redis), 0).
+			WithInputChannel(redisMapper.Output)
+
 		redisPublishers := make([]*task.Task, 0, len(config.Redis))
 		for i := range config.Redis {
 			redisPublisher := publisher.NewRedisPublisher[*model.InteractionNotification](config, config.Redis[i], fmt.Sprintf("interaction-redis-publisher-%d", i)).
@@ -70,6 +70,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		}
 
 		return task.NewTask(config, "watched").
+			WithSubtask(redisDuplicator.Task).
 			WithSubtaskSlice(redisPublishers)
 	}
 
@@ -89,7 +90,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(sequencer.Task).
 		WithSubtask(monitor.Task).
 		WithSubtask(joiner.Task).
-		WithSubtask(redisDuplicator.Task).
 		WithSubtask(redisMapper.Task).
 		WithSubtask(fetcher.Task).
 		WithSubtask(watchdog.Task).

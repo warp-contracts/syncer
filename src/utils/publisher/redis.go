@@ -141,7 +141,7 @@ func (self *RedisPublisher[In]) ping() (err error) {
 	}
 
 	// Test the connection with a PING message
-	self.Log.Debug("Monitor Redis connectiond")
+	self.Log.Debug("Monitor Redis connection")
 	err = self.client.Ping(ctx).Err()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to ping Redis")
