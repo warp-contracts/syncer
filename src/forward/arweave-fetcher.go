@@ -6,7 +6,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
-	"github.com/warp-contracts/syncer/src/utils/tool"
 	"gorm.io/gorm"
 )
 
@@ -186,16 +185,24 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 	// Get last sort key for each new contract
 	newLastSortKeys, err := self.getLastSortKeys(tx, newContractIds, height)
 	if err != nil {
+		self.Log.Error("Failed to get last sort keys for new contracts")
 		return
 	}
 
 	// Merge new LSK into the existing map
-	out = tool.AppendMap(newLastSortKeys, lastSortKeys)
+	// out = tool.AppendMap(newLastSortKeys, lastSortKeys)
+	for k, v := range newLastSortKeys {
+		if _, ok := lastSortKeys[k]; ok {
+			continue
+		}
+		self.Log.WithField("k", k).WithField("v", v).Debug("New last sort key")
+		lastSortKeys[k] = v
+	}
 
 	// Fill in last sort key for each interaction
 	var ok bool
 	for _, interaction := range interactions {
-		interaction.LastSortKey.String, ok = out[interaction.ContractId]
+		interaction.LastSortKey.String, ok = lastSortKeys[interaction.ContractId]
 		if ok {
 			interaction.LastSortKey.Status = pgtype.Present
 		} else {
@@ -203,7 +210,7 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 			interaction.LastSortKey.Status = pgtype.Null
 		}
 
-		out[interaction.ContractId] = interaction.SortKey
+		lastSortKeys[interaction.ContractId] = interaction.SortKey
 	}
 
 	// Update last sort key for each contract
@@ -214,16 +221,22 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 		}
 
 		err = tx.Transaction(func(tx2 *gorm.DB) error {
-			// TX inside TX in order to avoid rolling back whole transaction upon error with one interaction
+			// TX inside TX in order to avoid rolling back whole transaction upon error with one contract
 			return tx2.Model(interaction).
 				Update("last_sort_key", interaction.LastSortKey).
 				Error
 		})
 		if err != nil {
-			self.Log.WithError(err).WithField("interaction_id", interaction.InteractionId).Error("Failed to update last sort key")
+			self.Log.WithError(err).
+				WithField("contract_id", interaction.ContractId).
+				WithField("interaction_id", interaction.InteractionId).
+				Error("Failed to update last sort key")
 			continue
 		}
 	}
+
+	out = lastSortKeys
+
 	return
 }
 
