@@ -7,6 +7,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -102,6 +103,17 @@ func (self *RedisPublisher[In]) connect() (err error) {
 		opts.TLSConfig = &tls.Config{
 			InsecureSkipVerify: false,
 		}
+	}
+
+	opts.Dialer = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		netDialer := &net.Dialer{
+			Timeout:   time.Minute,
+			KeepAlive: time.Second * 30,
+		}
+		if opts.TLSConfig == nil {
+			return nil, errors.New("TLS config is nil")
+		}
+		return tls.DialWithDialer(netDialer, network, addr, opts.TLSConfig)
 	}
 
 	self.client = redis.NewClient(&opts)

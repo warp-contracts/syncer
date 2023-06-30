@@ -87,7 +87,7 @@ func setRedisDefaults() {
 	viper.SetDefault("Redis[0].DB", "0")
 	viper.SetDefault("Redis[0].MinIdleConns", "1")
 	viper.SetDefault("Redis[0].MaxIdleConns", "5")
-	viper.SetDefault("Redis[0].ConnMaxIdleTime", "10m")
+	viper.SetDefault("Redis[0].ConnMaxIdleTime", "2m")
 	viper.SetDefault("Redis[0].MaxOpenConns", "15")
 	viper.SetDefault("Redis[0].ConnMaxLifetime", "1h")
 	viper.SetDefault("Redis[0].MaxElapsedTime", "10m")
