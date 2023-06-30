@@ -122,28 +122,37 @@ func (self *RedisPublisher[In]) run() (err error) {
 	for payload := range self.input {
 
 		self.SubmitToWorker(func() {
-			self.Log.Debug("Redis publish...")
-			defer self.Log.Debug("...Redis publish done")
+			self.Log.Trace("Redis publish...")
+			defer self.Log.Trace("...Redis publish done")
 			err = task.NewRetry().
 				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.redisConfig.MaxElapsedTime).
 				WithMaxInterval(self.redisConfig.MaxInterval).
 				WithOnError(func(err error, isDurationAcceptable bool) error {
-					self.Log.WithError(err).Error("Failed to publish message, retrying")
+					self.Log.WithError(err).Warn("Failed to publish message, retrying")
 					self.monitor.GetReport().RedisPublisher.Errors.Publish.Inc()
 					return err
 				}).
 				Run(func() (err error) {
-					self.Log.Debug("Publish message to Redis")
+					self.Log.Trace("Publish message to Redis")
 					return self.client.Publish(self.Ctx, self.channelName, payload).Err()
 				})
 			if err != nil {
-				self.Log.WithError(err).Error("Failed to publish message, giving up")
+				self.Log.WithError(err).Error("Persistant error to publish message, giving up")
 				self.monitor.GetReport().RedisPublisher.Errors.PersistentFailure.Inc()
 				return
 			}
 			self.monitor.GetReport().RedisPublisher.State.MessagesPublished.Inc()
 		})
+
+		if self.redisConfig.MaxQueueSize > 3 {
+			if self.GetWorkerQueueFillFactor() > 0.8 {
+				self.Log.WithError(err).Warn("Redis queue is filling up")
+			}
+			if self.GetWorkerQueueFillFactor() > 0.99 {
+				self.Log.WithError(err).Error("Redis queue is full")
+			}
+		}
 	}
 	return nil
 }

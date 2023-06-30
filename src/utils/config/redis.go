@@ -93,5 +93,5 @@ func setRedisDefaults() {
 	viper.SetDefault("Redis[0].MaxElapsedTime", "10m")
 	viper.SetDefault("Redis[0].MaxInterval", "60s")
 	viper.SetDefault("Redis[0].MaxWorkers", "15")
-	viper.SetDefault("Redis[0].MaxQueueSize", "1")
+	viper.SetDefault("Redis[0].MaxQueueSize", "10")
 }
