@@ -25,7 +25,7 @@ type ArweaveFetcher struct {
 func NewArweaveFetcher(config *config.Config) (self *ArweaveFetcher) {
 	self = new(ArweaveFetcher)
 
-	self.Output = make(chan *Payload)
+	self.Output = make(chan *Payload, config.Forwarder.ArweaveFetcherQueueSize)
 
 	self.Task = task.NewTask(config, "arweave-fetcher").
 		WithSubtaskFunc(self.run)
@@ -183,7 +183,7 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 	// Omit those that are already in the lastSortKeys map
 	newContractIds := self.getNewContractIds(interactions, lastSortKeys)
 
-	// Get last sort key for each contract
+	// Get last sort key for each new contract
 	newLastSortKeys, err := self.getLastSortKeys(tx, newContractIds, height)
 	if err != nil {
 		return
