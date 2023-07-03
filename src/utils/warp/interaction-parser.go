@@ -62,6 +62,9 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 		return
 	}
 
+	// Save decoded tags
+	parsedTags := self.parseTags(tx.Tags)
+
 	// Get owner's wallet address
 	swInteraction := smartweave.Interaction{
 		Id: tx.ID,
@@ -69,7 +72,7 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 			Address: out.Owner,
 		},
 		Recipient: tx.Target,
-		Tags:      tx.Tags,
+		Tags:      parsedTags,
 		Block: smartweave.Block{
 			Height:    blockHeight,
 			Id:        blockId,
@@ -103,6 +106,17 @@ func GetWalletAddress(tx *arweave.Transaction) (owner string, err error) {
 	h := sha256.New()
 	h.Write([]byte(tx.Owner))
 	owner = base64url.Encode(h.Sum(nil))
+	return
+}
+
+func (self *InteractionParser) parseTags(tags []arweave.Tag) (out []smartweave.Tag) {
+	out = make([]smartweave.Tag, len(tags))
+	for i, t := range tags {
+		out[i] = smartweave.Tag{
+			Name:  string(t.Name),
+			Value: string(t.Value),
+		}
+	}
 	return
 }
 

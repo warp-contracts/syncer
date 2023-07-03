@@ -16,11 +16,16 @@ type Amount struct {
 	Winston string `json:"winston"`
 }
 
+type Tag struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 type Interaction struct {
 	Id        string               `json:"id"`
 	Owner     Owner                `json:"owner"`
 	Recipient arweave.Base64String `json:"recipient"`
-	Tags      []arweave.Tag        `json:"tags"`
+	Tags      []Tag                `json:"tags"`
 	Block     Block                `json:"block"`
 	Fee       Amount               `json:"fee"`
 	Quantity  Amount               `json:"quantity"`
