@@ -79,6 +79,14 @@ func (self *RedisPublisher[In]) connect() (err error) {
 		MaxIdleConns:    self.redisConfig.MaxIdleConns,
 		ConnMaxIdleTime: self.redisConfig.ConnMaxIdleTime,
 		PoolSize:        self.redisConfig.MaxOpenConns,
+		PoolFIFO:        true,
+		PoolTimeout:     time.Minute,
+		OnConnect: func(ctx context.Context, con *redis.Conn) error {
+			self.Log.WithField("host", self.redisConfig.Host).Info("Connected to Redis")
+			return nil
+		},
+		ReadTimeout:     time.Second * 30,
+		WriteTimeout:    time.Second * 30,
 		DialTimeout:     time.Minute,
 		ConnMaxLifetime: self.redisConfig.ConnMaxLifetime,
 	}
@@ -180,6 +188,12 @@ func (self *RedisPublisher[In]) run() (err error) {
 
 			self.monitor.GetReport().RedisPublisher.State.MessagesPublished.Inc()
 			self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
+
+			if self.redisConfig.MaxQueueSize > 3 {
+				if self.GetWorkerQueueFillFactor() < 0.1 {
+					self.Log.WithError(err).Debug("Redis queue almost empty")
+				}
+			}
 		})
 
 		if self.redisConfig.MaxQueueSize > 3 {
