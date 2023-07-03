@@ -161,11 +161,15 @@ func (self *RedisPublisher[In]) ping() (err error) {
 }
 
 func (self *RedisPublisher[In]) run() (err error) {
+	i := 0
 	for payload := range self.input {
+		i++
+		i := i
 
+		self.Log.WithField("i", i).Debug("Redis got payload, passing to worker...")
 		self.SubmitToWorker(func() {
-			self.Log.Debug("Redis publish...")
-			defer self.Log.Debug("...Redis publish done")
+			self.Log.WithField("i", i).Debug("Redis publish...")
+			defer self.Log.WithField("i", i).Debug("...Redis publish done")
 			err = task.NewRetry().
 				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.redisConfig.MaxElapsedTime).
@@ -176,8 +180,8 @@ func (self *RedisPublisher[In]) run() (err error) {
 					return err
 				}).
 				Run(func() (err error) {
-					self.Log.Debug("-> Publish message to Redis")
-					defer self.Log.Debug("<- Publish message to Redis")
+					self.Log.WithField("i", i).Debug("-> Publish message to Redis")
+					defer self.Log.WithField("i", i).Debug("<- Publish message to Redis")
 					return self.client.Publish(self.Ctx, self.channelName, payload).Err()
 				})
 			if err != nil {
@@ -191,17 +195,17 @@ func (self *RedisPublisher[In]) run() (err error) {
 
 			if self.redisConfig.MaxQueueSize > 3 {
 				if self.GetWorkerQueueFillFactor() < 0.1 {
-					self.Log.Debug("Redis queue almost empty")
+					self.Log.WithField("i", i).Debug("Redis queue almost empty")
 				}
 			}
 		})
 
 		if self.redisConfig.MaxQueueSize > 3 {
 			if self.GetWorkerQueueFillFactor() > 0.8 {
-				self.Log.Warn("Redis queue is filling up")
+				self.Log.WithField("i", i).Warn("Redis queue is filling up")
 			}
 			if self.GetWorkerQueueFillFactor() > 0.99 {
-				self.Log.Error("Redis queue is full")
+				self.Log.WithField("i", i).Error("Redis queue is full")
 			}
 		}
 	}
