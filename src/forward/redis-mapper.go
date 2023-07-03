@@ -23,6 +23,7 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 				return err
 			}
 
+			self.Log.Debug("-> Sending mapped")
 			// TODO: Neglect messages that are too big
 			select {
 			case <-self.Ctx.Done():
@@ -33,6 +34,7 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 				Interaction:  string(interactionStr),
 			}:
 			}
+			self.Log.Debug("<- Sending mapped")
 
 			return nil
 		})

@@ -63,6 +63,7 @@ func (self *Duplicator[In]) run() error {
 		wg.Add(len(self.output))
 		for channelIdx := range self.output {
 			channelIdx := channelIdx
+			self.Log.Debug("-> Dupicator send")
 			self.SubmitToWorker(func() {
 				select {
 				case <-self.Ctx.Done():
@@ -71,6 +72,7 @@ func (self *Duplicator[In]) run() error {
 
 				wg.Done()
 			})
+			self.Log.Debug("<- Dupicator send")
 		}
 
 		// Wait for all channels to receive data
