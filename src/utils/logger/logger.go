@@ -23,7 +23,8 @@ func Init(config *config.Config) (err error) {
 	logger.SetOutput(os.Stdout)
 
 	formatter := &logrus.TextFormatter{
-		FullTimestamp: true,
+		FullTimestamp:   true,
+		TimestampFormat: "2006-01-02T15:04:05.999999999Z07:00",
 	}
 	logger.SetFormatter(formatter)
 
