@@ -82,7 +82,7 @@ func (self *RedisPublisher[In]) connect() (err error) {
 		PoolFIFO:        true,
 		PoolTimeout:     time.Minute,
 		OnConnect: func(ctx context.Context, con *redis.Conn) error {
-			self.Log.WithField("host", self.redisConfig.Host).Info("Connected to Redis")
+			self.Log.WithField("state", con.String()).WithField("host", self.redisConfig.Host).Info("Connected to Redis")
 			return nil
 		},
 		ReadTimeout:     time.Second * 30,
@@ -191,17 +191,17 @@ func (self *RedisPublisher[In]) run() (err error) {
 
 			if self.redisConfig.MaxQueueSize > 3 {
 				if self.GetWorkerQueueFillFactor() < 0.1 {
-					self.Log.WithError(err).Debug("Redis queue almost empty")
+					self.Log.Debug("Redis queue almost empty")
 				}
 			}
 		})
 
 		if self.redisConfig.MaxQueueSize > 3 {
 			if self.GetWorkerQueueFillFactor() > 0.8 {
-				self.Log.WithError(err).Warn("Redis queue is filling up")
+				self.Log.Warn("Redis queue is filling up")
 			}
 			if self.GetWorkerQueueFillFactor() > 0.99 {
-				self.Log.WithError(err).Error("Redis queue is full")
+				self.Log.Error("Redis queue is full")
 			}
 		}
 	}
