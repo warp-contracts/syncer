@@ -61,6 +61,7 @@ func (self *Duplicator[In]) run() error {
 	wg := sync.WaitGroup{}
 	for in := range self.input {
 		self.Log.Debug("-> Duplicator send")
+		in := in
 		wg.Add(len(self.output))
 		for channelIdx := range self.output {
 			channelIdx := channelIdx
