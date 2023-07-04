@@ -48,7 +48,7 @@ func NewSinkTask[In any](config *config.Config, name string) (self *SinkTask[In]
 
 	self.Task = NewTask(config, name).
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(1, 0)
+		WithWorkerPool(1, 1)
 
 	return
 }

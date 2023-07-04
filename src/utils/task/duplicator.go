@@ -47,7 +47,7 @@ func (self *Duplicator[In]) WithOutputChannels(numChannels, capacity int) *Dupli
 	for i := 0; i < numChannels; i++ {
 		self.output = append(self.output, make(chan In, capacity))
 	}
-	self.Task = self.Task.WithWorkerPool(numChannels, 0)
+	self.Task = self.Task.WithWorkerPool(numChannels, 1)
 	return self
 }
 

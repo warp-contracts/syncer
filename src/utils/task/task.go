@@ -196,6 +196,10 @@ func (self *Task) WithWorkerPool(maxWorkers int, maxQueueSize int) *Task {
 }
 
 func (self *Task) GetWorkerQueueFillFactor() float32 {
+	if self.workerMaxQueueSize == 0 {
+		return 0
+	}
+
 	size := self.workers.WaitingQueueSize()
 	return float32(size) / float32(self.workerMaxQueueSize)
 }
@@ -239,15 +243,18 @@ func (self *Task) SubmitToWorker(f func()) {
 	self.workerQueueCond.L.Lock()
 	defer self.workerQueueCond.L.Unlock()
 
-	for self.workers.WaitingQueueSize() > self.workerMaxQueueSize {
-		// self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is full, waiting...")
-		self.workerQueueCond.Wait()
-		// self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is not full anymore!")
+	if self.workerMaxQueueSize > 0 {
+		// Limited queue size
+		for self.workers.WaitingQueueSize() > self.workerMaxQueueSize {
+			// self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is full, waiting...")
+			self.workerQueueCond.Wait()
+			// self.Log.WithField("queue_size", self.workers.WaitingQueueSize()).Debug("Worker queue is not full anymore!")
 
-		// Exit if stopping
-		if self.IsStopping.Load() {
-			// self.workerQueueCond.L.Unlock()
-			return
+			// Exit if stopping
+			if self.IsStopping.Load() {
+				// self.workerQueueCond.L.Unlock()
+				return
+			}
 		}
 	}
 
