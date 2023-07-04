@@ -1,6 +1,7 @@
 package forward
 
 import (
+	"runtime"
 	"strings"
 
 	"github.com/jackc/pgtype"
@@ -140,6 +141,9 @@ func (self *ArweaveFetcher) run() (err error) {
 			isFirstBatch = false
 
 		}
+
+		// Output channel has a big capacity, give back the control to the scheduler
+		runtime.Gosched()
 	}
 	return
 }

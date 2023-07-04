@@ -69,8 +69,8 @@ func (self *Store) flush(data []*model.Interaction) (out []*model.Interaction, e
 		return
 	}
 
-	self.Log.WithField("count", len(data)).Trace("Flushing contracts")
-	defer self.Log.Trace("Flushing contracts done")
+	self.Log.WithField("count", len(data)).Trace("Flushing interactions")
+	defer self.Log.Trace("Flushing interactions done")
 
 	// Set sync timestamp
 	now := time.Now().UnixMilli()
