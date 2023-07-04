@@ -166,8 +166,6 @@ func (self *RedisPublisher[In]) run() (err error) {
 		i++
 		i := i
 
-		self.Log.WithField("i", i).Debug("Redis got payload, passing to worker...")
-
 		self.Log.WithField("i", i).Debug("Redis publish...")
 
 		err = task.NewRetry().

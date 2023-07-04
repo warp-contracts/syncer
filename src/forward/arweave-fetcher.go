@@ -3,6 +3,7 @@ package forward
 import (
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgtype"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -58,6 +59,10 @@ func (self *ArweaveFetcher) run() (err error) {
 
 		isFirstBatch := true
 		isLastBatch := false
+		isSkipSending := false
+
+		// Set a deadline for processing the block
+		deadline := time.NewTimer(self.Config.Forwarder.ArweaveFetcherBlockSendTimeout)
 
 		// Fetch interactions in batches, offset is the batch number
 		for offset := 0; ; offset++ {
@@ -117,7 +122,7 @@ func (self *ArweaveFetcher) run() (err error) {
 			if len(interactions) == 0 && offset == 0 {
 				self.Log.WithField("height", height).Info("No interactions for this height")
 				break
-			} else {
+			} else if !isSkipSending {
 				self.Log.WithField("height", height).WithField("num", len(interactions)).Info("Got batch of L1 interactions from DB")
 
 				for i, interaction := range interactions {
@@ -128,17 +133,23 @@ func (self *ArweaveFetcher) run() (err error) {
 
 					// NOTE: Quit only when the whole batch is processed
 					// That's why we're not waiting for closing of this task
-					self.Output <- payload
+					select {
+					case <-deadline.C:
+						// Skip sending iteractions if it takes too long for them to be processed
+						// Setting last_sort_key is crucial, decouple from redis
+						isSkipSending = true
+						break
+					case self.Output <- payload:
+					}
 
 					// Increment L1 interaction counter
 					self.monitor.GetReport().Forwarder.State.L1Interactions.Inc()
 				}
-
 			}
 
 		finish:
-			// No more batches for this height
-			if isLastBatch {
+			// No more batches for this height?
+			if isLastBatch || isSkipSending {
 				// Pass downstream that this is the end of L1 interactions for this height
 				payload := &Payload{First: false, Last: true, Interaction: nil}
 				self.Output <- payload
@@ -147,6 +158,9 @@ func (self *ArweaveFetcher) run() (err error) {
 
 			isFirstBatch = false
 
+			if isSkipSending {
+				self.Log.WithField("block_height", height).Warn("Skipping sending some interactions")
+			}
 		}
 
 		// Output channel has a big capacity, give back the control to the scheduler
