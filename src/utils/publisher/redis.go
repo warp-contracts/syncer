@@ -85,10 +85,11 @@ func (self *RedisPublisher[In]) connect() (err error) {
 			self.Log.WithField("state", con.String()).WithField("host", self.redisConfig.Host).Info("Connected to Redis")
 			return nil
 		},
-		ReadTimeout:     time.Second * 30,
-		WriteTimeout:    time.Second * 30,
-		DialTimeout:     time.Minute,
-		ConnMaxLifetime: self.redisConfig.ConnMaxLifetime,
+		ReadTimeout:           time.Second * 30,
+		WriteTimeout:          time.Second * 30,
+		DialTimeout:           time.Minute,
+		ConnMaxLifetime:       self.redisConfig.ConnMaxLifetime,
+		ContextTimeoutEnabled: true,
 	}
 
 	if self.redisConfig.ClientCert != "" && self.redisConfig.ClientKey != "" && self.redisConfig.CaCert != "" {
@@ -149,7 +150,14 @@ func (self *RedisPublisher[In]) ping() (err error) {
 	}
 
 	// Test the connection with a PING message
-	self.Log.Debug("Monitor Redis connection")
+	self.Log.
+		WithField("hits", self.client.PoolStats().Hits).
+		WithField("idle_conns", self.client.PoolStats().IdleConns).
+		WithField("misses", self.client.PoolStats().Misses).
+		WithField("stale_conns", self.client.PoolStats().StaleConns).
+		WithField("timeouts", self.client.PoolStats().Timeouts).
+		WithField("total_conns", self.client.PoolStats().TotalConns).
+		Debug("Monitor Redis connection")
 	err = self.client.Ping(ctx).Err()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to ping Redis")
