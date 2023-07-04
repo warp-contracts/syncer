@@ -57,6 +57,7 @@ func (self *ArweaveFetcher) run() (err error) {
 		lastSortKeys := make(map[string]string)
 
 		isFirstBatch := true
+		isLastBatch := false
 
 		// Fetch interactions in batches, offset is the batch number
 		for offset := 0; ; offset++ {
@@ -87,8 +88,16 @@ func (self *ArweaveFetcher) run() (err error) {
 						}
 					}
 
-					// Update sync height
-					return self.updateSyncedHeight(tx, height)
+					isLastBatch = (len(interactions) < self.Config.Forwarder.FetcherBatchSize) ||
+						// Edge case: num of interactions is a multiple of batch size
+						(len(interactions) == 0 && offset != 0)
+
+					if isLastBatch {
+						// Update sync height after the whole batch is processed
+						return self.updateSyncedHeight(tx, height)
+					}
+
+					return nil
 				})
 			if err != nil {
 				self.Log.WithError(err).WithField("height", height).Error("Failed to fetch interactions from DB")
@@ -129,9 +138,7 @@ func (self *ArweaveFetcher) run() (err error) {
 
 		finish:
 			// No more batches for this height
-			if (len(interactions) < self.Config.Forwarder.FetcherBatchSize) ||
-				// Edge case: num of interactions is a multiple of batch size
-				(len(interactions) == 0 && offset != 0) {
+			if isLastBatch {
 				// Pass downstream that this is the end of L1 interactions for this height
 				payload := &Payload{First: false, Last: true, Interaction: nil}
 				self.Output <- payload
