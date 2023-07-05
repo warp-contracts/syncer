@@ -109,7 +109,7 @@ func (self *ArweaveFetcher) run() (err error) {
 
 				// Dump interactions to the log
 				for _, interaction := range interactions {
-					self.Log.WithField("interaction_id", interaction.InteractionId).Error("Neglected interactions")
+					self.Log.WithField("interaction_id", interaction.InteractionId).Error("Neglected interaction")
 				}
 
 				self.monitor.GetReport().Forwarder.Errors.DbFetchL1Interactions.Inc()
@@ -222,7 +222,7 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 		if _, ok := lastSortKeys[k]; ok {
 			continue
 		}
-		self.Log.WithField("k", k).WithField("v", v).Debug("New last sort key")
+		// self.Log.WithField("k", k).WithField("v", v).Debug("New last sort key")
 		lastSortKeys[k] = v
 	}
 
@@ -272,8 +272,6 @@ func (self *ArweaveFetcher) updateLastSortKey(tx *gorm.DB, interactions []*model
 }
 
 func (self *ArweaveFetcher) getNewContractIds(interactions []*model.Interaction, lastSortKeys map[string]string) (out []string) {
-	self.Log.Debug("-> getNewContractIds")
-	defer self.Log.Debug("<- getNewContractIds")
 	contractIds := make(map[string]struct{})
 	for _, interaction := range interactions {
 		_, ok := lastSortKeys[interaction.ContractId]
@@ -292,9 +290,6 @@ func (self *ArweaveFetcher) getNewContractIds(interactions []*model.Interaction,
 }
 
 func (self *ArweaveFetcher) getLastSortKeys(tx *gorm.DB, contractIds []string, height uint64) (out map[string]string, err error) {
-	self.Log.Debug("-> getLastSortKeys")
-	defer self.Log.Debug("<- getLastSortKeys")
-
 	out = make(map[string]string)
 
 	var interactions = make([]*model.Interaction, 0, len(contractIds))

@@ -60,7 +60,7 @@ func (self *Duplicator[In]) NextChannel() (out chan In) {
 func (self *Duplicator[In]) run() error {
 	wg := sync.WaitGroup{}
 	for in := range self.input {
-		self.Log.Debug("-> Duplicator send")
+		// self.Log.Debug("-> Duplicator send")
 		in := in
 		wg.Add(len(self.output))
 		for channelIdx := range self.output {
@@ -77,7 +77,7 @@ func (self *Duplicator[In]) run() error {
 
 		// Wait for all channels to receive data
 		wg.Wait()
-		self.Log.Debug("<- Duplicator send")
+		// self.Log.Debug("<- Duplicator send")
 	}
 	return nil
 }

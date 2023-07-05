@@ -58,34 +58,25 @@ func (self *Joiner[In]) handleOneInput(input chan In) error {
 	var isOwner bool
 
 	for in := range input {
-		self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Received message from input channel")
-
 		// Lock only if it's not already owned
 		if !isOwner {
 			if in.IsFirst() {
 				// This will be the only goroutine sending messages to the output channel
 				self.mtx.Lock()
 				isOwner = true
-				self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Exlusive lock")
 			} else {
 				// Multiple channels may be sending messages at the same time
 				// They are synchronized with the self.Output channel
 				self.mtx.RLock()
-				self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Read lock")
-
 			}
 		}
 
-		self.Log.Debug("Sending")
 		self.Output <- in
-		self.Log.Debug("Sent")
 
 		if isOwner && in.IsLast() {
 			isOwner = false
-			self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Release exlusive lock")
 			self.mtx.Unlock()
 		} else if !isOwner {
-			self.Log.WithField("isFirst", in.IsFirst()).WithField("isLast", in.IsLast()).Debug("Release read lock")
 			self.mtx.RUnlock()
 		}
 	}
