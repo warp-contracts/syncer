@@ -205,12 +205,12 @@ func (self *RedisPublisher[In]) run() (err error) {
 				return err
 			}).
 			Run(func() (err error) {
-				self.Log.WithField("i", i).Debug("-> Publish message to Redis")
-				defer self.Log.WithField("i", i).Debug("<- Publish message to Redis")
+				// self.Log.WithField("i", i).Debug("-> Publish message to Redis")
+				// defer self.Log.WithField("i", i).Debug("<- Publish message to Redis")
 				return self.client.Publish(self.Ctx, self.channelName, payload).Err()
 			})
 		if err != nil {
-			self.Log.WithError(err).Error("Persistant error to publish message, giving up")
+			self.Log.WithField("i", i).WithError(err).Error("Persistant error to publish message, giving up")
 			self.monitor.GetReport().RedisPublisher.Errors.PersistentFailure.Inc()
 
 			// Mark the connection as disconnected if it's a network error
@@ -219,7 +219,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 				errors.Is(err, &net.DNSError{}) ||
 				errors.Is(err, &net.AddrError{}) ||
 				errors.Is(err, &net.ParseError{}) {
-				self.Log.WithError(err).Error("Mark redis connection as disconnected")
+				self.Log.WithField("i", i).WithError(err).Error("Mark redis connection as disconnected")
 				self.setConnected(false)
 			}
 			return
@@ -228,20 +228,6 @@ func (self *RedisPublisher[In]) run() (err error) {
 		self.monitor.GetReport().RedisPublisher.State.MessagesPublished.Inc()
 		self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
 
-		if self.redisConfig.MaxQueueSize > 3 {
-			if self.GetWorkerQueueFillFactor() < 0.1 {
-				self.Log.WithField("i", i).Debug("Redis queue almost empty")
-			}
-		}
-
-		if self.redisConfig.MaxQueueSize > 3 {
-			if self.GetWorkerQueueFillFactor() > 0.8 {
-				self.Log.WithField("i", i).Warn("Redis queue is filling up")
-			}
-			if self.GetWorkerQueueFillFactor() > 0.99 {
-				self.Log.WithField("i", i).Error("Redis queue is full")
-			}
-		}
 		self.Log.WithField("i", i).Debug("...Redis publish done")
 	}
 	return nil
