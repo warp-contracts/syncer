@@ -173,7 +173,7 @@ func (self *RedisPublisher[In]) ping() (err error) {
 		self.Log.WithError(err).Error("Failed to ping Redis")
 		self.setConnected(false)
 
-		return
+		return nil
 	}
 
 	self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
