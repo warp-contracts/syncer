@@ -1,7 +1,10 @@
 package monitor_contract
 
 import (
+	"fmt"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/warp-contracts/syncer/src/utils/config"
 )
 
 type Collector struct {
@@ -51,9 +54,15 @@ type Collector struct {
 	ContractsSaved                    *prometheus.Desc
 
 	// Redis publisher
-	RedisPublishErrors     *prometheus.Desc
-	RedisPersistentErrors  *prometheus.Desc
-	RedisMessagesPublished *prometheus.Desc
+	RedisPublishErrors     []*prometheus.Desc
+	RedisPersistentErrors  []*prometheus.Desc
+	RedisMessagesPublished []*prometheus.Desc
+	RedisPoolHits          []*prometheus.Desc
+	RedisPoolIdleConns     []*prometheus.Desc
+	RedisPoolMisses        []*prometheus.Desc
+	RedisPoolStaleConns    []*prometheus.Desc
+	RedisPoolTimeouts      []*prometheus.Desc
+	RedisPoolTotalConns    []*prometheus.Desc
 
 	// App sync publisher
 	AppSyncPublishErrors     *prometheus.Desc
@@ -61,12 +70,12 @@ type Collector struct {
 	AppSyncMessagesPublished *prometheus.Desc
 }
 
-func NewCollector() *Collector {
+func NewCollector(config *config.Config) *Collector {
 	labels := prometheus.Labels{
 		"app": "contractor",
 	}
 
-	return &Collector{
+	collector := &Collector{
 		// Run
 		StartTimestamp:      prometheus.NewDesc("start_timestamp", "", nil, labels),
 		UpForSeconds:        prometheus.NewDesc("up_for_seconds", "", nil, labels),
@@ -109,15 +118,36 @@ func NewCollector() *Collector {
 		ContractsSaved:                    prometheus.NewDesc("contracts_saved", "", nil, labels),
 
 		// Redis publisher
-		RedisPublishErrors:     prometheus.NewDesc("error_redis_publish_errors", "", nil, labels),
-		RedisPersistentErrors:  prometheus.NewDesc("error_redis_persistent_errors", "", nil, labels),
-		RedisMessagesPublished: prometheus.NewDesc("redis_messages_published", "", nil, labels),
+		RedisPublishErrors:     make([]*prometheus.Desc, len(config.Redis)),
+		RedisPersistentErrors:  make([]*prometheus.Desc, len(config.Redis)),
+		RedisMessagesPublished: make([]*prometheus.Desc, len(config.Redis)),
+		RedisPoolHits:          make([]*prometheus.Desc, len(config.Redis)),
+		RedisPoolIdleConns:     make([]*prometheus.Desc, len(config.Redis)),
+		RedisPoolMisses:        make([]*prometheus.Desc, len(config.Redis)),
+		RedisPoolStaleConns:    make([]*prometheus.Desc, len(config.Redis)),
+		RedisPoolTimeouts:      make([]*prometheus.Desc, len(config.Redis)),
+		RedisPoolTotalConns:    make([]*prometheus.Desc, len(config.Redis)),
 
 		// App sync publisher
 		AppSyncPublishErrors:     prometheus.NewDesc("error_app_sync_publish", "", nil, labels),
 		AppSyncPersistentErrors:  prometheus.NewDesc("error_app_sync_persistent", "", nil, labels),
 		AppSyncMessagesPublished: prometheus.NewDesc("app_sync_messages_published", "", nil, labels),
 	}
+
+	for i := range config.Redis {
+		// Redis publisher
+		collector.RedisPublishErrors[i] = prometheus.NewDesc(fmt.Sprintf("redis_%d_publish_errors", i), "", nil, nil)
+		collector.RedisPersistentErrors[i] = prometheus.NewDesc(fmt.Sprintf("redis_%d_persistent_errors", i), "", nil, nil)
+		collector.RedisMessagesPublished[i] = prometheus.NewDesc(fmt.Sprintf("redis_%d_messages_published", i), "", nil, nil)
+		collector.RedisPoolHits[i] = prometheus.NewDesc(fmt.Sprintf("redis_%d_pool_hits", i), "", nil, nil)
+		collector.RedisPoolIdleConns[i] = prometheus.NewDesc(fmt.Sprintf("redis_%d_pool_idle_conns", i), "", nil, nil)
+		collector.RedisPoolMisses[i] = prometheus.NewDesc(fmt.Sprintf("redis_%d_pool_misses", i), "", nil, nil)
+		collector.RedisPoolStaleConns[i] = prometheus.NewDesc(fmt.Sprintf("redis_%d_pool_stale_conns", i), "", nil, nil)
+		collector.RedisPoolTimeouts[i] = prometheus.NewDesc(fmt.Sprintf("redis_%d_pool_timeouts", i), "", nil, nil)
+		collector.RedisPoolTotalConns[i] = prometheus.NewDesc(fmt.Sprintf("redis_%d_pool_total_conns", i), "", nil, nil)
+	}
+
+	return collector
 }
 
 func (self *Collector) WithMonitor(m *Monitor) *Collector {
@@ -161,10 +191,17 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.ContractsSaved
 
 	// Redis publisher
-	ch <- self.RedisPublishErrors
-	ch <- self.RedisPersistentErrors
-	ch <- self.RedisMessagesPublished
-
+	for i := range self.monitor.Report.RedisPublishers {
+		ch <- self.RedisPublishErrors[i]
+		ch <- self.RedisPersistentErrors[i]
+		ch <- self.RedisMessagesPublished[i]
+		ch <- self.RedisPoolHits[i]
+		ch <- self.RedisPoolIdleConns[i]
+		ch <- self.RedisPoolMisses[i]
+		ch <- self.RedisPoolStaleConns[i]
+		ch <- self.RedisPoolTimeouts[i]
+		ch <- self.RedisPoolTotalConns[i]
+	}
 	// App sync publisher
 	ch <- self.AppSyncPublishErrors
 	ch <- self.AppSyncPersistentErrors
@@ -213,10 +250,17 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.ContractsSaved, prometheus.CounterValue, float64(self.monitor.Report.Contractor.State.ContractsSaved.Load()))
 
 	// Redis publisher
-	ch <- prometheus.MustNewConstMetric(self.RedisPublishErrors, prometheus.CounterValue, float64(self.monitor.Report.RedisPublisher.Errors.Publish.Load()))
-	ch <- prometheus.MustNewConstMetric(self.RedisPersistentErrors, prometheus.CounterValue, float64(self.monitor.Report.RedisPublisher.Errors.PersistentFailure.Load()))
-	ch <- prometheus.MustNewConstMetric(self.RedisMessagesPublished, prometheus.CounterValue, float64(self.monitor.Report.RedisPublisher.State.MessagesPublished.Load()))
-
+	for i, redisPublisher := range self.monitor.Report.RedisPublishers {
+		ch <- prometheus.MustNewConstMetric(self.RedisPublishErrors[i], prometheus.CounterValue, float64(redisPublisher.Errors.Publish.Load()))
+		ch <- prometheus.MustNewConstMetric(self.RedisPersistentErrors[i], prometheus.CounterValue, float64(redisPublisher.Errors.PersistentFailure.Load()))
+		ch <- prometheus.MustNewConstMetric(self.RedisMessagesPublished[i], prometheus.CounterValue, float64(redisPublisher.State.MessagesPublished.Load()))
+		ch <- prometheus.MustNewConstMetric(self.RedisPoolHits[i], prometheus.GaugeValue, float64(redisPublisher.State.PoolHits.Load()))
+		ch <- prometheus.MustNewConstMetric(self.RedisPoolIdleConns[i], prometheus.GaugeValue, float64(redisPublisher.State.PoolIdleConns.Load()))
+		ch <- prometheus.MustNewConstMetric(self.RedisPoolMisses[i], prometheus.GaugeValue, float64(redisPublisher.State.PoolMisses.Load()))
+		ch <- prometheus.MustNewConstMetric(self.RedisPoolStaleConns[i], prometheus.GaugeValue, float64(redisPublisher.State.PoolStaleConns.Load()))
+		ch <- prometheus.MustNewConstMetric(self.RedisPoolTimeouts[i], prometheus.GaugeValue, float64(redisPublisher.State.PoolTimeouts.Load()))
+		ch <- prometheus.MustNewConstMetric(self.RedisPoolTotalConns[i], prometheus.GaugeValue, float64(redisPublisher.State.PoolTotalConns.Load()))
+	}
 	// App sync publisher
 	ch <- prometheus.MustNewConstMetric(self.AppSyncPublishErrors, prometheus.CounterValue, float64(self.monitor.Report.AppSyncPublisher.Errors.Publish.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AppSyncPersistentErrors, prometheus.CounterValue, float64(self.monitor.Report.AppSyncPublisher.Errors.PersistentFailure.Load()))

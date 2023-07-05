@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/monitoring/report"
 	"github.com/warp-contracts/syncer/src/utils/task"
 
@@ -19,19 +20,19 @@ type Monitor struct {
 	collector *Collector
 }
 
-func NewMonitor() (self *Monitor) {
+func NewMonitor(config *config.Config) (self *Monitor) {
 	self = new(Monitor)
 
 	self.Report = report.Report{
-		Run:            &report.RunReport{},
-		RedisPublisher: &report.RedisPublisherReport{},
-		Forwarder:      &report.ForwarderReport{},
+		Run:             &report.RunReport{},
+		RedisPublishers: make([]report.RedisPublisherReport, len(config.Redis)),
+		Forwarder:       &report.ForwarderReport{},
 	}
 
 	// Initialization
 	self.Report.Run.State.StartTimestamp.Store(time.Now().Unix())
 
-	self.collector = NewCollector().WithMonitor(self)
+	self.collector = NewCollector(config).WithMonitor(self)
 
 	self.Task = task.NewTask(nil, "monitor").
 		WithPeriodicSubtaskFunc(30*time.Second, self.monitor)
@@ -57,7 +58,12 @@ func (self *Monitor) IsOK() bool {
 		return true
 	}
 
-	return now-self.Report.RedisPublisher.State.LastSuccessfulMessageTimestamp.Load() < 300
+	for _, redisPublisher := range self.Report.RedisPublishers {
+		if now-redisPublisher.State.LastSuccessfulMessageTimestamp.Load() > 300 {
+			return false
+		}
+	}
+	return true
 }
 
 func (self *Monitor) monitor() (err error) {

@@ -27,6 +27,9 @@ type RedisPublisher[In encoding.BinaryMarshaler] struct {
 	channelName string
 	input       chan In
 
+	// Monitor index
+	monitorIdx int
+
 	// If true, messages will be discarded when there's no redis connection
 	isDiscardWhenDisconnected bool
 
@@ -60,8 +63,9 @@ func (self *RedisPublisher[In]) WithChannelName(v string) *RedisPublisher[In] {
 	return self
 }
 
-func (self *RedisPublisher[In]) WithMonitor(monitor monitoring.Monitor) *RedisPublisher[In] {
+func (self *RedisPublisher[In]) WithMonitor(monitor monitoring.Monitor, idx int) *RedisPublisher[In] {
 	self.monitor = monitor
+	self.monitorIdx = idx
 	return self
 }
 
@@ -132,7 +136,8 @@ func (self *RedisPublisher[In]) connect() (err error) {
 			KeepAlive: time.Second * 30,
 		}
 		if opts.TLSConfig == nil {
-			return nil, errors.New("TLS config is nil")
+			return net.Dial(network, addr)
+			// return nil, errors.New("TLS config is nil")
 		}
 		return tls.DialWithDialer(netDialer, network, addr, opts.TLSConfig)
 	}
@@ -153,21 +158,18 @@ func (self *RedisPublisher[In]) connect() (err error) {
 
 func (self *RedisPublisher[In]) saveStats() (err error) {
 	stats := self.client.PoolStats()
-	self.monitor.GetReport().RedisPublisher.State.PoolHits.Store(stats.Hits)
-	self.monitor.GetReport().RedisPublisher.State.PoolIdleConns.Store(stats.IdleConns)
-	self.monitor.GetReport().RedisPublisher.State.PoolMisses.Store(stats.Misses)
-	self.monitor.GetReport().RedisPublisher.State.PoolStaleConns.Store(stats.StaleConns)
-	self.monitor.GetReport().RedisPublisher.State.PoolTimeouts.Store(stats.Timeouts)
-	self.monitor.GetReport().RedisPublisher.State.PoolTotalConns.Store(stats.TotalConns)
+	self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.PoolHits.Store(stats.Hits)
+	self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.PoolIdleConns.Store(stats.IdleConns)
+	self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.PoolMisses.Store(stats.Misses)
+	self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.PoolStaleConns.Store(stats.StaleConns)
+	self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.PoolTimeouts.Store(stats.Timeouts)
+	self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.PoolTotalConns.Store(stats.TotalConns)
 	return nil
 }
 
 func (self *RedisPublisher[In]) ping() (err error) {
-	ctx, cancel := context.WithTimeout(self.Ctx, 30*time.Second)
-	defer cancel()
-
 	// No need to monitor connection with another message if messages go through
-	if time.Now().Unix()-self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Load() < 30 {
+	if time.Now().Unix()-self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.LastSuccessfulMessageTimestamp.Load() < 30 {
 		return nil
 	}
 
@@ -180,7 +182,7 @@ func (self *RedisPublisher[In]) ping() (err error) {
 		WithField("timeouts", self.client.PoolStats().Timeouts).
 		WithField("total_conns", self.client.PoolStats().TotalConns).
 		Debug("Monitor Redis connection")
-	err = self.client.Ping(ctx).Err()
+	err = self.client.Ping(self.Ctx).Err()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to ping Redis")
 		self.setConnected(false)
@@ -188,7 +190,7 @@ func (self *RedisPublisher[In]) ping() (err error) {
 		return nil
 	}
 
-	self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
+	self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
 
 	self.setConnected(true)
 
@@ -213,7 +215,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 			WithMaxInterval(self.redisConfig.MaxInterval).
 			WithOnError(func(err error, isDurationAcceptable bool) error {
 				self.Log.WithError(err).Warn("Failed to publish message, retrying")
-				self.monitor.GetReport().RedisPublisher.Errors.Publish.Inc()
+				self.monitor.GetReport().RedisPublishers[self.monitorIdx].Errors.Publish.Inc()
 				return err
 			}).
 			Run(func() (err error) {
@@ -223,7 +225,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 			})
 		if err != nil {
 			self.Log.WithField("i", i).WithError(err).Error("Persistant error to publish message, giving up")
-			self.monitor.GetReport().RedisPublisher.Errors.PersistentFailure.Inc()
+			self.monitor.GetReport().RedisPublishers[self.monitorIdx].Errors.PersistentFailure.Inc()
 
 			// Mark the connection as disconnected if it's a network error
 			if errors.Is(err, &net.OpError{}) ||
@@ -237,8 +239,8 @@ func (self *RedisPublisher[In]) run() (err error) {
 			return
 		}
 
-		self.monitor.GetReport().RedisPublisher.State.MessagesPublished.Inc()
-		self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
+		self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.MessagesPublished.Inc()
+		self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
 
 		self.Log.WithField("i", i).Trace("Published message to Redis")
 	}
@@ -248,8 +250,8 @@ func (self *RedisPublisher[In]) run() (err error) {
 func (self *RedisPublisher[In]) setConnected(v bool) {
 	self.isConnected = v
 	if v {
-		self.monitor.GetReport().RedisPublisher.State.IsConnected.Store(1)
+		self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.IsConnected.Store(1)
 	} else {
-		self.monitor.GetReport().RedisPublisher.State.IsConnected.Store(0)
+		self.monitor.GetReport().RedisPublishers[self.monitorIdx].State.IsConnected.Store(0)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/monitoring/report"
 	"github.com/warp-contracts/syncer/src/utils/task"
 
@@ -32,13 +33,13 @@ type Monitor struct {
 	ContractsSaved    *deque.Deque[uint64]
 }
 
-func NewMonitor() (self *Monitor) {
+func NewMonitor(config *config.Config) (self *Monitor) {
 	self = new(Monitor)
 
 	self.Report = report.Report{
 		Run:                   &report.RunReport{},
 		Contractor:            &report.ContractorReport{},
-		RedisPublisher:        &report.RedisPublisherReport{},
+		RedisPublishers:       make([]report.RedisPublisherReport, len(config.Redis)),
 		AppSyncPublisher:      &report.AppSyncPublisherReport{},
 		NetworkInfo:           &report.NetworkInfoReport{},
 		BlockDownloader:       &report.BlockDownloaderReport{},
@@ -49,7 +50,7 @@ func NewMonitor() (self *Monitor) {
 	// Initialization
 	self.Report.Run.State.StartTimestamp.Store(time.Now().Unix())
 
-	self.collector = NewCollector().WithMonitor(self)
+	self.collector = NewCollector(config).WithMonitor(self)
 
 	self.Task = task.NewTask(nil, "monitor").
 		WithPeriodicSubtaskFunc(30*time.Second, self.monitor).

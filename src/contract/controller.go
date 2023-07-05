@@ -26,7 +26,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 
 	self.Task = task.NewTask(config, "contract-controller")
 
-	monitor := monitor_contract.NewMonitor().
+	monitor := monitor_contract.NewMonitor(config).
 		WithMaxHistorySize(30)
 
 	server := monitoring.NewServer(config).
@@ -104,7 +104,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 		for i := range config.Redis {
 			redisPublisher := publisher.NewRedisPublisher[*model.ContractNotification](config, config.Redis[i], fmt.Sprintf("contract-redis-publisher-%d", i)).
 				WithChannelName(config.Contract.PublisherRedisChannelName).
-				WithMonitor(monitor).
+				WithMonitor(monitor, i).
 				WithInputChannel(redisDuplicator.NextChannel())
 			redisPublishers = append(redisPublishers, redisPublisher.Task)
 		}

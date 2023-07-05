@@ -12,6 +12,6 @@ type Report struct {
 	BlockMonitor          *BlockMonitorReport          `json:"block_monitor,omitempty"`
 	BlockDownloader       *BlockDownloaderReport       `json:"block_downloader,omitempty"`
 	TransactionDownloader *TransactionDownloaderReport `json:"transaction_downloader,omitempty"`
-	RedisPublisher        *RedisPublisherReport        `json:"redis_publisher,omitempty"`
+	RedisPublishers       []RedisPublisherReport       `json:"redis_publishers,omitempty"`
 	AppSyncPublisher      *AppSyncPublisherReport      `json:"appsync_publisher,omitempty"`
 }

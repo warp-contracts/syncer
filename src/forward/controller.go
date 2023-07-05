@@ -26,7 +26,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	}
 
 	// Monitoring
-	monitor := monitor_forwarder.NewMonitor()
+	monitor := monitor_forwarder.NewMonitor(config)
 	server := monitoring.NewServer(config).
 		WithMonitor(monitor)
 
@@ -64,7 +64,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		for i := range config.Redis {
 			redisPublisher := publisher.NewRedisPublisher[*model.InteractionNotification](config, config.Redis[i], fmt.Sprintf("interaction-redis-publisher-%d", i)).
 				WithChannelName(config.Forwarder.PublisherRedisChannelName).
-				WithMonitor(monitor).
+				WithMonitor(monitor, i).
 				WithDiscardWhenDisconnected(true).
 				WithInputChannel(redisDuplicator.NextChannel())
 			redisPublishers = append(redisPublishers, redisPublisher.Task)
