@@ -130,8 +130,6 @@ func (self *TransactionDownloader) run() error {
 			continue
 		}
 
-		self.monitor.GetReport().TransactionDownloader.State.TransactionsDownloaded.Add(uint64(len(transactions)))
-
 		// Blocks until a monitorTranactions is ready to receive
 		// or Listener is stopped
 		self.Output <- &Payload{
@@ -211,6 +209,9 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 				self.Log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, giving up")
 				goto end
 			}
+
+			// Update metrics
+			self.monitor.GetReport().TransactionDownloader.State.TransactionsDownloaded.Inc()
 
 			// Skip transactions that don't pass the filter
 			if !self.filter(tx) {
