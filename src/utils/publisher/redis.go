@@ -205,7 +205,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 
 		i++
 
-		self.Log.WithField("i", i).Debug("Redis publish...")
+		self.Log.WithField("i", i).Trace("Redis publish...")
 
 		err = task.NewRetry().
 			WithContext(self.Ctx).
@@ -240,7 +240,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 		self.monitor.GetReport().RedisPublisher.State.MessagesPublished.Inc()
 		self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
 
-		self.Log.WithField("i", i).Debug("...Redis publish done")
+		self.Log.WithField("i", i).Trace("Published message to Redis")
 	}
 	return nil
 }
