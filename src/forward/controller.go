@@ -65,6 +65,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			redisPublisher := publisher.NewRedisPublisher[*model.InteractionNotification](config, config.Redis[i], fmt.Sprintf("interaction-redis-publisher-%d", i)).
 				WithChannelName(config.Forwarder.PublisherRedisChannelName).
 				WithMonitor(monitor).
+				WithDiscardWhenDisconnected(true).
 				WithInputChannel(redisDuplicator.NextChannel())
 			redisPublishers = append(redisPublishers, redisPublisher.Task)
 		}

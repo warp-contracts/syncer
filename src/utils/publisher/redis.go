@@ -22,12 +22,16 @@ type RedisPublisher[In encoding.BinaryMarshaler] struct {
 	*task.Task
 
 	redisConfig config.Redis
-
-	monitor monitoring.Monitor
-
+	monitor     monitoring.Monitor
 	client      *redis.Client
 	channelName string
 	input       chan In
+
+	// If true, messages will be discarded when there's no redis connection
+	isDiscardWhenDisconnected bool
+
+	// One of the connection in pool is valid
+	isConnected bool
 }
 
 func NewRedisPublisher[In encoding.BinaryMarshaler](config *config.Config, redisConfig config.Redis, name string) (self *RedisPublisher[In]) {
@@ -60,6 +64,11 @@ func (self *RedisPublisher[In]) WithMonitor(monitor monitoring.Monitor) *RedisPu
 	return self
 }
 
+func (self *RedisPublisher[In]) WithDiscardWhenDisconnected(v bool) *RedisPublisher[In] {
+	self.isDiscardWhenDisconnected = v
+	return self
+}
+
 func (self *RedisPublisher[In]) disconnect() {
 	err := self.client.Close()
 	if err != nil {
@@ -83,6 +92,7 @@ func (self *RedisPublisher[In]) connect() (err error) {
 		PoolTimeout:     time.Minute,
 		OnConnect: func(ctx context.Context, con *redis.Conn) error {
 			self.Log.WithField("state", con.String()).WithField("host", self.redisConfig.Host).Info("Connected to Redis")
+			self.isConnected = true
 			return nil
 		},
 		ReadTimeout:           time.Second * 30,
@@ -161,9 +171,13 @@ func (self *RedisPublisher[In]) ping() (err error) {
 	err = self.client.Ping(ctx).Err()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to ping Redis")
+		self.isConnected = false
 		return
 	}
+
 	self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
+
+	self.isConnected = true
 
 	return nil
 }
@@ -171,8 +185,12 @@ func (self *RedisPublisher[In]) ping() (err error) {
 func (self *RedisPublisher[In]) run() (err error) {
 	i := 0
 	for payload := range self.input {
+		if self.isDiscardWhenDisconnected && !self.isConnected {
+			// Discard incomming payloads
+			continue
+		}
+
 		i++
-		i := i
 
 		self.Log.WithField("i", i).Debug("Redis publish...")
 
@@ -181,7 +199,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 			WithMaxElapsedTime(self.redisConfig.MaxElapsedTime).
 			WithMaxInterval(self.redisConfig.MaxInterval).
 			WithOnError(func(err error, isDurationAcceptable bool) error {
-				self.Log.WithError(err).Warn(" , retrying")
+				self.Log.WithError(err).Warn("Failed to publish message, retrying")
 				self.monitor.GetReport().RedisPublisher.Errors.Publish.Inc()
 				return err
 			}).
@@ -193,6 +211,16 @@ func (self *RedisPublisher[In]) run() (err error) {
 		if err != nil {
 			self.Log.WithError(err).Error("Persistant error to publish message, giving up")
 			self.monitor.GetReport().RedisPublisher.Errors.PersistentFailure.Inc()
+
+			// Mark the connection as disconnected if it's a network error
+			if errors.Is(err, &net.OpError{}) ||
+				errors.Is(err, net.ErrClosed) ||
+				errors.Is(err, &net.DNSError{}) ||
+				errors.Is(err, &net.AddrError{}) ||
+				errors.Is(err, &net.ParseError{}) {
+				self.Log.WithError(err).Error("Mark redis connection as disconnected")
+				self.isConnected = false
+			}
 			return
 		}
 
