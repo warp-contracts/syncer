@@ -171,13 +171,14 @@ func (self *RedisPublisher[In]) ping() (err error) {
 	err = self.client.Ping(ctx).Err()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to ping Redis")
-		self.isConnected = false
+		self.setConnected(false)
+
 		return
 	}
 
 	self.monitor.GetReport().RedisPublisher.State.LastSuccessfulMessageTimestamp.Store(time.Now().Unix())
 
-	self.isConnected = true
+	self.setConnected(true)
 
 	return nil
 }
@@ -219,7 +220,7 @@ func (self *RedisPublisher[In]) run() (err error) {
 				errors.Is(err, &net.AddrError{}) ||
 				errors.Is(err, &net.ParseError{}) {
 				self.Log.WithError(err).Error("Mark redis connection as disconnected")
-				self.isConnected = false
+				self.setConnected(false)
 			}
 			return
 		}
@@ -244,4 +245,13 @@ func (self *RedisPublisher[In]) run() (err error) {
 		self.Log.WithField("i", i).Debug("...Redis publish done")
 	}
 	return nil
+}
+
+func (self *RedisPublisher[In]) setConnected(v bool) {
+	self.isConnected = v
+	if v {
+		self.monitor.GetReport().RedisPublisher.State.IsConnected.Store(1)
+	} else {
+		self.monitor.GetReport().RedisPublisher.State.IsConnected.Store(0)
+	}
 }

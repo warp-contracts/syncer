@@ -10,6 +10,7 @@ type RedisPublisherErrors struct {
 }
 
 type RedisPublisherState struct {
+	IsConnected                    atomic.Int64  `json:"is_connected"`
 	LastSuccessfulMessageTimestamp atomic.Int64  `json:"last_successful_message_timestamp"`
 	MessagesPublished              atomic.Uint64 `json:"messages_published"`
 }
