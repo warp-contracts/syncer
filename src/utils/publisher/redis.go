@@ -44,6 +44,7 @@ func NewRedisPublisher[In encoding.BinaryMarshaler](config *config.Config, redis
 		WithOnBeforeStart(self.connect).
 		WithOnAfterStop(self.disconnect).
 		WithPeriodicSubtaskFunc(time.Second*30, self.ping).
+		WithPeriodicSubtaskFunc(time.Second*60, self.saveStats).
 		WithWorkerPool(redisConfig.MaxWorkers, redisConfig.MaxQueueSize)
 
 	return
@@ -148,6 +149,17 @@ func (self *RedisPublisher[In]) connect() (err error) {
 	self.Log.WithField("host", self.redisConfig.Host).Info("Redis connection OK")
 
 	return
+}
+
+func (self *RedisPublisher[In]) saveStats() (err error) {
+	stats := self.client.PoolStats()
+	self.monitor.GetReport().RedisPublisher.State.PoolHits.Store(stats.Hits)
+	self.monitor.GetReport().RedisPublisher.State.PoolIdleConns.Store(stats.IdleConns)
+	self.monitor.GetReport().RedisPublisher.State.PoolMisses.Store(stats.Misses)
+	self.monitor.GetReport().RedisPublisher.State.PoolStaleConns.Store(stats.StaleConns)
+	self.monitor.GetReport().RedisPublisher.State.PoolTimeouts.Store(stats.Timeouts)
+	self.monitor.GetReport().RedisPublisher.State.PoolTotalConns.Store(stats.TotalConns)
+	return nil
 }
 
 func (self *RedisPublisher[In]) ping() (err error) {

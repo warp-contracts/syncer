@@ -20,6 +20,12 @@ type Collector struct {
 	RedisPublishErrors     *prometheus.Desc
 	RedisPersistentErrors  *prometheus.Desc
 	RedisMessagesPublished *prometheus.Desc
+	RedisPoolHits          *prometheus.Desc
+	RedisPoolIdleConns     *prometheus.Desc
+	RedisPoolMisses        *prometheus.Desc
+	RedisPoolStaleConns    *prometheus.Desc
+	RedisPoolTimeouts      *prometheus.Desc
+	RedisPoolTotalConns    *prometheus.Desc
 }
 
 func NewCollector() *Collector {
@@ -37,6 +43,12 @@ func NewCollector() *Collector {
 		RedisPublishErrors:     prometheus.NewDesc("error_redis_publish_errors", "", nil, nil),
 		RedisPersistentErrors:  prometheus.NewDesc("error_redis_persistent_errors", "", nil, nil),
 		RedisMessagesPublished: prometheus.NewDesc("redis_messages_published", "", nil, nil),
+		RedisPoolHits:          prometheus.NewDesc("redis_pool_hits", "", nil, nil),
+		RedisPoolIdleConns:     prometheus.NewDesc("redis_pool_idle_conns", "", nil, nil),
+		RedisPoolMisses:        prometheus.NewDesc("redis_pool_misses", "", nil, nil),
+		RedisPoolStaleConns:    prometheus.NewDesc("redis_pool_stale_conns", "", nil, nil),
+		RedisPoolTimeouts:      prometheus.NewDesc("redis_pool_timeouts", "", nil, nil),
+		RedisPoolTotalConns:    prometheus.NewDesc("redis_pool_total_conns", "", nil, nil),
 	}
 }
 
@@ -59,7 +71,12 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.RedisPublishErrors
 	ch <- self.RedisPersistentErrors
 	ch <- self.RedisMessagesPublished
-
+	ch <- self.RedisPoolHits
+	ch <- self.RedisPoolIdleConns
+	ch <- self.RedisPoolMisses
+	ch <- self.RedisPoolStaleConns
+	ch <- self.RedisPoolTimeouts
+	ch <- self.RedisPoolTotalConns
 }
 
 // Collect implements required collect function for all promehteus collectors
@@ -77,5 +94,10 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.RedisPublishErrors, prometheus.CounterValue, float64(self.monitor.Report.RedisPublisher.Errors.Publish.Load()))
 	ch <- prometheus.MustNewConstMetric(self.RedisPersistentErrors, prometheus.CounterValue, float64(self.monitor.Report.RedisPublisher.Errors.PersistentFailure.Load()))
 	ch <- prometheus.MustNewConstMetric(self.RedisMessagesPublished, prometheus.CounterValue, float64(self.monitor.Report.RedisPublisher.State.MessagesPublished.Load()))
-
+	ch <- prometheus.MustNewConstMetric(self.RedisPoolHits, prometheus.GaugeValue, float64(self.monitor.Report.RedisPublisher.State.PoolHits.Load()))
+	ch <- prometheus.MustNewConstMetric(self.RedisPoolIdleConns, prometheus.GaugeValue, float64(self.monitor.Report.RedisPublisher.State.PoolIdleConns.Load()))
+	ch <- prometheus.MustNewConstMetric(self.RedisPoolMisses, prometheus.GaugeValue, float64(self.monitor.Report.RedisPublisher.State.PoolMisses.Load()))
+	ch <- prometheus.MustNewConstMetric(self.RedisPoolStaleConns, prometheus.GaugeValue, float64(self.monitor.Report.RedisPublisher.State.PoolStaleConns.Load()))
+	ch <- prometheus.MustNewConstMetric(self.RedisPoolTimeouts, prometheus.GaugeValue, float64(self.monitor.Report.RedisPublisher.State.PoolTimeouts.Load()))
+	ch <- prometheus.MustNewConstMetric(self.RedisPoolTotalConns, prometheus.GaugeValue, float64(self.monitor.Report.RedisPublisher.State.PoolTotalConns.Load()))
 }
