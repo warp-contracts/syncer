@@ -3,8 +3,8 @@ package bundlr
 import (
 	"crypto/ecdsa"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	ethereum_crypto "github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -31,8 +31,13 @@ func NewEthereumSigner(privateKeyHex string) (self *EthereumSigner, err error) {
 }
 
 func (self *EthereumSigner) Sign(data []byte) (signature []byte, err error) {
-	hashed := crypto.Keccak256Hash(data).Bytes()
+	hashed := EthereumHash(data)
 	return ethereum_crypto.Sign(hashed[:], self.PrivateKey)
+}
+
+func EthereumHash(data []byte) []byte {
+	hash, _ := accounts.TextAndHash(data)
+	return hash
 }
 
 func (self *EthereumSigner) Verify(data []byte, signature []byte) (err error) {
@@ -45,7 +50,7 @@ func (self *EthereumSigner) Verify(data []byte, signature []byte) (err error) {
 		self.Owner = self.GetOwner()
 	}
 
-	hashed := crypto.Keccak256Hash(data).Bytes()
+	hashed := EthereumHash(data)
 	ok := ethereum_crypto.VerifySignature(self.Owner, hashed[:], signature)
 	if !ok {
 		err = ErrEthereumSignatureMismatch
