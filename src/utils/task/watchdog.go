@@ -36,8 +36,14 @@ func (self *Watchdog) WithTask(f func() *Task) *Watchdog {
 	return self
 }
 
-func (self *Watchdog) WithIsOK(isOK func() bool) *Watchdog {
+func (self *Watchdog) WithIsOK(interval time.Duration, isOK func() bool) *Watchdog {
 	self.isOK = isOK
+	self.Task.WithPeriodicSubtaskFunc(interval, self.runPeriodic)
+	return self
+}
+
+func (self *Watchdog) WithOnAfterStop(onAfterStop func()) *Watchdog {
+	self.Task.WithOnAfterStop(onAfterStop)
 	return self
 }
 
