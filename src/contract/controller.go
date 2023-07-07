@@ -2,6 +2,7 @@ package contract
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -136,7 +137,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 
 	watchdog := task.NewWatchdog(config).
 		WithTask(watched).
-		WithIsOK(func() bool {
+		WithIsOK(30*time.Second, func() bool {
 			isOK := monitor.IsOK()
 			if !isOK {
 				monitor.Clear()

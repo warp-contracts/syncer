@@ -2,6 +2,7 @@ package forward
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -77,7 +78,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	watchdog := task.NewWatchdog(config).
 		WithTask(watched).
-		WithIsOK(func() bool {
+		WithIsOK(30*time.Second, func() bool {
 			isOK := monitor.IsOK()
 			if !isOK {
 				monitor.Clear()
