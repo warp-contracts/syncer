@@ -39,6 +39,7 @@ type Config struct {
 	Redis                 []Redis
 	AppSync               AppSync
 	Forwarder             Forwarder
+	Relayer               Relayer
 }
 
 func setDefaults() {
