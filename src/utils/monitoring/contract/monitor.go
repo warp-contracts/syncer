@@ -4,6 +4,7 @@ import (
 	"math"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -31,6 +32,9 @@ type Monitor struct {
 	BlockHeights      *deque.Deque[int64]
 	TransactionCounts *deque.Deque[uint64]
 	ContractsSaved    *deque.Deque[uint64]
+
+	// Params
+	IsFatalError atomic.Bool
 }
 
 func NewMonitor(config *config.Config) (self *Monitor) {
@@ -153,7 +157,16 @@ func (self *Monitor) monitorContracts() (err error) {
 	return
 }
 
+func (self *Monitor) SetPermanentError(err error) {
+	self.IsFatalError.Store(true)
+	self.Log.WithError(err).Error("Unrecoverable, permanent error. Monitor will ask for a restart. It may take few minutes.")
+}
+
 func (self *Monitor) IsOK() bool {
+	if self.IsFatalError.Load() {
+		return false
+	}
+
 	self.mtx.RLock()
 	defer self.mtx.RUnlock()
 

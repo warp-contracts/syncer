@@ -2,6 +2,7 @@ package monitor_forwarder
 
 import (
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -18,6 +19,9 @@ type Monitor struct {
 
 	Report    report.Report
 	collector *Collector
+
+	// Params
+	IsFatalError atomic.Bool
 }
 
 func NewMonitor(config *config.Config) (self *Monitor) {
@@ -51,7 +55,16 @@ func (self *Monitor) GetPrometheusCollector() (collector prometheus.Collector) {
 	return self.collector
 }
 
+func (self *Monitor) SetPermanentError(err error) {
+	self.IsFatalError.Store(true)
+	self.Log.WithError(err).Error("Unrecoverable, permanent error. Monitor will ask for a restart. It may take few minutes.")
+}
+
 func (self *Monitor) IsOK() bool {
+	if self.IsFatalError.Load() {
+		return false
+	}
+
 	now := time.Now().Unix()
 	if now-self.Report.Run.State.StartTimestamp.Load() < 300 {
 		// Give it 5 minutes to start
