@@ -60,6 +60,7 @@ func setDefaults() {
 	setContractDefaults()
 	setRedisDefaults()
 	setAppSyncDefaults()
+	setRelayerDefaults()
 }
 
 func Default() (config *Config) {

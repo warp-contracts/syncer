@@ -26,9 +26,15 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	server := monitoring.NewServer(config).
 		WithMonitor(monitor)
 
+	// Events from Warp's sequencer
+	streamer := NewStreamer(config).
+		WithMonitor(monitor)
+	streamer.Resume()
+
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
 		WithSubtask(monitor.Task).
-		WithSubtask(server.Task)
+		WithSubtask(server.Task).
+		WithSubtask(streamer.Task)
 	return
 }

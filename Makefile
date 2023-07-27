@@ -76,6 +76,10 @@ check: build-race | ; $(info $(M) starting checking with default params…)
 forward: build-race | ; $(info $(M) starting forwarding with default params…)
 	bin/$(PACKAGE) forward
 
+.PHONY: relay
+relay: build-race | ; $(info $(M) starting relaying with default params…)
+	bin/$(PACKAGE) relay
+
 .PHONY: load
 load: build-race | ; $(info $(M) starting loading with default params…)
 	bin/$(PACKAGE) load
