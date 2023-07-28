@@ -18,7 +18,7 @@ type Streamer struct {
 	*task.Task
 
 	monitor monitoring.Monitor
-	Output  chan types.EventDataNewBlock
+	Output  chan *types.Block
 	client  *rpchttp.HTTP
 
 	// Control channels
@@ -33,15 +33,9 @@ func NewStreamer(config *config.Config) (self *Streamer) {
 
 	self.pauseChan = make(chan struct{}, 1)
 	self.resumeChan = make(chan struct{}, 1)
-	self.Output = make(chan types.EventDataNewBlock, config.Relayer.SequencerQueueSize)
+	self.Output = make(chan *types.Block, config.Relayer.SequencerQueueSize)
 
 	self.Task = task.NewTask(config, "new-block-streamer")
-
-	var err error
-	self.client, err = rpchttp.New(config.Relayer.SequencerUrl, "/websocket")
-	if err != nil {
-		self.Log.WithError(err).Panic("Failed to setup websocket rpc connection")
-	}
 
 	self.Task = self.Task.
 		WithOnBeforeStart(func() (err error) {
@@ -54,7 +48,7 @@ func NewStreamer(config *config.Config) (self *Streamer) {
 		WithOnStop(func() {
 			self.Pause()
 
-			err = self.client.Stop()
+			err := self.client.Stop()
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to stop websocket connection")
 			}
@@ -69,6 +63,11 @@ func NewStreamer(config *config.Config) (self *Streamer) {
 
 func (self *Streamer) WithMonitor(v monitoring.Monitor) *Streamer {
 	self.monitor = v
+	return self
+}
+
+func (self *Streamer) WithClient(client *rpchttp.HTTP) *Streamer {
+	self.client = client
 	return self
 }
 
@@ -134,11 +133,18 @@ func (self *Streamer) run() (err error) {
 					input = nil
 				}
 
+				// Neglect other events
+				event, ok := data.Data.(types.EventDataNewBlock)
+				if !ok {
+					self.Log.WithField("data", data).Error("Unexpected data type")
+					continue
+				}
+
 				self.monitor.GetReport().Relayer.State.BlocksReceived.Inc()
 				select {
 				case <-self.Ctx.Done():
 					return
-				case self.Output <- data.Data.(types.EventDataNewBlock):
+				case self.Output <- event.Block:
 				}
 			}
 		}
