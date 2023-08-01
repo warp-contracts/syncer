@@ -80,6 +80,10 @@ forward: build-race | ; $(info $(M) starting forwarding with default params…)
 relay: build-race | ; $(info $(M) starting relaying with default params…)
 	bin/$(PACKAGE) relay
 
+.PHONY: gateway
+gateway: build-race | ; $(info $(M) starting relaying with default params…)
+	bin/$(PACKAGE) gateway
+
 .PHONY: load
 load: build-race | ; $(info $(M) starting loading with default params…)
 	bin/$(PACKAGE) load
