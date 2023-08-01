@@ -1,10 +1,11 @@
-package monitor_bundler
+package monitor_relayer
 
 import (
 	"net/http"
 	"sync/atomic"
 	"time"
 
+	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/monitoring/report"
 	"github.com/warp-contracts/syncer/src/utils/task"
 
@@ -23,19 +24,19 @@ type Monitor struct {
 	IsFatalError atomic.Bool
 }
 
-func NewMonitor() (self *Monitor) {
+func NewMonitor(config *config.Config) (self *Monitor) {
 	self = new(Monitor)
 
 	self.Report = report.Report{
-		Run:         &report.RunReport{},
-		Bundler:     &report.BundlerReport{},
-		NetworkInfo: &report.NetworkInfoReport{},
+		Run:             &report.RunReport{},
+		RedisPublishers: make([]report.RedisPublisherReport, len(config.Redis)),
+		Relayer:         &report.RelayerReport{},
 	}
 
 	// Initialization
 	self.Report.Run.State.StartTimestamp.Store(time.Now().Unix())
 
-	self.collector = NewCollector().WithMonitor(self)
+	self.collector = NewCollector(config).WithMonitor(self)
 
 	self.Task = task.NewTask(nil, "monitor").
 		WithPeriodicSubtaskFunc(30*time.Second, self.monitor)
@@ -60,7 +61,18 @@ func (self *Monitor) SetPermanentError(err error) {
 }
 
 func (self *Monitor) IsOK() bool {
-	return !self.IsFatalError.Load()
+	if self.IsFatalError.Load() {
+		return false
+	}
+
+	now := time.Now().Unix()
+	if now-self.Report.Run.State.StartTimestamp.Load() < 300 {
+		// Give it 5 minutes to start
+		return true
+	}
+
+	// TODO: Implement checks
+	return true
 }
 
 func (self *Monitor) monitor() (err error) {

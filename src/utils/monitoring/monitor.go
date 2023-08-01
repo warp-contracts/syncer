@@ -14,5 +14,6 @@ type Monitor interface {
 	OnGetHealth(c *gin.Context)
 	GetPrometheusCollector() (collector prometheus.Collector)
 	GetReport() *report.Report
+	SetPermanentError(err error)
 	Clear()
 }
