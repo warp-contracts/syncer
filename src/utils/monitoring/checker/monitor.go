@@ -59,7 +59,7 @@ func (self *Monitor) SetPermanentError(err error) {
 }
 
 func (self *Monitor) IsOK() bool {
-	return self.IsFatalError.Load()
+	return !self.IsFatalError.Load()
 }
 
 func (self *Monitor) monitor() (err error) {
