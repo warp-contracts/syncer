@@ -27,14 +27,19 @@ func (self *Server) onGetInteractions(c *gin.Context) {
 	var interactions []*model.Interaction
 	err = self.db.WithContext(self.Ctx).
 		Transaction(func(tx *gorm.DB) (err error) {
-			err = self.db.Table(model.TableInteraction).
+			query := self.db.Table(model.TableInteraction).
 				Where("sync_timestamp >= ?", in.Start).
 				Where("sync_timestamp < ?", in.End).
 				Limit(in.Limit).
 				Offset(in.Offset).
-				Order("sort_key ASC").
-				Find(&interactions).
-				Error
+				Order("sort_key ASC")
+
+			if len(in.SrcIds) > 0 {
+				query = query.Where("src_id IN ?", in.SrcIds)
+			}
+
+			err = query.Find(&interactions).Error
+
 			return
 		})
 	if err != nil {
