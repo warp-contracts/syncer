@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/warp-contracts/syncer/src/utils/binder"
 	. "github.com/warp-contracts/syncer/src/utils/logger"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"gorm.io/gorm"
@@ -15,9 +16,10 @@ import (
 
 func (self *Server) onGetInteractions(c *gin.Context) {
 	var in request.GetInteractions
-	err := c.ShouldBindJSON(&in)
+	err := c.ShouldBindWith(in, binder.JSON)
 	if err != nil {
 		LOGE(c, err, http.StatusBadRequest).Error("Failed to parse request")
+		return
 	}
 
 	// Defaults

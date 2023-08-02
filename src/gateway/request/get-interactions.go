@@ -1,9 +1,9 @@
 package request
 
 type GetInteractions struct {
-	SrcIds []string `json:"src_ids"`
-	Start  uint     `json:"start"`
-	End    uint     `json:"end"`
-	Limit  int      `json:"limit"`
-	Offset int      `json:"offset"`
+	SrcIds []string `json:"src_ids" binding:"min=0,max=100,dive,min=1,max=64"`
+	Start  uint     `json:"start"   binding:"gtfield=End"`
+	End    uint     `json:"end"     binding:"ltefield=Start"`
+	Limit  int      `json:"limit"   binding:"min=0,max=100000"`
+	Offset int      `json:"offset"  binding:"min=0,max=1000"`
 }
