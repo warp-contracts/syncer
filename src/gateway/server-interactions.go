@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"net/http"
+	"time"
 
 	. "github.com/warp-contracts/syncer/src/utils/logger"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -22,6 +23,27 @@ func (self *Server) onGetInteractions(c *gin.Context) {
 	// Defaults
 	if in.Limit == 0 {
 		in.Limit = 10000
+	}
+
+	// Wait for the current widnow to finish if End is in the future
+	delta := int64(in.End) - int64(time.Now().UnixMilli())
+	if delta > 0 {
+		delta += 2000 // 2s margin for clock skew between GW and DB
+		delta += 100  // 100ms margin of the request handling done so far
+		if delta > self.Config.Gateway.ServerRequestTimeout.Milliseconds() {
+			// Request would timeout before the window is finished
+			LOGE(c, nil, http.StatusBadRequest).Error("End timestamp is too far in the future")
+			return
+		}
+
+		t := time.NewTimer(time.Duration(delta) * time.Millisecond)
+		select {
+		case <-c.Done():
+			// Request is cancelled
+			return
+		case <-t.C:
+			// Window is finished, continue
+		}
 	}
 
 	var interactions []*model.Interaction
