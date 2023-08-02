@@ -17,6 +17,9 @@ const MAX_SLICE_LEN = 10
 
 // Config stores global configuration
 type Config struct {
+	// Is development mode on
+	IsDevelopment bool
+
 	// REST API address. API used for monitoring etc.
 	RESTListenAddress string
 
@@ -44,6 +47,7 @@ type Config struct {
 }
 
 func setDefaults() {
+	viper.SetDefault("IsDevelopment", "false")
 	viper.SetDefault("RESTListenAddress", ":3333")
 	viper.SetDefault("LogLevel", "DEBUG")
 	viper.SetDefault("StopTimeout", "30s")

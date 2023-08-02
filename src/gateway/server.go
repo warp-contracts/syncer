@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/sirupsen/logrus"
 	"github.com/warp-contracts/syncer/src/utils/build_info"
 	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/middleware"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
 	"gorm.io/gorm"
@@ -26,10 +28,20 @@ type Server struct {
 func NewServer(config *config.Config) (self *Server) {
 	self = new(Server)
 
-	self.Router = gin.New()
+	self.Task = task.NewTask(config, "rest-server").
+		WithSubtaskFunc(self.run).
+		WithOnStop(self.stop)
 
+	self.Router = gin.New()
+	self.Router.Use(
+		gin.RecoveryWithWriter(self.Log.WriterLevel(logrus.ErrorLevel)),
+		middleware.HandleRequestId(),
+		middleware.HandleErrors(),
+		middleware.HandleTimeout(config.Gateway.ServerRequestTimeout),
+		middleware.HandleLogging(config),
+	)
 	self.httpServer = &http.Server{
-		Addr:    config.Gateway.RESTListenAddress,
+		Addr:    config.Gateway.ServerListenAddress,
 		Handler: self.Router,
 	}
 
@@ -38,10 +50,6 @@ func NewServer(config *config.Config) (self *Server) {
 		v1.POST("interactions", self.onGetInteractions)
 		v1.GET("version", self.onVersion)
 	}
-
-	self.Task = task.NewTask(config, "rest-server").
-		WithSubtaskFunc(self.run).
-		WithOnStop(self.stop)
 
 	return
 }

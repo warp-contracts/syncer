@@ -1,4 +1,5 @@
 PACKAGE  = syncer
+IMPORT   = github.com/warp-contracts/syncer
 GOROOT   = $(CURDIR)/.gopath~
 GOPATH   = $(CURDIR)/.gopath~
 BIN      = $(GOPATH)/bin
@@ -46,14 +47,14 @@ $(BIN)/gentool: REPOSITORY=gorm.io/gen/tools/gentool@latest
 build:  | $(BASE); $(info $(M) building executable…) @
 	$Q cd $(BASE) && $(GO) build \
 		-tags release \
-		-ldflags="-s -w  -X $(PACKAGE)/src/utils/build_info.Version=$(VERSION) -X $(PACKAGE)/src/utils/build_info.BuildDate=$(DATE)" \
+		-ldflags="-s -w  -X $(IMPORT)/src/utils/build_info.Version=$(VERSION) -X $(IMPORT)/src/utils/build_info.BuildDate=$(DATE)" \
 		-o bin/$(PACKAGE) main.go
 
 .PHONY: build-race
 build-race:  | $(BASE); $(info $(M) building executable…) @
 	$Q cd $(BASE) && $(GO) build -race \
 		-tags release \
-		-ldflags="-s -w  -X $(PACKAGE)/src/utils/build_info.Version=$(VERSION) -X $(PACKAGE)/src/utils/build_info.BuildDate=$(DATE)" \
+		-ldflags="-s -w  -X $(IMPORT)/src/utils/build_info.Version=$(VERSION) -X $(IMPORT)/src/utils/build_info.BuildDate=$(DATE)" \
 		-o bin/$(PACKAGE) main.go
 
 .PHONY: run
