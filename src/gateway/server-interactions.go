@@ -15,7 +15,7 @@ import (
 )
 
 func (self *Server) onGetInteractions(c *gin.Context) {
-	var in request.GetInteractions
+	var in = new(request.GetInteractions)
 	err := c.ShouldBindWith(in, binder.JSON)
 	if err != nil {
 		LOGE(c, err, http.StatusBadRequest).Error("Failed to parse request")
