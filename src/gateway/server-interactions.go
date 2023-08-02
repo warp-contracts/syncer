@@ -67,8 +67,13 @@ func (self *Server) onGetInteractions(c *gin.Context) {
 		})
 	if err != nil {
 		LOGE(c, err, http.StatusInternalServerError).Error("Failed to fetch interactions")
+		// Update monitoring
+		self.monitor.GetReport().Gateway.Errors.DbError.Inc()
 		return
 	}
+
+	// Update monitoring
+	self.monitor.GetReport().Gateway.State.InteractionsReturned.Add(uint64(len(interactions)))
 
 	c.JSON(http.StatusOK, response.InteractionsToResponse(interactions))
 }
