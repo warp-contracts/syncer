@@ -7,7 +7,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/binder"
 	. "github.com/warp-contracts/syncer/src/utils/logger"
 	"github.com/warp-contracts/syncer/src/utils/model"
-	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 	"github.com/warp-contracts/syncer/src/gateway/request"
@@ -49,24 +48,20 @@ func (self *Server) onGetInteractions(c *gin.Context) {
 	}
 
 	var interactions []*model.Interaction
-	err = self.db.WithContext(self.Ctx).
-		Transaction(func(tx *gorm.DB) (err error) {
-			query := self.db.Table(model.TableInteraction).
-				Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
-				Where("interactions.sync_timestamp >= ?", in.Start).
-				Where("interactions.sync_timestamp < ?", in.End).
-				Limit(in.Limit).
-				Offset(in.Offset).
-				Order("interactions.sort_key ASC")
+	query := self.db.WithContext(c).
+		Table(model.TableInteraction).
+		Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
+		Where("interactions.sync_timestamp >= ?", in.Start).
+		Where("interactions.sync_timestamp < ?", in.End).
+		Limit(in.Limit).
+		Offset(in.Offset).
+		Order("interactions.sort_key ASC")
 
-			if len(in.SrcIds) > 0 {
-				query = query.Where("contracts.src_tx_id IN ?", in.SrcIds)
-			}
+	if len(in.SrcIds) > 0 {
+		query = query.Where("contracts.src_tx_id IN ?", in.SrcIds)
+	}
 
-			err = query.Find(&interactions).Error
-
-			return
-		})
+	err = query.Find(&interactions).Error
 	if err != nil {
 		LOGE(c, err, http.StatusInternalServerError).Error("Failed to fetch interactions")
 		// Update monitoring
