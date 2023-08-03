@@ -1,6 +1,7 @@
 package forward
 
 import (
+	"database/sql"
 	"runtime"
 	"strings"
 	"time"
@@ -103,7 +104,7 @@ func (self *ArweaveFetcher) run() (err error) {
 					}
 
 					return nil
-				})
+				}, &sql.TxOptions{Isolation: sql.LevelSerializable})
 			if err != nil {
 				self.Log.WithError(err).WithField("height", height).Error("Failed to fetch interactions from DB")
 
