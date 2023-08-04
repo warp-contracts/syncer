@@ -1,17 +1,21 @@
 package gateway
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/binder"
 	. "github.com/warp-contracts/syncer/src/utils/logger"
 	"github.com/warp-contracts/syncer/src/utils/model"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 	"github.com/warp-contracts/syncer/src/gateway/request"
 	"github.com/warp-contracts/syncer/src/gateway/response"
 )
+
+var ErrWindowOverlapsLastBlock = errors.New("window overlaps last block")
 
 func (self *Server) onGetInteractions(c *gin.Context) {
 	var in = new(request.GetInteractions)
@@ -48,28 +52,51 @@ func (self *Server) onGetInteractions(c *gin.Context) {
 	}
 
 	var interactions []*model.Interaction
-	query := self.db.WithContext(c).
-		Table(model.TableInteraction).
-		Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
-		Where("interactions.sync_timestamp >= ?", in.Start).
-		Where("interactions.sync_timestamp < ?", in.End).
-		Where("interactions.block_height < (SELECT max(block_height) from interactions where source = 'arweave')").
-		Limit(in.Limit).
-		Offset(in.Offset).
-		Order("interactions.sort_key ASC")
 
-	if len(in.SrcIds) > 0 {
-		query = query.Where("contracts.src_tx_id IN ?", in.SrcIds)
-	}
+	err = self.db.WithContext(c).
+		Transaction(func(tx *gorm.DB) (err error) {
+			// Check if the time window is finished and it isn't contained
+			var isOverlapping int
+			tx.Raw(`SELECT 1 FROM interactions
+				WHERE interactions.sync_timestamp >= ?
+				AND interactions.sync_timestamp < ?
+				AND interactions.block_height = (SELECT max(block_height) from interactions where source = 'arweave')
+				LIMIT 1`, in.Start, in.End).
+				Scan(&isOverlapping)
+			if isOverlapping > 0 {
+				return ErrWindowOverlapsLastBlock
+			}
 
-	err = query.Find(&interactions).Error
+			// Get interactions
+			query := tx.WithContext(c).
+				Table(model.TableInteraction).
+				Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
+				Where("interactions.sync_timestamp >= ?", in.Start).
+				Where("interactions.sync_timestamp < ?", in.End).
+				Where("interactions.block_height < (SELECT max(block_height) from interactions where source = 'arweave')").
+				Limit(in.Limit).
+				Offset(in.Offset).
+				Order("interactions.sort_key ASC")
+
+			if len(in.SrcIds) > 0 {
+				query = query.Where("contracts.src_tx_id IN ?", in.SrcIds)
+			}
+
+			err = query.Find(&interactions).Error
+			return
+		})
 	if err != nil {
+		if errors.Is(err, ErrWindowOverlapsLastBlock) {
+			c.Status(http.StatusNoContent)
+			LOG(c).Debug("Window overlaps with the current block, returning 204")
+			return
+		}
+
 		LOGE(c, err, http.StatusInternalServerError).Error("Failed to fetch interactions")
 		// Update monitoring
 		self.monitor.GetReport().Gateway.Errors.DbError.Inc()
 		return
 	}
-
 	LOG(c).WithField("num", len(interactions)).Debug("Return interactions")
 
 	// Update monitoring
