@@ -53,6 +53,7 @@ func (self *Server) onGetInteractions(c *gin.Context) {
 		Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
 		Where("interactions.sync_timestamp >= ?", in.Start).
 		Where("interactions.sync_timestamp < ?", in.End).
+		Where("block_height < (SELECT max(block_height) from interactions where source = 'arweave')").
 		Limit(in.Limit).
 		Offset(in.Offset).
 		Order("interactions.sort_key ASC")
