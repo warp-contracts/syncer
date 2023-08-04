@@ -70,6 +70,8 @@ func (self *Server) onGetInteractions(c *gin.Context) {
 		return
 	}
 
+	LOG(c).WithField("num", len(interactions)).Debug("Return interactions")
+
 	// Update monitoring
 	self.monitor.GetReport().Gateway.State.InteractionsReturned.Add(uint64(len(interactions)))
 
