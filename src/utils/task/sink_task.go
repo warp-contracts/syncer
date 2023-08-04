@@ -79,10 +79,6 @@ func (self *SinkTask[In]) WithBackoff(maxElapsedTime, maxInterval time.Duration)
 
 func (self *SinkTask[In]) flush() {
 	size := self.queue.Len()
-	if size == 0 {
-		return
-	}
-	// Copy data to avoid locking for too long
 	data := make([]In, 0, size)
 	for i := 0; i < size; i++ {
 		data = append(data, self.queue.PopFront())

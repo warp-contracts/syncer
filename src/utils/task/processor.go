@@ -85,11 +85,6 @@ func (self *Processor[In, Out]) WithBackoff(maxElapsedTime, maxInterval time.Dur
 
 func (self *Processor[In, Out]) flush() {
 	size := self.queue.Len()
-	if size == 0 {
-		return
-	}
-
-	// Copy data to avoid locking for too long
 	data := make([]Out, 0, size)
 	for i := 0; i < size; i++ {
 		data = append(data, self.queue.PopFront())
