@@ -10,10 +10,9 @@ import (
 	"github.com/gammazero/deque"
 )
 
-// Store handles saving data to the database in na robust way.
-// - groups incoming Interactions into batches,
-// - ensures data isn't stuck even if a batch isn't big enough
-// - passes the data returned by the onFlush function to the output channel
+// Implements a two step processing task:
+// - onProcess is called for each incoming data item for pre processing
+// - onFlush is called periodically to handle a batch of processed data
 type Processor[In any, Out any] struct {
 	*Task
 
@@ -57,7 +56,8 @@ func NewProcessor[In any, Out any](config *config.Config, name string) (self *Pr
 func (self *Processor[In, Out]) WithBatchSize(batchSize int) *Processor[In, Out] {
 	self.Output = make(chan []Out)
 	self.batchSize = batchSize
-	self.queue.SetMinCapacity(uint(math.Round(1.5 * float64(batchSize))))
+	exp := uint(math.Round(math.Logb(float64(batchSize)))) + 1
+	self.queue.SetMinCapacity(exp)
 	return self
 }
 

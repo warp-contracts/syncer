@@ -35,6 +35,6 @@ func setForwarderDefaults() {
 	viper.SetDefault("Forwarder.PublisherRedisChannelName", "contracts")
 	viper.SetDefault("Forwarder.HeightDelay", "1s")
 	viper.SetDefault("Forwarder.ArweaveFetcherQueueSize", "3000")
-	viper.SetDefault("Forwarder.ArweaveFetcherBlockSendTimeout", "63s")
+	viper.SetDefault("Forwarder.ArweaveFetcherBlockSendTimeout", "300s")
 	viper.SetDefault("Forwarder.InteractionsStreamerQueueSize", "10")
 }

@@ -55,7 +55,8 @@ func NewSinkTask[In any](config *config.Config, name string) (self *SinkTask[In]
 
 func (self *SinkTask[In]) WithBatchSize(batchSize int) *SinkTask[In] {
 	self.batchSize = batchSize
-	self.queue.SetMinCapacity(uint(math.Round(1.5 * float64(batchSize))))
+	exp := uint(math.Round(math.Logb(float64(batchSize)))) + 1
+	self.queue.SetMinCapacity(exp)
 	return self
 }
 

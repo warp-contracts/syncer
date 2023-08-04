@@ -1,7 +1,6 @@
 package forward
 
 import (
-	"database/sql"
 	"runtime"
 	"strings"
 	"time"
@@ -73,7 +72,7 @@ func (self *ArweaveFetcher) run() (err error) {
 			err = self.db.WithContext(self.Ctx).
 				Transaction(func(tx *gorm.DB) (err error) {
 					// Get a batch of L1 interactions
-					err = tx.Table(model.TableInteraction).
+					err = self.db.Table(model.TableInteraction).
 						Where("block_height = ?", height).
 						Where("source=?", "arweave").
 						Limit(self.Config.Forwarder.FetcherBatchSize).
@@ -104,7 +103,7 @@ func (self *ArweaveFetcher) run() (err error) {
 					}
 
 					return nil
-				}, &sql.TxOptions{Isolation: sql.LevelSerializable})
+				})
 			if err != nil {
 				self.Log.WithError(err).WithField("height", height).Error("Failed to fetch interactions from DB")
 
