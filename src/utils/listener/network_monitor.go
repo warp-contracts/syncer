@@ -109,19 +109,25 @@ func (self *NetworkMonitor) runPeriodically() error {
 		return nil
 	}
 
-	// There are new blocks, broadcast
 	self.lastHeight = stableHeight
 
 	self.cond.L.Lock()
-	self.lastNetworkInfo = networkInfo
+	self.lastNetworkInfo = &arweave.NetworkInfo{
+		Height: stableHeight,
+	}
 	self.cond.Broadcast()
 	self.cond.L.Unlock()
 
 	if self.isOutputEnabled {
 		select {
 		case <-self.StopChannel:
-		case self.Output <- networkInfo:
+		case self.Output <- &arweave.NetworkInfo{
+			Height: stableHeight,
+		}:
 		}
+
+		self.Log.WithField("stable_height", stableHeight).
+			Debug("Emited stable network info")
 	}
 
 	return nil
