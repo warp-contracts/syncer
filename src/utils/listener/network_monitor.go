@@ -98,6 +98,12 @@ func (self *NetworkMonitor) runPeriodically() error {
 
 	// This is the last block height we consider stable
 	stableHeight := networkInfo.Height - self.requiredConfirmationBlocks
+	self.Log.WithField("stable_height", stableHeight).
+		WithField("last_height", self.lastHeight).
+		WithField("height", networkInfo.Height).
+		WithField("delta", self.requiredConfirmationBlocks).
+		Debug("Network info")
+
 	if stableHeight <= self.lastHeight {
 		// Nothing changed, retry later
 		return nil
