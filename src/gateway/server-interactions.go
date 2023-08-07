@@ -60,7 +60,7 @@ func (self *Server) onGetInteractions(c *gin.Context) {
 			tx.Raw(`SELECT 1 FROM interactions
 				WHERE interactions.sync_timestamp >= ?
 				AND interactions.sync_timestamp < ?
-				AND interactions.block_height = (SELECT max(block_height) from interactions where source = 'arweave')
+				AND interactions.block_height > (SELECT finished_block_height FROM sync_state WHERE name = 'Forwarder')
 				LIMIT 1`, in.Start, in.End).
 				Scan(&isOverlapping)
 			if isOverlapping > 0 {
@@ -73,7 +73,7 @@ func (self *Server) onGetInteractions(c *gin.Context) {
 				Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
 				Where("interactions.sync_timestamp >= ?", in.Start).
 				Where("interactions.sync_timestamp < ?", in.End).
-				Where("interactions.block_height < (SELECT max(block_height) from interactions where source = 'arweave')").
+				Where("interactions.block_height <= (SELECT finished_block_height FROM sync_state WHERE name = 'Forwarder')").
 				Limit(in.Limit).
 				Offset(in.Offset).
 				Order("interactions.sort_key ASC")
