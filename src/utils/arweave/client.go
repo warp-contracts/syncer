@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"github.com/go-resty/resty/v2"
 	"math/big"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
 
@@ -274,7 +275,7 @@ func (self *Client) GetChunks(ctx context.Context, tx *Transaction) (out bytes.B
 		// Are there more chunks?
 		chunkSize := big.NewInt(int64(len(chunk.Chunk.Bytes())))
 		size = size.Sub(size, chunkSize)
-		offset = offset.Sub(offset, chunkSize)
+		offset = offset.Add(offset, chunkSize)
 	}
 
 	if out.Len() != int(tx.DataSize.Int64()) {
