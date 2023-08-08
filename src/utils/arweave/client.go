@@ -12,9 +12,8 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
-	"github.com/warp-contracts/syncer/src/utils/config"
-
 	"github.com/teivah/onecontext"
+	"github.com/warp-contracts/syncer/src/utils/config"
 )
 
 type Client struct {
@@ -257,8 +256,10 @@ func (self *Client) GetChunks(ctx context.Context, tx *Transaction) (out bytes.B
 	}
 
 	zero := big.NewInt(0)
-	offset := &info.Offset.Int
+	finish := &info.Offset.Int
 	size := &info.Size.Int
+	offset := finish.Sub(finish, size)
+	offset = finish.Add(offset, big.NewInt(1))
 
 	self.log.WithField("size", size.String()).Trace("Downloading")
 
@@ -276,6 +277,8 @@ func (self *Client) GetChunks(ctx context.Context, tx *Transaction) (out bytes.B
 		chunkSize := big.NewInt(int64(len(chunk.Chunk.Bytes())))
 		size = size.Sub(size, chunkSize)
 		offset = offset.Add(offset, chunkSize)
+
+		// self.log.WithField("chunk_size", chunkSize).WithField("new_size", size).Trace("One chunk")
 	}
 
 	if out.Len() != int(tx.DataSize.Int64()) {
