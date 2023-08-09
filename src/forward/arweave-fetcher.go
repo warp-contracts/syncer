@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
+	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
@@ -187,7 +188,9 @@ func (self *ArweaveFetcher) updateSyncedHeight(tx *gorm.DB, height uint64) (err 
 			Name: model.SyncedComponentForwarder,
 		}).
 			Updates(model.State{
-				FinishedBlockHeight: height,
+				FinishedBlockHeight:    height,
+				FinishedBlockTimestamp: 0,
+				FinishedBlockHash:      arweave.Base64String{0},
 			}).
 			Error
 		if err != nil {
