@@ -37,9 +37,9 @@ func NewServer(config *config.Config) (self *Server) {
 	self.Router.Use(
 		gin.RecoveryWithWriter(self.Log.WriterLevel(logrus.ErrorLevel)),
 		middleware.HandleRequestId(),
+		middleware.HandleLogging(config),
 		middleware.HandleErrors(),
 		middleware.HandleTimeout(config.Gateway.ServerRequestTimeout),
-		middleware.HandleLogging(config),
 	)
 	self.httpServer = &http.Server{
 		Addr:    config.Gateway.ServerListenAddress,
@@ -51,7 +51,7 @@ func NewServer(config *config.Config) (self *Server) {
 		v1.POST("interactions", self.onGetInteractions(self.db))
 		v1.GET("version", self.onVersion)
 
-		ro := self.Router.Group("ro")
+		ro := v1.Group("ro")
 		{
 			ro.POST("interactions", self.onGetInteractions(self.readOnlyDb))
 		}
