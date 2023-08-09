@@ -114,7 +114,7 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 }
 
 func NewReadOnlyConnection(ctx context.Context, config *config.Config, applicationName string) (self *gorm.DB, err error) {
-	return Connect(ctx, &config.ReadOnlyDatabase, config.ReadOnlyDatabase.User, config.ReadOnlyDatabase.Password, applicationName)
+	return Connect(ctx, &config.ReadOnlyDatabase, config.Database.User, config.Database.Password, applicationName)
 }
 
 func Migrate(ctx context.Context, config *config.Config) (err error) {
