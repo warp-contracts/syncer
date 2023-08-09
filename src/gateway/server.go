@@ -46,17 +46,6 @@ func NewServer(config *config.Config) (self *Server) {
 		Handler: self.Router,
 	}
 
-	v1 := self.Router.Group("v1")
-	{
-		v1.POST("interactions", self.onGetInteractions(self.db))
-		v1.GET("version", self.onVersion)
-
-		ro := v1.Group("ro")
-		{
-			ro.POST("interactions", self.onGetInteractions(self.readOnlyDb))
-		}
-	}
-
 	return
 }
 
@@ -76,6 +65,17 @@ func (self *Server) WithReadOnlyDB(v *gorm.DB) *Server {
 }
 
 func (self *Server) run() (err error) {
+	v1 := self.Router.Group("v1")
+	{
+		v1.POST("interactions", self.onGetInteractions(self.db))
+		v1.GET("version", self.onVersion)
+
+		ro := v1.Group("ro")
+		{
+			ro.POST("interactions", self.onGetInteractions(self.readOnlyDb))
+		}
+	}
+
 	err = self.httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		self.Log.WithError(err).Error("Failed to start REST server")
