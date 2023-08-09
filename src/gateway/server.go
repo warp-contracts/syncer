@@ -60,7 +60,7 @@ func (self *Server) WithDB(v *gorm.DB) *Server {
 }
 
 func (self *Server) WithReadOnlyDB(v *gorm.DB) *Server {
-	self.db = v
+	self.readOnlyDb = v
 	return self
 }
 
