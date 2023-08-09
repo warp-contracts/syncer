@@ -23,6 +23,11 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		return
 	}
 
+	readOnlyDb, err := model.NewReadOnlyConnection(self.Ctx, config, "gateway")
+	if err != nil {
+		return
+	}
+
 	// Monitoring
 	monitor := monitor_gateway.NewMonitor()
 
@@ -32,7 +37,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Gateway's REST API
 	rest := NewServer(config).
 		WithMonitor(monitor).
-		WithDB(db)
+		WithDB(db).
+		WithReadOnlyDB(readOnlyDb)
 
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.

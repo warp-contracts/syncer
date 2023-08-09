@@ -17,90 +17,92 @@ import (
 
 var ErrWindowOverlapsLastBlock = errors.New("window overlaps last block")
 
-func (self *Server) onGetInteractions(c *gin.Context) {
-	var in = new(request.GetInteractions)
-	err := c.ShouldBindWith(in, binder.JSON)
-	if err != nil {
-		LOGE(c, err, http.StatusBadRequest).Error("Failed to parse request")
-		return
-	}
-
-	// Defaults
-	if in.Limit == 0 {
-		in.Limit = 10000
-	}
-
-	// Wait for the current widnow to finish if End is in the future
-	delta := int64(in.End) - int64(time.Now().UnixMilli())
-	if delta > 0 {
-		delta += 2000 // 2s margin for clock skew between GW and DB
-		delta += 100  // 100ms margin of the request handling done so far
-		if delta > self.Config.Gateway.ServerRequestTimeout.Milliseconds() {
-			// Request would timeout before the window is finished
-			LOGE(c, nil, http.StatusBadRequest).Error("End timestamp is too far in the future")
+func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in = new(request.GetInteractions)
+		err := c.ShouldBindWith(in, binder.JSON)
+		if err != nil {
+			LOGE(c, err, http.StatusBadRequest).Error("Failed to parse request")
 			return
 		}
 
-		t := time.NewTimer(time.Duration(delta) * time.Millisecond)
-		select {
-		case <-c.Done():
-			// Request is cancelled
-			return
-		case <-t.C:
-			// Window is finished, continue
+		// Defaults
+		if in.Limit == 0 {
+			in.Limit = 10000
 		}
-	}
 
-	var interactions []*model.Interaction
+		// Wait for the current widnow to finish if End is in the future
+		delta := int64(in.End) - int64(time.Now().UnixMilli())
+		if delta > 0 {
+			delta += 2000 // 2s margin for clock skew between GW and DB
+			delta += 100  // 100ms margin of the request handling done so far
+			if delta > self.Config.Gateway.ServerRequestTimeout.Milliseconds() {
+				// Request would timeout before the window is finished
+				LOGE(c, nil, http.StatusBadRequest).Error("End timestamp is too far in the future")
+				return
+			}
 
-	err = self.db.WithContext(c).
-		Transaction(func(tx *gorm.DB) (err error) {
-			// Check if the time window is finished and it isn't contained
-			var isOverlapping int
-			tx.Raw(`SELECT 1 FROM interactions
+			t := time.NewTimer(time.Duration(delta) * time.Millisecond)
+			select {
+			case <-c.Done():
+				// Request is cancelled
+				return
+			case <-t.C:
+				// Window is finished, continue
+			}
+		}
+
+		var interactions []*model.Interaction
+
+		err = db.WithContext(c).
+			Transaction(func(tx *gorm.DB) (err error) {
+				// Check if the time window is finished and it isn't contained
+				var isOverlapping int
+				tx.Raw(`SELECT 1 FROM interactions
 				WHERE interactions.sync_timestamp >= ?
 				AND interactions.sync_timestamp < ?
 				AND interactions.block_height > (SELECT finished_block_height FROM sync_state WHERE name = 'Forwarder')
 				LIMIT 1`, in.Start, in.End).
-				Scan(&isOverlapping)
-			if isOverlapping > 0 {
-				return ErrWindowOverlapsLastBlock
+					Scan(&isOverlapping)
+				if isOverlapping > 0 {
+					return ErrWindowOverlapsLastBlock
+				}
+
+				// Get interactions
+				query := tx.WithContext(c).
+					Table(model.TableInteraction).
+					Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
+					Where("interactions.sync_timestamp >= ?", in.Start).
+					Where("interactions.sync_timestamp < ?", in.End).
+					Where("interactions.block_height <= (SELECT finished_block_height FROM sync_state WHERE name = 'Forwarder')").
+					Limit(in.Limit).
+					Offset(in.Offset).
+					Order("interactions.sort_key ASC")
+
+				if len(in.SrcIds) > 0 {
+					query = query.Where("contracts.src_tx_id IN ?", in.SrcIds)
+				}
+
+				err = query.Find(&interactions).Error
+				return
+			})
+		if err != nil {
+			if errors.Is(err, ErrWindowOverlapsLastBlock) {
+				c.Status(http.StatusNoContent)
+				LOG(c).Debug("Window overlaps with the current block, returning 204")
+				return
 			}
 
-			// Get interactions
-			query := tx.WithContext(c).
-				Table(model.TableInteraction).
-				Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
-				Where("interactions.sync_timestamp >= ?", in.Start).
-				Where("interactions.sync_timestamp < ?", in.End).
-				Where("interactions.block_height <= (SELECT finished_block_height FROM sync_state WHERE name = 'Forwarder')").
-				Limit(in.Limit).
-				Offset(in.Offset).
-				Order("interactions.sort_key ASC")
-
-			if len(in.SrcIds) > 0 {
-				query = query.Where("contracts.src_tx_id IN ?", in.SrcIds)
-			}
-
-			err = query.Find(&interactions).Error
-			return
-		})
-	if err != nil {
-		if errors.Is(err, ErrWindowOverlapsLastBlock) {
-			c.Status(http.StatusNoContent)
-			LOG(c).Debug("Window overlaps with the current block, returning 204")
+			LOGE(c, err, http.StatusInternalServerError).Error("Failed to fetch interactions")
+			// Update monitoring
+			self.monitor.GetReport().Gateway.Errors.DbError.Inc()
 			return
 		}
+		LOG(c).WithField("num", len(interactions)).Debug("Return interactions")
 
-		LOGE(c, err, http.StatusInternalServerError).Error("Failed to fetch interactions")
 		// Update monitoring
-		self.monitor.GetReport().Gateway.Errors.DbError.Inc()
-		return
+		self.monitor.GetReport().Gateway.State.InteractionsReturned.Add(uint64(len(interactions)))
+
+		c.JSON(http.StatusOK, response.InteractionsToResponse(interactions))
 	}
-	LOG(c).WithField("num", len(interactions)).Debug("Return interactions")
-
-	// Update monitoring
-	self.monitor.GetReport().Gateway.State.InteractionsReturned.Add(uint64(len(interactions)))
-
-	c.JSON(http.StatusOK, response.InteractionsToResponse(interactions))
 }

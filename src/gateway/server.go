@@ -23,6 +23,7 @@ type Server struct {
 	Router     *gin.Engine
 	monitor    monitoring.Monitor
 	db         *gorm.DB
+	readOnlyDb *gorm.DB
 }
 
 func NewServer(config *config.Config) (self *Server) {
@@ -47,8 +48,13 @@ func NewServer(config *config.Config) (self *Server) {
 
 	v1 := self.Router.Group("v1")
 	{
-		v1.POST("interactions", self.onGetInteractions)
+		v1.POST("interactions", self.onGetInteractions(self.db))
 		v1.GET("version", self.onVersion)
+
+		ro := self.Router.Group("ro")
+		{
+			ro.POST("interactions", self.onGetInteractions(self.readOnlyDb))
+		}
 	}
 
 	return
@@ -60,6 +66,11 @@ func (self *Server) WithMonitor(m monitoring.Monitor) *Server {
 }
 
 func (self *Server) WithDB(v *gorm.DB) *Server {
+	self.db = v
+	return self
+}
+
+func (self *Server) WithReadOnlyDB(v *gorm.DB) *Server {
 	self.db = v
 	return self
 }

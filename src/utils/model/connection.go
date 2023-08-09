@@ -19,7 +19,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func Connect(ctx context.Context, config *config.Config, username, password, applicationName string) (self *gorm.DB, err error) {
+func Connect(ctx context.Context, dbConfig *config.Database, username, password, applicationName string) (self *gorm.DB, err error) {
 	log := l.NewSublogger("db")
 
 	logger := logger.New(log,
@@ -32,20 +32,20 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 	)
 
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s application_name=%s/warp.cc/%s",
-		config.Database.Host,
-		config.Database.Port,
+		dbConfig.Host,
+		dbConfig.Port,
 		username,
 		password,
-		config.Database.Name,
-		config.Database.SslMode,
+		dbConfig.Name,
+		dbConfig.SslMode,
 		applicationName,
 		build_info.Version,
 	)
 
-	if config.Database.CaCertPath != "" && config.Database.ClientKeyPath != "" && config.Database.ClientCertPath != "" {
+	if dbConfig.CaCertPath != "" && dbConfig.ClientKeyPath != "" && dbConfig.ClientCertPath != "" {
 		log.Info("Using SSL certificates from files")
-		dsn += fmt.Sprintf(" sslcert=%s sslkey=%s sslrootcert=%s", config.Database.ClientCertPath, config.Database.ClientKeyPath, config.Database.CaCertPath)
-	} else if config.Database.ClientKey != "" && config.Database.ClientCert != "" && config.Database.CaCert != "" {
+		dsn += fmt.Sprintf(" sslcert=%s sslkey=%s sslrootcert=%s", dbConfig.ClientCertPath, dbConfig.ClientKeyPath, dbConfig.CaCertPath)
+	} else if dbConfig.ClientKey != "" && dbConfig.ClientCert != "" && dbConfig.CaCert != "" {
 		log.Info("Using SSL certificates from variables")
 
 		var keyFile, certFile, caFile *os.File
@@ -54,7 +54,7 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 			return
 		}
 		defer os.Remove(keyFile.Name())
-		_, err = keyFile.WriteString(config.Database.ClientKey)
+		_, err = keyFile.WriteString(dbConfig.ClientKey)
 		if err != nil {
 			return
 		}
@@ -64,7 +64,7 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 			return
 		}
 		defer os.Remove(certFile.Name())
-		_, err = certFile.WriteString(config.Database.ClientCert)
+		_, err = certFile.WriteString(dbConfig.ClientCert)
 		if err != nil {
 			return
 		}
@@ -74,7 +74,7 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 			return
 		}
 		defer os.Remove(caFile.Name())
-		_, err = caFile.WriteString(config.Database.CaCert)
+		_, err = caFile.WriteString(dbConfig.CaCert)
 		if err != nil {
 			return
 		}
@@ -92,10 +92,10 @@ func Connect(ctx context.Context, config *config.Config, username, password, app
 		return
 	}
 
-	db.SetMaxOpenConns(config.Database.MaxOpenConns)
-	db.SetMaxIdleConns(config.Database.MaxIdleConns)
-	db.SetConnMaxIdleTime(config.Database.ConnMaxIdleTime)
-	db.SetConnMaxLifetime(config.Database.ConnMaxLifetime)
+	db.SetMaxOpenConns(dbConfig.MaxOpenConns)
+	db.SetMaxIdleConns(dbConfig.MaxIdleConns)
+	db.SetConnMaxIdleTime(dbConfig.ConnMaxIdleTime)
+	db.SetConnMaxLifetime(dbConfig.ConnMaxLifetime)
 	err = Ping(ctx, self)
 	if err != nil {
 		return
@@ -110,7 +110,11 @@ func NewConnection(ctx context.Context, config *config.Config, applicationName s
 		return
 	}
 
-	return Connect(ctx, config, config.Database.User, config.Database.Password, applicationName)
+	return Connect(ctx, &config.Database, config.Database.User, config.Database.Password, applicationName)
+}
+
+func NewReadOnlyConnection(ctx context.Context, config *config.Config, applicationName string) (self *gorm.DB, err error) {
+	return Connect(ctx, &config.ReadOnlyDatabase, config.ReadOnlyDatabase.User, config.ReadOnlyDatabase.Password, applicationName)
 }
 
 func Migrate(ctx context.Context, config *config.Config) (err error) {
@@ -127,7 +131,7 @@ func Migrate(ctx context.Context, config *config.Config) (err error) {
 	}
 
 	// Use special migration user
-	self, err := Connect(ctx, config, config.Database.MigrationUser, config.Database.MigrationPassword, "migration")
+	self, err := Connect(ctx, &config.Database, config.Database.MigrationUser, config.Database.MigrationPassword, "migration")
 	if err != nil {
 		return
 	}

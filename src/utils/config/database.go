@@ -45,3 +45,19 @@ func setDatabaseDefaults() {
 	viper.SetDefault("Database.ConnMaxIdleTime", "10m")
 	viper.SetDefault("Database.ConnMaxLifetime", "2h")
 }
+
+func setReadOnlyDatabaseDefaults() {
+	viper.SetDefault("ReadOnlyDatabase.Port", "7654")
+	viper.SetDefault("ReadOnlyDatabase.Host", "127.0.0.1")
+	viper.SetDefault("ReadOnlyDatabase.User", "postgres")
+	viper.SetDefault("ReadOnlyDatabase.Password", "postgres")
+	viper.SetDefault("ReadOnlyDatabase.Name", "warp")
+	viper.SetDefault("ReadOnlyDatabase.SslMode", "disable")
+	viper.SetDefault("ReadOnlyDatabase.PingTimeout", "15s")
+	viper.SetDefault("ReadOnlyDatabase.MigrationUser", "postgres")
+	viper.SetDefault("ReadOnlyDatabase.MigrationPassword", "postgres")
+	viper.SetDefault("ReadOnlyDatabase.MaxOpenConns", "50")
+	viper.SetDefault("ReadOnlyDatabase.MaxIdleConns", "30")
+	viper.SetDefault("ReadOnlyDatabase.ConnMaxIdleTime", "10m")
+	viper.SetDefault("ReadOnlyDatabase.ConnMaxLifetime", "2h")
+}

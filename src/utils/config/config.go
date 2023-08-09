@@ -38,6 +38,7 @@ type Config struct {
 	Bundlr                Bundlr
 	Checker               Checker
 	Database              Database
+	ReadOnlyDatabase      Database
 	Contract              Contract
 	Redis                 []Redis
 	AppSync               AppSync
@@ -62,6 +63,7 @@ func setDefaults() {
 	setBundlrDefaults()
 	setCheckerDefaults()
 	setDatabaseDefaults()
+	setReadOnlyDatabaseDefaults()
 	setContractDefaults()
 	setRedisDefaults()
 	setAppSyncDefaults()
