@@ -63,7 +63,7 @@ func (self *Source) WithClient(client *rpchttp.HTTP) *Source {
 }
 
 func (self *Source) getLastSyncedHeight() (out int64, err error) {
-	return 1, nil
+	return 7046, nil
 }
 
 func (self *Source) send(block *types.Block) (err error) {

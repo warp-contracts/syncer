@@ -2,6 +2,9 @@ package relay
 
 import (
 	"github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/client"
+	proto "github.com/cosmos/gogoproto/proto"
+
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
@@ -22,6 +25,7 @@ type Store struct {
 	finishedTimestamp uint64
 	finishedHeight    uint64
 	finishedBlockHash []byte
+	txConfig          client.TxConfig
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -67,8 +71,28 @@ func (self *Store) flush(data []types.Tx) (out []types.Tx, err error) {
 		return
 	}
 
-	self.Log.WithField("count", len(data)).Trace("Flushing interactions")
+	self.Log.WithField("count", len(data)).Debug("Flushing interactions")
 	defer self.Log.Trace("Flushing interactions done")
+
+	for _, txBytes := range data {
+		tx, err := self.txConfig.TxDecoder()(txBytes)
+		if err != nil {
+			continue
+		}
+
+		for _, msg := range tx.GetMsgs() {
+			if proto.MessageName(msg) == "sequencer.sequencer.MsgDataItem" {
+				self.Log.WithField("msg", msg.String()).Info("Message")
+			}
+		}
+	}
+	// Print messages
+	// txs := ctypes.ToTxs(data)
+	// for _, txBytes := range txs {
+	// 	tx, err := self.decoder(txBytes)
+	// 	if err != nil {
+	// 		goto end
+	// 	}
 
 	// // Set sync timestamp
 	// now := time.Now().UnixMilli()
