@@ -43,7 +43,7 @@ func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
 			}
 
 			t := time.NewTimer(time.Duration(delta) * time.Millisecond)
-			LOG(c).WithField("delta", t).Debug("Waiting for the window to finish")
+			LOG(c).WithField("duration", delta).Trace("Waiting for the window to finish")
 			select {
 			case <-c.Done():
 				// Request is cancelled
