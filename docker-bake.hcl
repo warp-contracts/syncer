@@ -13,5 +13,5 @@ target "syncer-dev" {
 
 target "syncer-release" {
   inherits = ["syncer-dev"]
-  platforms = ["linux/amd64", "linux/arm64"]
+  platforms = ["linux/amd64"]
 }
