@@ -36,8 +36,8 @@ func (self *Base64String) Decode(s string) error {
 	return nil
 }
 
-func (self *Base64String) MarshalJSON() (out []byte, err error) {
-	s := base64.RawURLEncoding.EncodeToString([]byte(*self))
+func (self Base64String) MarshalJSON() (out []byte, err error) {
+	s := base64.RawURLEncoding.EncodeToString([]byte(self))
 	return json.Marshal(s)
 }
 
