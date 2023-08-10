@@ -7,4 +7,5 @@ const (
 	SyncedComponentContracts    SyncedComponent = "Contracts"
 	SyncedComponentForwarder    SyncedComponent = "Forwarder"
 	SyncedComponentSequencer    SyncedComponent = "Sequencer"
+	SyncedComponentRelayer      SyncedComponent = "Relayer"
 )

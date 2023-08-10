@@ -10,6 +10,7 @@ import (
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
 	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
 	"gorm.io/gorm"
@@ -27,7 +28,7 @@ type Source struct {
 	db               *gorm.DB
 	monitor          monitoring.Monitor
 	client           *rpchttp.HTTP
-	lastSyncedHeight int64
+	lastSyncedHeight uint64
 }
 
 func NewSource(config *config.Config) (self *Source) {
@@ -62,8 +63,57 @@ func (self *Source) WithClient(client *rpchttp.HTTP) *Source {
 	return self
 }
 
-func (self *Source) getLastSyncedHeight() (out int64, err error) {
-	return 7046, nil
+func (self *Source) initLastSyncedHeight() (err error) {
+	var state model.State
+
+	err = self.db.WithContext(self.Ctx).
+		Table(model.TableState).
+		Find(&state, model.SyncedComponentRelayer).
+		Error
+	if err == nil {
+		// NO ERROR
+		self.lastSyncedHeight = state.FinishedBlockHeight
+		return
+	}
+
+	// ERROR
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		self.Log.WithError(err).Error("Failed to get sync state of the relayer")
+		return
+	}
+
+	// No record found, create one
+	if !self.Config.IsDevelopment {
+		// In production
+		self.lastSyncedHeight = 0
+	} else {
+		// In development start syncing from the present block
+		status, err := self.client.Status(self.Ctx)
+		if err != nil {
+			self.Log.Error("Failed to get status of the blockchain")
+			return err
+		}
+
+		self.lastSyncedHeight = uint64(status.SyncInfo.LatestBlockHeight)
+	}
+
+	// Save the initial state to the database
+	state = model.State{
+		Name:                model.SyncedComponentRelayer,
+		FinishedBlockHeight: self.lastSyncedHeight,
+	}
+
+	err = self.db.WithContext(self.Ctx).
+		Table(model.TableState).
+		Save(&state).
+		Error
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to update sync state after last block")
+		self.monitor.GetReport().Forwarder.Errors.DbLastTransactionBlockHeight.Inc()
+		return err
+	}
+
+	return
 }
 
 func (self *Source) send(block *types.Block) (err error) {
@@ -180,7 +230,7 @@ func (self *Source) catchUp(height int64) (err error) {
 }
 
 func (self *Source) run() (err error) {
-	self.lastSyncedHeight, err = self.getLastSyncedHeight()
+	err = self.initLastSyncedHeight()
 	if err != nil {
 		return
 	}
