@@ -9,6 +9,7 @@ import (
 type Interaction struct {
 	ContractId  string          `json:"contractTxId"`
 	SortKey     string          `json:"sortKey"`
+	LastSortKey string          `json:"lastSortKey"`
 	Interaction json.RawMessage `json:"interaction"`
 }
 
@@ -22,6 +23,7 @@ func InteractionsToResponse(interactions []*model.Interaction) *GetInteractions 
 		out[i] = Interaction{
 			ContractId:  interaction.ContractId,
 			SortKey:     interaction.SortKey,
+			LastSortKey: interaction.LastSortKey.String,
 			Interaction: interaction.Interaction.Bytes,
 		}
 	}

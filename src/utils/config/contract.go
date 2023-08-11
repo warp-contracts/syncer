@@ -16,7 +16,7 @@ type Contract struct {
 	// Possible contract source content types
 	LoaderSupportedContentTypes []string
 
-	// Max time confirmer will try to insert a batch of data to the database. 0 means no limit
+	// Max time we try to download contract from arweave. 0 means no limit
 	LoaderBackoffMaxElapsedTime time.Duration
 
 	// Max time between retries to insert a batch of confirmations to  the database

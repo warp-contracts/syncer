@@ -7,7 +7,7 @@ import (
 )
 
 type Gateway struct {
-	// REST API address. API used for monitoring etc.
+	// REST API address
 	ServerListenAddress string
 
 	// Max time a http request can take
