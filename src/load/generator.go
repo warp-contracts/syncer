@@ -52,6 +52,6 @@ func (self *Generator) fakeTransaction() *arweave.Transaction {
 			{Name: arweave.Base64String(tool.RandomString(43)), Value: arweave.Base64String(tool.RandomString(10))},
 		},
 		Data: arweave.Base64String(tool.CryptoRandomBytes(100)),
-		ID:   arweave.Base64String(tool.CryptoRandomBytes(43)).Base64(),
+		ID:   arweave.Base64String(tool.CryptoRandomBytes(43)),
 	}
 }

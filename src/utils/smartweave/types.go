@@ -22,7 +22,7 @@ type Tag struct {
 }
 
 type Interaction struct {
-	Id        string               `json:"id"`
+	Id        arweave.Base64String `json:"id"`
 	Owner     Owner                `json:"owner"`
 	Recipient arweave.Base64String `json:"recipient"`
 	Tags      []Tag                `json:"tags"`

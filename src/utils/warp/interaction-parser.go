@@ -182,7 +182,7 @@ func (self *InteractionParser) fillTags(tx *arweave.Transaction, out *model.Inte
 }
 
 func (self *InteractionParser) createSortKey(tx *arweave.Transaction, blockHeight int64, blockId []byte) string {
-	transactionId := []byte(tx.ID)
+	transactionId := tx.ID.Bytes()
 
 	// Concatenate data
 	buffer := make([]byte, 0, len(blockId)+len(transactionId))

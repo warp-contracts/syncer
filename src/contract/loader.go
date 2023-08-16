@@ -221,7 +221,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 
 	var ok bool
 	out = model.NewContract()
-	out.ContractId = tx.ID
+	out.ContractId = tx.ID.Base64()
 	err = out.DeploymentType.Set("arweave")
 	if err != nil {
 		return

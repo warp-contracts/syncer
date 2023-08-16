@@ -16,7 +16,7 @@ const (
 
 type Interaction struct {
 	ID                 int `json:"id"`
-	InteractionId      string
+	InteractionId      arweave.Base64String
 	Interaction        pgtype.JSONB `json:"interaction"`
 	BlockHeight        int64
 	BlockId            arweave.Base64String

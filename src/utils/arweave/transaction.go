@@ -11,7 +11,7 @@ import (
 
 type Transaction struct {
 	Format    int          `json:"format"`
-	ID        string       `json:"id"`
+	ID        Base64String `json:"id"`
 	LastTx    Base64String `json:"last_tx"`
 	Owner     Base64String `json:"owner"` // utils.Base64Encode(wallet.PubKey.N.Bytes())
 	Tags      []Tag        `json:"tags"`

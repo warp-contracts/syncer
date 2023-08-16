@@ -250,7 +250,7 @@ func (self *Client) getChunk(ctx context.Context, offset big.Int) (out *ChunkDat
 
 func (self *Client) GetChunks(ctx context.Context, tx *Transaction) (out bytes.Buffer, err error) {
 	// Download chunks
-	info, err := self.GetTransactionOffsetInfo(ctx, tx.ID)
+	info, err := self.GetTransactionOffsetInfo(ctx, tx.ID.Base64())
 	if err != nil {
 		return
 	}
@@ -295,7 +295,7 @@ func (self *Client) GetTransactionDataById(ctx context.Context, tx *Transaction)
 	defer cancel()
 
 	resp, err := req.
-		SetPathParam("id", tx.ID).
+		SetPathParam("id", tx.ID.Base64()).
 		Get("/tx/{id}/data")
 	if err != nil {
 		return

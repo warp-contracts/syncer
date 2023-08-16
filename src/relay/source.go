@@ -125,7 +125,7 @@ func (self *Source) send(block *types.Block) (err error) {
 		err = errors.New("task closing")
 		return
 	case self.Output <- block:
-		self.lastSyncedHeight = block.Height
+		self.lastSyncedHeight = uint64(block.Height)
 	}
 	return
 }
@@ -140,7 +140,7 @@ func (self *Source) download(len int) (err error) {
 	wg.Add(len)
 
 	for i := 0; i < len; i++ {
-		height := self.lastSyncedHeight + int64(i)
+		height := int64(self.lastSyncedHeight) + int64(i)
 		self.SubmitToWorker(func() {
 			var (
 				err   error
@@ -200,7 +200,13 @@ func (self *Source) download(len int) (err error) {
 
 // Download blocks from last synced blocked to the specified height (exclusive)
 func (self *Source) catchUp(height int64) (err error) {
-	len := height - self.lastSyncedHeight
+	len := height - int64(self.lastSyncedHeight)
+	if len <= 0 {
+		self.Log.WithField("last_synced_height", self.lastSyncedHeight).
+			WithField("desired_height", height).
+			Info("Catch up not possible")
+		return
+	}
 
 	self.Log.WithField("last_synced_height", self.lastSyncedHeight).
 		WithField("desired_height", height).
@@ -236,7 +242,7 @@ func (self *Source) run() (err error) {
 	}
 
 	for block := range self.input {
-		if block.Height > self.lastSyncedHeight+1 {
+		if uint64(block.Height) > self.lastSyncedHeight+1 {
 			err = self.catchUp(block.Height)
 			if err != nil {
 				return
