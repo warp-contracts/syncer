@@ -55,7 +55,7 @@ func (self *InteractionParser) Parse(tx *arweave.Transaction, blockHeight int64,
 		return
 	}
 
-	out.SortKey = self.createSortKey(tx, blockHeight, blockId)
+	out.SortKey = CreateSortKey(tx.ID.Bytes(), blockHeight, blockId)
 
 	out.Owner, err = GetWalletAddress(tx)
 	if err != nil {
@@ -181,9 +181,7 @@ func (self *InteractionParser) fillTags(tx *arweave.Transaction, out *model.Inte
 	return nil
 }
 
-func (self *InteractionParser) createSortKey(tx *arweave.Transaction, blockHeight int64, blockId []byte) string {
-	transactionId := tx.ID.Bytes()
-
+func CreateSortKey(transactionId []byte, blockHeight int64, blockId []byte) string {
 	// Concatenate data
 	buffer := make([]byte, 0, len(blockId)+len(transactionId))
 	buffer = append(buffer, blockId...)
