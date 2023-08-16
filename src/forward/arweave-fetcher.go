@@ -73,7 +73,7 @@ func (self *ArweaveFetcher) run() (err error) {
 			err = self.db.WithContext(self.Ctx).
 				Transaction(func(tx *gorm.DB) (err error) {
 					// Get a batch of L1 interactions
-					err = self.db.Table(model.TableInteraction).
+					err = tx.Table(model.TableInteraction).
 						Where("block_height = ?", height).
 						Where("source=?", "arweave").
 						Limit(self.Config.Forwarder.FetcherBatchSize).
