@@ -3,13 +3,14 @@ package response
 import (
 	"encoding/json"
 
+	"github.com/jackc/pgtype"
 	"github.com/warp-contracts/syncer/src/utils/model"
 )
 
 type Interaction struct {
 	ContractId  string          `json:"contractTxId"`
 	SortKey     string          `json:"sortKey"`
-	LastSortKey string          `json:"lastSortKey"`
+	LastSortKey *string         `json:"lastSortKey"`
 	Interaction json.RawMessage `json:"interaction"`
 }
 
@@ -43,9 +44,14 @@ func InteractionsToResponse(interactions []*model.Interaction) *GetInteractions 
 		out[i] = Interaction{
 			ContractId:  interaction.ContractId,
 			SortKey:     interaction.SortKey,
-			LastSortKey: interaction.LastSortKey.String,
+			LastSortKey: nil,
 			Interaction: addSortKeyToInteraction(interaction.Interaction.Bytes, interaction.SortKey),
 		}
+
+		if interaction.LastSortKey.Status == pgtype.Present {
+			out[i].LastSortKey = &interaction.LastSortKey.String
+		}
+
 	}
 
 	return &GetInteractions{
