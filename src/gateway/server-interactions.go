@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"time"
@@ -59,13 +60,24 @@ func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
 
 		err = db.WithContext(c).
 			Transaction(func(tx *gorm.DB) (err error) {
+				// Get Forwarder state, this is the last block height that has last_sort_key set
+				var forwarderState model.State
+				err = tx.WithContext(self.Ctx).
+					Where("name = ?", model.SyncedComponentForwarder).
+					First(&forwarderState).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to get forwarder state")
+					return err
+				}
+
 				// Check if the time window is finished and it isn't contained
 				var isOverlapping int
 				tx.Raw(`SELECT 1 FROM interactions
 				WHERE interactions.sync_timestamp >= ?
 				AND interactions.sync_timestamp < ?
-				AND interactions.block_height > (SELECT finished_block_height FROM sync_state WHERE name = 'Forwarder')
-				LIMIT 1`, in.Start, in.End).
+				AND interactions.block_height > ?
+				LIMIT 1`, in.Start, in.End, forwarderState.FinishedBlockHeight).
 					Scan(&isOverlapping)
 				if isOverlapping > 0 {
 					return ErrWindowOverlapsLastBlock
@@ -74,21 +86,21 @@ func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
 				// Get interactions
 				query := tx.WithContext(c).
 					Table(model.TableInteraction).
-					Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
 					Where("interactions.sync_timestamp >= ?", in.Start).
 					Where("interactions.sync_timestamp < ?", in.End).
-					Where("interactions.block_height <= (SELECT finished_block_height FROM sync_state WHERE name = 'Forwarder')").
+					Where("interactions.block_height <= ?", forwarderState.FinishedBlockHeight).
 					Limit(in.Limit).
 					Offset(in.Offset).
 					Order("interactions.sort_key ASC")
 
 				if len(in.SrcIds) > 0 {
-					query = query.Where("contracts.src_tx_id IN ?", in.SrcIds)
+					query = query.Where("contracts.src_tx_id IN ?", in.SrcIds).
+						Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id")
 				}
 
 				err = query.Find(&interactions).Error
 				return
-			})
+			}, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
 		if err != nil {
 			if errors.Is(err, ErrWindowOverlapsLastBlock) {
 				c.Status(http.StatusNoContent)
@@ -101,7 +113,10 @@ func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
 			self.monitor.GetReport().Gateway.Errors.DbError.Inc()
 			return
 		}
-		LOG(c).WithField("num", len(interactions)).Debug("Return interactions")
+		LOG(c).WithField("start", in.Start).
+			WithField("end", in.End).
+			WithField("num", len(interactions)).
+			Debug("Return interactions")
 
 		// Update monitoring
 		self.monitor.GetReport().Gateway.State.InteractionsReturned.Add(uint64(len(interactions)))
