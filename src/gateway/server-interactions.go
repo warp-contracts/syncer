@@ -34,9 +34,9 @@ func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
 
 		// Wait for the current widnow to finish if End is in the future
 		delta := int64(in.End) - int64(time.Now().UnixMilli())
+		delta += 2000 // 2s margin for clock skew between GW and DB
+		delta += 100  // 100ms margin of the request handling done so far
 		if delta > 0 {
-			delta += 2000 // 2s margin for clock skew between GW and DB
-			delta += 100  // 100ms margin of the request handling done so far
 			if delta > self.Config.Gateway.ServerRequestTimeout.Milliseconds() {
 				// Request would timeout before the window is finished
 				LOGE(c, nil, http.StatusBadRequest).Error("End timestamp is too far in the future")
