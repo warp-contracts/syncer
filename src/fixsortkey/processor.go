@@ -1,6 +1,8 @@
 package fixsortkey
 
 import (
+	"time"
+
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/task"
@@ -40,7 +42,7 @@ func (self *Processor) WithInputChannel(input chan uint64) *Processor {
 func (self *Processor) run() (err error) {
 	for height := range self.input {
 		self.Log.WithField("height", height).Debug("Start")
-
+	retry:
 		err = self.db.WithContext(self.Ctx).
 			Transaction(func(tx *gorm.DB) (err error) {
 				var interactions []*model.Interaction
@@ -90,6 +92,9 @@ func (self *Processor) run() (err error) {
 			})
 		if err != nil {
 			self.Log.WithError(err).WithField("height", height).Error("Failed to fetch interactions from DB")
+
+			time.Sleep(2 * time.Second)
+			goto retry
 		}
 
 		self.Log.WithField("height", height).Debug("Finish")
