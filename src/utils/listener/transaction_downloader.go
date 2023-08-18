@@ -191,6 +191,11 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 						return err
 					}
 
+					if errors.Is(err, arweave.ErrOverspend) {
+						// This is a permanent error
+						return backoff.Permanent(err)
+					}
+
 					if !isDurationAcceptable {
 						// This will completly reset the HTTP client and possibly help in solving the problem
 						self.client.Reset()

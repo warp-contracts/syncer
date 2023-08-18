@@ -8,6 +8,7 @@ var (
 	ErrDataSizeMismatch = errors.New("data size mismatch")
 	ErrNotFound         = errors.New("data not found")
 	ErrPending          = errors.New("tx is pending")
+	ErrOverspend        = errors.New("overspend")
 )
 
 type Error struct {

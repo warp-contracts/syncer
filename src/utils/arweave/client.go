@@ -163,6 +163,11 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 			return
 		}
 
+		if resp.StatusCode() == http.StatusGone {
+			err = ErrOverspend
+			return
+		}
+
 		err = errors.New(string(http.StatusText(resp.StatusCode())))
 		return
 	}
