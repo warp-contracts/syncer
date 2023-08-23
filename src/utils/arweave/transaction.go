@@ -1,11 +1,10 @@
 package arweave
 
 import (
-	"bytes"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
-	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -88,34 +87,20 @@ func (self *Transaction) Verify() (err error) {
 }
 
 func (tx Transaction) MarshalTo(buf []byte) (int, error) {
-	var data bytes.Buffer
-	enc := gob.NewEncoder(&data)
-
-	// Encode the transaction struct
-	err := enc.Encode(tx)
+	data, err := json.Marshal(tx)
 	if err != nil {
 		return 0, err
 	}
 
-	// Copy the encoded data to the provided buffer
-	copy(buf, data.Bytes())
-
-	return data.Len(), nil
+	copy(buf, data)
+	return len(data), nil
 }
 
-func (tx Transaction) Unmarshal(buf []byte) (err error) {
-	dec := gob.NewDecoder(bytes.NewReader(buf))
-
-	// Decode the transaction struct
-	return dec.Decode(tx)
+func (tx Transaction) Unmarshal(buf []byte) error {
+	return json.Unmarshal(buf, &tx)
 }
 
 func (tx Transaction) Size() int {
-	var data bytes.Buffer
-	enc := gob.NewEncoder(&data)
-
-	// Encode the transaction struct (size calculation only)
-	_ = enc.Encode(tx)
-
-	return data.Len()
+	data, _ := json.Marshal(tx)
+	return len(data)
 }
