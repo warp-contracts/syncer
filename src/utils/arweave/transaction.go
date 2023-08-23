@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -83,4 +84,23 @@ func (self *Transaction) Verify() (err error) {
 		SaltLength: rsa.PSSSaltLengthAuto,
 		Hash:       crypto.SHA256,
 	})
+}
+
+func (tx Transaction) MarshalTo(buf []byte) (int, error) {
+	data, err := json.Marshal(tx)
+	if err != nil {
+		return 0, err
+	}
+
+	copy(buf, data)
+	return len(data), nil
+}
+
+func (tx Transaction) Unmarshal(buf []byte) error {
+	return json.Unmarshal(buf, &tx)
+}
+
+func (tx Transaction) Size() int {
+	data, _ := json.Marshal(tx)
+	return len(data)
 }
