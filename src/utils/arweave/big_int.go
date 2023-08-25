@@ -16,14 +16,14 @@ func (b BigInt) MarshalJSON() ([]byte, error) {
 }
 
 func (b *BigInt) UnmarshalJSON(p []byte) error {
-	var s string
-	err := json.Unmarshal(p, &s)
+	var n json.Number
+	err := json.Unmarshal(p, &n)
 	if err != nil {
 		return err
 	}
 
 	var z big.Int
-	_, ok := z.SetString(s, 10)
+	_, ok := z.SetString(string(n), 10)
 	if !ok {
 		return fmt.Errorf("not a valid big integer: %s", p)
 	}
