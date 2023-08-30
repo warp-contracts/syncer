@@ -37,6 +37,6 @@ func setSyncerDefaults() {
 	viper.SetDefault("Syncer.TransactionMaxElapsedTime", "0")
 	viper.SetDefault("Syncer.TransactionMaxInterval", "3s")
 	viper.SetDefault("Syncer.StoreBatchSize", "500")
-	viper.SetDefault("Syncer.StoreMaxTimeInQueue", "10s")
+	viper.SetDefault("Syncer.StoreMaxTimeInQueue", "1s")
 	viper.SetDefault("Syncer.StoreMaxBackoffInterval", "30s")
 }

@@ -148,7 +148,7 @@ func (self *Sequencer) catchUp() (err error) {
 func (self *Sequencer) getSyncerState() (state model.State, err error) {
 	err = self.db.WithContext(self.Ctx).
 		Table(model.TableState).
-		Find(&state, model.SyncedComponentInteractions).
+		First(&state, model.SyncedComponentInteractions).
 		Error
 	return
 }

@@ -120,61 +120,63 @@ func (self *InteractionParser) parseTags(tags []arweave.Tag) (out []smartweave.T
 	return
 }
 
-func (self *InteractionParser) fillTags(tx *arweave.Transaction, out *model.Interaction) (err error) {
-	// Fill data from tags
-	var value string
-	for _, t := range tx.Tags {
-		// Base64String to string
-		value = string(t.Value)
-		switch string(t.Name) {
-		case "Contract":
-			if !contractIdRegex.MatchString(value) {
-				err = errors.New("tag doesn't validate as a contractId")
-				self.log.Error("Failed to validate contract id")
-				return
-			}
-			out.ContractId = value
-		case "Interact-Write":
-			out.InteractWrite = append(out.InteractWrite, value)
-		case "Warp-Testnet":
-			out.Testnet = sql.NullString{
-				String: value,
+func AddTagToInteraction(out *model.Interaction, name, value string) (err error) {
+	switch string(name) {
+	case "Contract":
+		if !contractIdRegex.MatchString(value) {
+			err = errors.New("tag doesn't validate as a contractId")
+			return
+		}
+		out.ContractId = value
+	case "Interact-Write":
+		out.InteractWrite = append(out.InteractWrite, value)
+	case "Warp-Testnet":
+		out.Testnet = sql.NullString{
+			String: value,
+			Valid:  true,
+		}
+	case "Input":
+		out.Input = value
+
+		// Marshal tag into tmp struct
+		var input struct {
+			Function *string `json:"function"`
+			Value    *string `json:"value"`
+		}
+
+		err = json.Unmarshal([]byte(out.Input), &input)
+		if err != nil {
+			return
+		}
+
+		// Check function name
+		if input.Function == nil {
+			break
+		}
+
+		// Cleanup function name
+		out.Function = strings.TrimSpace(*input.Function)
+
+		// Handle evolution
+		// Is this a call to evolve
+		if strings.EqualFold(out.Function, "evolve") &&
+			input.Value != nil &&
+			txIdRegex.MatchString(*input.Value) {
+			out.Evolve = sql.NullString{
+				String: *input.Value,
 				Valid:  true,
 			}
-		case "Input":
-			out.Input = value
+		}
+	}
+	return
+}
 
-			// Marshal tag into tmp struct
-			var input struct {
-				Function *string `json:"function"`
-				Value    *string `json:"value"`
-			}
-
-			err = json.Unmarshal([]byte(out.Input), &input)
-			if err != nil {
-				self.log.Error("Failed to parse function in input")
-				return
-			}
-
-			// Check function name
-			if input.Function == nil {
-				break
-			}
-
-			// Cleanup function name
-			out.Function = strings.TrimSpace(*input.Function)
-
-			// Handle evolution
-			// Is this a call to evolve
-			if strings.EqualFold(out.Function, "evolve") &&
-				input.Value != nil &&
-				txIdRegex.MatchString(*input.Value) {
-				out.Evolve = sql.NullString{
-					String: *input.Value,
-					Valid:  true,
-				}
-			}
-
+func (self *InteractionParser) fillTags(tx *arweave.Transaction, out *model.Interaction) (err error) {
+	// Fill data from tags
+	for _, t := range tx.Tags {
+		err = AddTagToInteraction(out, string(t.Name), string(t.Value))
+		if err != nil {
+			return
 		}
 	}
 

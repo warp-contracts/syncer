@@ -40,7 +40,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor)
 	streamer.Resume()
 
-	// Forwards blocks from Streamer, but fills in the gaps
+	// Forwards blocks from Streamer, but fills in the gaps.
 	source := NewSource(config).
 		WithDB(db).
 		WithClient(sequencerClient).

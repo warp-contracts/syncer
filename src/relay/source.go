@@ -67,12 +67,12 @@ func (self *Source) initLastSyncedHeight() (err error) {
 	var state model.State
 
 	err = self.db.WithContext(self.Ctx).
-		Table(model.TableState).
-		Find(&state, model.SyncedComponentRelayer).
+		First(&state, model.SyncedComponentRelayer).
 		Error
 	if err == nil {
 		// NO ERROR
 		self.lastSyncedHeight = state.FinishedBlockHeight
+		self.Log.WithField("height", self.lastSyncedHeight).Info("Found sync state of the relayer")
 		return
 	}
 
@@ -109,9 +109,10 @@ func (self *Source) initLastSyncedHeight() (err error) {
 		Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to update sync state after last block")
-		self.monitor.GetReport().Forwarder.Errors.DbLastTransactionBlockHeight.Inc()
 		return err
 	}
+
+	self.Log.WithField("height", self.lastSyncedHeight).Info("Initialized sync state of the relayer")
 
 	return
 }

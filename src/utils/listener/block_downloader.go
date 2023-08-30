@@ -101,7 +101,7 @@ func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB, component model.Sy
 	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
 		// Get the last storeserverd block height from the database
 		var state model.State
-		err = db.WithContext(self.Ctx).Find(&state, component).Error
+		err = db.WithContext(self.Ctx).First(&state, component).Error
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to get last transaction block height")
 			return
