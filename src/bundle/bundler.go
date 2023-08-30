@@ -214,12 +214,6 @@ func (self *Bundler) createDataItem(item *model.BundleItem) (bundleItem *bundlr.
 		return
 	}
 
-	err = bundleItem.VerifySignature()
-	if err != nil {
-		self.Log.WithError(err).WithField("id", item.InteractionID).Error("Failed to verify bundle item signature")
-		return
-	}
-
 	return
 }
 
