@@ -1,6 +1,7 @@
 package arweave
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -52,6 +53,14 @@ func (tx *Transaction) Verify() (err error) {
 		return
 	}
 
+	// Check if id is the hash of the signature
+	sigHash := sha256.Sum256(tx.Signature)
+	if !bytes.Equal(tx.ID, sigHash[:]) {
+		err = errors.New("id and signature don't match")
+		return
+	}
+
+	// Convert tags for deep hashing
 	tags := make([]interface{}, 0, len(tx.Tags))
 	for _, tag := range tx.Tags {
 		tags = append(tags, []interface{}{
