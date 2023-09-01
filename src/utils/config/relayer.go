@@ -27,6 +27,17 @@ type Relayer struct {
 
 	// How many blocks are downloaded in parallel
 	SourceBatchSize int
+
+	// Num of Interactions that are stored in the Store
+	// before being inserted into the database in one db transaction and batch.
+	StoreBatchSize int
+
+	// After this time all Interactions in Store will be inserted to the database.
+	// This is to avoid keeping them in the service for too long when waiting to fill the batch.
+	StoreMaxTimeInQueue time.Duration
+
+	// Max time between failed retries to save data.
+	StoreMaxBackoffInterval time.Duration
 }
 
 func setRelayerDefaults() {
@@ -37,4 +48,7 @@ func setRelayerDefaults() {
 	viper.SetDefault("Relayer.SourceBackoffMaxElapsedTime", "30s")
 	viper.SetDefault("Relayer.SourceBackoffMaxInterval", "2s")
 	viper.SetDefault("Relayer.SourceBatchSize", "10")
+	viper.SetDefault("Relayer.StoreBatchSize", "500")
+	viper.SetDefault("Relayer.StoreMaxTimeInQueue", "1s")
+	viper.SetDefault("Relayer.StoreMaxBackoffInterval", "10s")
 }
