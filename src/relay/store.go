@@ -51,10 +51,10 @@ func NewStore(config *config.Config) (self *Store) {
 	self.parser = warp.NewDataItemParser(config)
 
 	self.Processor = task.NewProcessor[*types.Block, types.Tx](config, "store").
-		WithBatchSize(config.Syncer.StoreBatchSize).
-		WithOnFlush(config.Syncer.StoreMaxTimeInQueue, self.flush).
+		WithBatchSize(config.Relayer.StoreBatchSize).
+		WithOnFlush(config.Relayer.StoreMaxTimeInQueue, self.flush).
 		WithOnProcess(self.process).
-		WithBackoff(0, config.Syncer.StoreMaxBackoffInterval)
+		WithBackoff(0, config.Relayer.StoreMaxBackoffInterval)
 
 	return
 }
