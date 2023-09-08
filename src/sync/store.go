@@ -199,7 +199,7 @@ func (self *Store) saveInteractions(tx *gorm.DB, data []*model.Interaction) (err
 	err = tx.WithContext(self.Ctx).
 		Table("interactions").
 		Clauses(onConflict).
-		CreateInBatches(data, len(data)).
+		CreateInBatches(data, self.Config.Syncer.StoreBatchSize).
 		Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to insert Interactions")

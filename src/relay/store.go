@@ -202,7 +202,7 @@ func (self *Store) flush(data []types.Tx) (out []types.Tx, err error) {
 					Columns:   []clause.Column{{Name: "interaction_id"}},
 					UpdateAll: false,
 				}).
-				CreateInBatches(interactions, len(interactions)).
+				CreateInBatches(interactions, self.Config.Relayer.StoreBatchSize).
 				Error
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to insert Interactions")
