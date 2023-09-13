@@ -278,7 +278,7 @@ func (self *BlockDownloader) downloadOneBlock(height uint64, lastProcessedBlockH
 
 func (self *BlockDownloader) vote(blocks []*arweave.Block) (out *arweave.Block, err error) {
 	minNumberOfVotes := int(math.Round(2.0 * float64(len(blocks)) / 3.0))
-	self.Log.WithField("min_number_of_votes", minNumberOfVotes).Info("Voting for the best block")
+	self.Log.WithField("min_number_of_votes", minNumberOfVotes).Debug("Voting for the best block")
 	// Pick the most common block
 	votes := make(map[string]int)
 	for _, block := range blocks {
