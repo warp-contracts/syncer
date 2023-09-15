@@ -15,7 +15,7 @@ const (
 	ContextLoggerKey = "lg"
 )
 
-var logger *logrus.Logger
+var logger logrus.FieldLogger
 
 func init() {
 	logger = logrus.New()
@@ -26,15 +26,18 @@ func Init(config *config.Config) (err error) {
 	if err != nil {
 		return
 	}
-	logger.SetLevel(level)
-	logger.SetOutput(os.Stdout)
+
+	l := logrus.New()
+	l.SetLevel(level)
+	l.SetOutput(os.Stdout)
 
 	formatter := &logrus.TextFormatter{
 		FullTimestamp:   true,
 		TimestampFormat: "2006-01-02T15:04:05.999999999Z07:00",
 	}
-	logger.SetFormatter(formatter)
+	l.SetFormatter(formatter)
 
+	logger = l
 	return nil
 }
 

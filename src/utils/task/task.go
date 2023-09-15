@@ -107,6 +107,11 @@ func (self *Task) WithStopTimeout(v time.Duration) *Task {
 	return self
 }
 
+func (self *Task) WithLoger(v time.Duration) *Task {
+	self.stopTimeout = v
+	return self
+}
+
 func (self *Task) WithSubtask(t *Task) *Task {
 	// Ensure context will be cancelled after all kinds of subtasks finish
 	t = t.WithOnBeforeStart(func() error {
