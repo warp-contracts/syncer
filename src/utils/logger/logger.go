@@ -41,6 +41,10 @@ func Init(config *config.Config) (err error) {
 	return nil
 }
 
+func InitWithLogger(l logrus.FieldLogger) {
+	logger = l
+}
+
 func NewSublogger(tag string) *logrus.Entry {
 	return logger.WithFields(logrus.Fields{"module": "warp." + tag})
 }
