@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/build_info"
-	"github.com/warp-contracts/syncer/src/utils/common"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	l "github.com/warp-contracts/syncer/src/utils/logger"
 	"github.com/warp-contracts/syncer/src/utils/model/sql_migrations"
@@ -96,7 +95,7 @@ func Connect(ctx context.Context, dbConfig *config.Database, username, password,
 	db.SetMaxIdleConns(dbConfig.MaxIdleConns)
 	db.SetConnMaxIdleTime(dbConfig.ConnMaxIdleTime)
 	db.SetConnMaxLifetime(dbConfig.ConnMaxLifetime)
-	err = Ping(ctx, self)
+	err = ping(ctx, dbConfig, self)
 	if err != nil {
 		return
 	}
@@ -155,10 +154,8 @@ func Migrate(ctx context.Context, config *config.Config) (err error) {
 	return
 }
 
-func Ping(ctx context.Context, db *gorm.DB) (err error) {
-	config := common.GetConfig(ctx)
-
-	if config.Database.PingTimeout < 0 {
+func ping(ctx context.Context, dbConfig *config.Database, db *gorm.DB) (err error) {
+	if dbConfig.PingTimeout < 0 {
 		// Ping disabled
 		return nil
 	}
@@ -168,7 +165,7 @@ func Ping(ctx context.Context, db *gorm.DB) (err error) {
 		return
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, config.Database.PingTimeout)
+	dbCtx, cancel := context.WithTimeout(ctx, dbConfig.PingTimeout)
 	defer cancel()
 
 	err = sqlDB.PingContext(dbCtx)
