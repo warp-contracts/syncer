@@ -26,6 +26,7 @@ type Task struct {
 	StopChannel   chan bool
 	stopOnce      *sync.Once
 	stopWaitGroup sync.WaitGroup
+	stopTimeout   time.Duration
 
 	// Context active as long as there's anything running in the task.
 	// Used OUTSIDE the task.
@@ -72,6 +73,7 @@ func NewTask(config *config.Config, name string) (self *Task) {
 	self.IsStopping = &atomic.Bool{}
 	self.stopWaitGroup = sync.WaitGroup{}
 	self.StopChannel = make(chan bool, 1)
+	self.stopTimeout = 30 * time.Second
 
 	return
 }
@@ -101,6 +103,11 @@ func (self *Task) WithConditionalSubtask(isEnabled bool, t *Task) *Task {
 		return self
 	}
 	return self.WithSubtask(t)
+}
+
+func (self *Task) WithStopTimeout(v time.Duration) *Task {
+	self.stopTimeout = v
+	return self
 }
 
 func (self *Task) WithSubtask(t *Task) *Task {
@@ -385,7 +392,7 @@ func (self *Task) Stop() {
 
 func (self *Task) StopWait() {
 	// Wait for at most 30s before force-closing
-	ctx, cancel := context.WithTimeout(context.Background(), self.Config.StopTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), self.stopTimeout)
 	defer cancel()
 
 	self.Stop()
