@@ -6,7 +6,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/warp-contracts/syncer/src/utils/common"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/logger"
 
@@ -31,7 +30,6 @@ var (
 			if err != nil {
 				return
 			}
-			applicationCtx = common.SetConfig(applicationCtx, conf)
 
 			go func() {
 				select {

@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/warp-contracts/syncer/src/utils/common"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/logger"
 
@@ -62,11 +61,9 @@ func NewTask(config *config.Config, name string) (self *Task) {
 
 	// Context cancelled when Stop() is called
 	self.Ctx, self.cancel = context.WithCancel(context.Background())
-	self.Ctx = common.SetConfig(self.Ctx, config)
 
 	// Context active as long as there's anything running in the task
 	self.CtxRunning, self.cancelRunning = context.WithCancel(context.Background())
-	self.CtxRunning = common.SetConfig(self.Ctx, config)
 
 	// Stopping
 	self.stopOnce = &sync.Once{}
