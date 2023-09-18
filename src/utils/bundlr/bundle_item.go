@@ -534,3 +534,12 @@ func (self *BundleItem) VerifySignature() (err error) {
 
 	return signer.Verify(deepHash[:], self.Signature)
 }
+
+func (self *BundleItem) GetTag(name string) (value string, found bool) {
+	for _, tag := range self.Tags {
+		if tag.Name == name {
+			return tag.Value, true
+		}
+	}
+	return
+}
