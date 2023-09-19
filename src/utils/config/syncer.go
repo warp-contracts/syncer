@@ -7,6 +7,9 @@ import (
 )
 
 type Syncer struct {
+	// Is downloading arweave tx enabled, used in sequencer
+	Enabled bool
+
 	// Max time for a transaction to be downloaded. 0 means no limit
 	BlockMaxElapsedTime time.Duration
 
@@ -32,6 +35,7 @@ type Syncer struct {
 }
 
 func setSyncerDefaults() {
+	viper.SetDefault("Syncer.Enabled", "true")
 	viper.SetDefault("Syncer.BlockMaxElapsedTime", "0")
 	viper.SetDefault("Syncer.BlockMaxInterval", "15s")
 	viper.SetDefault("Syncer.TransactionMaxElapsedTime", "0")
