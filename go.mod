@@ -36,7 +36,7 @@ require (
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.4
 	github.com/teivah/onecontext v1.3.0
-	github.com/warp-contracts/sequencer v0.0.7
+	github.com/warp-contracts/sequencer v0.0.19
 	go.uber.org/atomic v1.10.0
 	go.uber.org/ratelimit v0.2.0
 	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc
@@ -58,6 +58,7 @@ require (
 	cosmossdk.io/errors v1.0.0 // indirect
 	cosmossdk.io/log v1.1.1-0.20230704160919-88f2c830b0ca // indirect
 	cosmossdk.io/math v1.0.1 // indirect
+	cosmossdk.io/simapp v0.0.0-20230323161446-0af178d721ff // indirect
 	cosmossdk.io/tools/rosetta v0.2.1 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
