@@ -33,3 +33,7 @@ func (self Tags) Size() int {
 	data, _ := self.Marshal()
 	return len(data)
 }
+
+func (self Tags) Append(tags []Tag) Tags {
+	return append(self, tags...)
+}
