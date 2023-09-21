@@ -25,6 +25,7 @@ type InteractionNotification struct {
 	Test         bool   `json:"test"`
 	Source       string `json:"source"`
 	Interaction  string `json:"interaction"`
+	SrcTxId      string `json:"srcTxId"`
 }
 
 func (self *InteractionNotification) MarshalBinary() (data []byte, err error) {

@@ -1,6 +1,7 @@
 package forward
 
 import (
+	"database/sql"
 	"runtime"
 	"strings"
 	"time"
@@ -69,6 +70,7 @@ func (self *ArweaveFetcher) run() (err error) {
 		for offset := 0; ; offset++ {
 			// Fetch interactions in batches
 			var interactions []*model.Interaction
+			var srcTxIds []string
 
 			err = self.db.WithContext(self.Ctx).
 				Transaction(func(tx *gorm.DB) (err error) {
@@ -94,6 +96,13 @@ func (self *ArweaveFetcher) run() (err error) {
 						}
 					}
 
+					// Get src_tx_id for each interaction
+					srcTxIds, err = self.getSrcTxIds(tx, interactions)
+					if err != nil {
+						return
+					}
+
+					// Check if this is the last batch
 					isLastBatch = (len(interactions) < self.Config.Forwarder.FetcherBatchSize) ||
 						// Edge case: num of interactions is a multiple of batch size
 						(len(interactions) == 0 && offset != 0)
@@ -104,6 +113,8 @@ func (self *ArweaveFetcher) run() (err error) {
 					}
 
 					return nil
+				}, &sql.TxOptions{
+					Isolation: sql.LevelRepeatableRead,
 				})
 			if err != nil {
 				self.Log.WithError(err).WithField("height", height).Error("Failed to fetch interactions from DB")
@@ -130,6 +141,7 @@ func (self *ArweaveFetcher) run() (err error) {
 					payload := &Payload{
 						First:       isFirstBatch && i == 0,
 						Interaction: interaction,
+						SrcTxId:     srcTxIds[i],
 					}
 
 					// NOTE: Quit only when the whole batch is processed
@@ -311,6 +323,22 @@ func (self *ArweaveFetcher) getLastSortKeys(tx *gorm.DB, contractIds []string, h
 	for _, interaction := range interactions {
 		out[interaction.ContractId] = interaction.SortKey
 	}
+
+	return
+}
+
+func (self *ArweaveFetcher) getSrcTxIds(tx *gorm.DB, interactions []*model.Interaction) (srcTxIds []string, err error) {
+	interactionIds := make([]int, len(interactions))
+	for i, interaction := range interactions {
+		interactionIds[i] = interaction.ID
+	}
+
+	err = self.db.WithContext(self.Ctx).
+		Raw(`SELECT src_tx_id from contracts
+		INNER JOIN interactions ON interactions.contract_id = contracts.contract_id
+		WHERE interactions.id IN (?)
+		ORDER BY interactions.sort_key ASC`, interactionIds).
+		Scan(&srcTxIds).Error
 
 	return
 }

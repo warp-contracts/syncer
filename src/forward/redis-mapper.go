@@ -31,6 +31,7 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 				Test:         false,
 				Source:       "warp-gw",
 				Interaction:  string(interactionStr),
+				SrcTxId:      data.SrcTxId,
 			}:
 			}
 

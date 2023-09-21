@@ -57,8 +57,8 @@ func (self *InteractionStreamer) run() (err error) {
 				return nil
 			}
 
-			var interaction model.Interaction
-			err = json.Unmarshal([]byte(msg), &interaction)
+			var notification Notification
+			err = json.Unmarshal([]byte(msg), &notification)
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to unmarshal interaction")
 				self.monitor.GetReport().Forwarder.Errors.DbFetchL2Interactions.Inc()
@@ -66,7 +66,11 @@ func (self *InteractionStreamer) run() (err error) {
 			}
 
 			payload := &Payload{
-				Interaction: &interaction,
+				Interaction: &model.Interaction{
+					ContractId:  notification.ContractId,
+					Interaction: notification.Interaction,
+				},
+				SrcTxId: notification.SrcTxId,
 			}
 
 			// Pass the interaction to the output channel

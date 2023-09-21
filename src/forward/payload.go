@@ -6,6 +6,7 @@ type Payload struct {
 	First       bool
 	Last        bool
 	Interaction *model.Interaction
+	SrcTxId     string
 }
 
 func (self *Payload) IsFirst() bool {
