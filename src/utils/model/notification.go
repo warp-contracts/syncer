@@ -14,6 +14,7 @@ type ContractNotification struct {
 	Source       string        `json:"source"`
 	InitialState pgtype.JSONB  `json:"initialState"`
 	Tags         []arweave.Tag `json:"tags"`
+	SrcTxId      string        `json:"srcTxId"`
 }
 
 func (self *ContractNotification) MarshalBinary() (data []byte, err error) {

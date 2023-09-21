@@ -26,6 +26,7 @@ func redisMapper(config *config.Config) (self *task.Mapper[*ContractData, *model
 				Source:       "warp-gw", // FIXME: Should this be changed to another name?
 				InitialState: data.Contract.InitState,
 				Tags:         []arweave.Tag{}, // Empty array as in the GW
+				SrcTxId:      data.Contract.SrcTxId.String,
 			}:
 			}
 
