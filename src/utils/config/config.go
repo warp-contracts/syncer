@@ -45,10 +45,11 @@ type Config struct {
 	Forwarder             Forwarder
 	Relayer               Relayer
 	Gateway               Gateway
+	Profiler              Profiler
 }
 
 func setDefaults() {
-	viper.SetDefault("IsDevelopment", "true")
+	viper.SetDefault("IsDevelopment", "false")
 	viper.SetDefault("RESTListenAddress", ":3333")
 	viper.SetDefault("LogLevel", "DEBUG")
 	viper.SetDefault("StopTimeout", "30s")
@@ -69,6 +70,7 @@ func setDefaults() {
 	setAppSyncDefaults()
 	setRelayerDefaults()
 	setGatewayDefaults()
+	setProfilerDefaults()
 }
 
 func Default() (config *Config) {

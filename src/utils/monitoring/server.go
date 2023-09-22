@@ -3,11 +3,13 @@ package monitoring
 import (
 	"context"
 	"net/http"
+	"runtime"
 
 	"github.com/warp-contracts/syncer/src/utils/build_info"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/task"
 
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -60,6 +62,11 @@ func (self *Server) run() (err error) {
 		v1.GET("health", self.monitor.OnGetHealth)
 		v1.GET("monitor", self.handle())
 		v1.GET("version", self.onVersion)
+	}
+
+	if self.Config.Profiler.Enabled {
+		pprof.RouteRegister(v1)
+		runtime.SetBlockProfileRate(self.Config.Profiler.BlockProfileRate)
 	}
 
 	err = self.httpServer.ListenAndServe()
