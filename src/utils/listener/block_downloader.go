@@ -196,6 +196,7 @@ func (self *BlockDownloader) run() error {
 		}
 	}
 
+	self.Stop()
 	return nil
 }
 

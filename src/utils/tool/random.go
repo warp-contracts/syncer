@@ -3,14 +3,9 @@ package tool
 import (
 	crypto_rand "crypto/rand"
 	"math/rand"
-	"time"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 func RandomString(n int) string {
 	b := make([]byte, n)

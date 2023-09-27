@@ -1,6 +1,6 @@
 module github.com/warp-contracts/syncer
 
-go 1.19
+go 1.21
 
 replace (
 	cosmossdk.io/simapp => github.com/cosmos/cosmos-sdk/simapp v0.0.0-20230608160436-666c345ad23d
@@ -17,6 +17,7 @@ require (
 	github.com/ethereum/go-ethereum v1.11.6
 	github.com/gammazero/deque v0.2.1
 	github.com/gammazero/workerpool v1.1.3
+	github.com/gin-contrib/pprof v1.4.0
 	github.com/gin-gonic/gin v1.8.2
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/hamba/avro v1.8.0
@@ -36,7 +37,7 @@ require (
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.4
 	github.com/teivah/onecontext v1.3.0
-	github.com/warp-contracts/sequencer v0.0.19
+	github.com/warp-contracts/sequencer v0.0.31
 	go.uber.org/atomic v1.10.0
 	go.uber.org/ratelimit v0.2.0
 	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc
@@ -101,7 +102,6 @@ require (
 	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
-	github.com/gin-contrib/pprof v1.4.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.5 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
