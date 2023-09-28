@@ -48,7 +48,8 @@ func NewController(config *config.Config, sequencerRepoPath string) (self *Contr
 	self.Task = self.Task.
 		WithSubtask(nextFinishedBlock.Task).
 		WithSubtask(blockDownloader.Task).
-		WithSubtask(writer.Task)
+		WithSubtask(writer.Task).
+		WithStopChannel(writer.Output)
 
 	return
 }

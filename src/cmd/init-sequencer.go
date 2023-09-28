@@ -43,7 +43,7 @@ var initSequencerCmd = &cobra.Command{
 		return
 	},
 	PostRunE: func(cmd *cobra.Command, args []string) (err error) {
-		log := logger.NewSublogger("root-cmd")
+		log := logger.NewSublogger("init-sequencer-cmd")
 		log.Debug("Finished init_sequencer command")
 		applicationCtxCancel()
 		return

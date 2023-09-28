@@ -407,5 +407,13 @@ func (self *Task) StopWait() {
 	}
 
 	self.Log.Info("Stopped")
+}
 
+func (self *Task) WithStopChannel(channel chan interface{}) *Task {
+	self.WithSubtaskFunc(func() error {
+		<-channel
+		self.Stop()
+		return nil
+	})
+	return self
 }

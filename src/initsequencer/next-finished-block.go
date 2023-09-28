@@ -21,7 +21,10 @@ func NewNextFinishedBlock(config *config.Config) (self *NextFinishedBlock) {
 	self.Output = make(chan *arweave.NetworkInfo)
 
 	self.Task = task.NewTask(config, "next-finished-block").
-		WithSubtaskFunc(self.run)
+		WithSubtaskFunc(self.run).
+		WithOnAfterStop(func() {
+			close(self.Output)
+		})
 
 	return
 }
@@ -43,8 +46,9 @@ func (self *NextFinishedBlock) run() (err error) {
 	self.Output <- &arweave.NetworkInfo{
 		Height: int64(state.FinishedBlockHeight) + 1,
 	}
-	close(self.Output)
-	
-	self.Stop()
+
+	// Wait till the context is done
+	<-self.Ctx.Done()
+
 	return
 }

@@ -29,10 +29,12 @@ type Writer struct {
 	sequencerRepoPath string
 	db                *gorm.DB
 	input             chan *arweave.Block
+	Output            chan interface{}
 }
 
 func NewWriter(config *config.Config, sequencerRepoPath string) (self *Writer) {
 	self = new(Writer)
+	self.Output = make(chan interface{}, 1)
 
 	self.Task = task.NewTask(config, "writer").
 		WithSubtaskFunc(self.run)
@@ -66,7 +68,6 @@ func (self *Writer) run() (err error) {
 		return
 	}
 
-	self.Stop()
 	return
 }
 
@@ -90,7 +91,13 @@ func (self *Writer) fetchLastSortKeys() (err error) {
 		return
 	}
 
-	return self.writeToConfigFile(LAST_SORT_KEYS_FILE, keysJson)
+	err = self.writeToConfigFile(LAST_SORT_KEYS_FILE, keysJson)
+	if err != nil {
+		return
+	}
+
+	self.Log.WithField("number of keys", len(lastSortKeys)).Debug("Last sort keys saved to files")
+	return
 }
 
 func (self *Writer) fetchLastArweaveBlock() (err error) {
@@ -110,6 +117,9 @@ func (self *Writer) fetchLastArweaveBlock() (err error) {
 		if err != nil {
 			return err
 		}
+
+		self.Log.WithField("height", blockInfo.Height).Debug("Last Arweave block saved to files")
+		self.Output <- struct{}{}
 	}
 
 	return
