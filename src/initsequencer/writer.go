@@ -29,15 +29,18 @@ type Writer struct {
 	sequencerRepoPath string
 	db                *gorm.DB
 	input             chan *arweave.Block
-	Output            chan interface{}
+	Output            chan struct{}
 }
 
 func NewWriter(config *config.Config, sequencerRepoPath string) (self *Writer) {
 	self = new(Writer)
-	self.Output = make(chan interface{}, 1)
+	self.Output = make(chan struct{}, 1)
 
 	self.Task = task.NewTask(config, "writer").
-		WithSubtaskFunc(self.run)
+		WithSubtaskFunc(self.run).
+		WithOnAfterStop(func() {
+			close(self.Output)
+		})
 
 	return
 }

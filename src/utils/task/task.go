@@ -409,10 +409,13 @@ func (self *Task) StopWait() {
 	self.Log.Info("Stopped")
 }
 
-func (self *Task) WithStopChannel(channel chan interface{}) *Task {
+func (self *Task) WithStopChannel(channel chan struct{}) *Task {
 	self.WithSubtaskFunc(func() error {
-		<-channel
-		self.Stop()
+		select {
+		case <-self.Ctx.Done():
+		case <-channel:
+			self.Stop()
+		}
 		return nil
 	})
 	return self
