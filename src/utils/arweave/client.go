@@ -135,6 +135,29 @@ func (self *Client) GetBlockByHeight(ctx context.Context, height int64) (out *Bl
 	return
 }
 
+// https://docs.arweave.org/developers/server/http-api#blocks
+func (self *Client) GetBlockByHash(ctx context.Context, hash string) (out *Block, resp *resty.Response, err error) {
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err = req.
+		SetResult(&Block{}).
+		SetPathParam("hash", hash).
+		ForceContentType("application/json").
+		Get("/block/hash/{hash}")
+	if err != nil {
+		return
+	}
+
+	out, ok := resp.Result().(*Block)
+	if !ok {
+		err = ErrFailedToParse
+		return
+	}
+
+	return
+}
+
 // https://docs.arweave.org/developers/server/http-api#get-transaction-by-id
 func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Transaction, err error) {
 	req, cancel := self.Request(ctx)

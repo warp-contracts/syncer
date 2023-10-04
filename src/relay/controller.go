@@ -2,11 +2,13 @@ package relay
 
 import (
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	monitor_relayer "github.com/warp-contracts/syncer/src/utils/monitoring/relayer"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/warp"
 )
 
 type Controller struct {
@@ -22,6 +24,10 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	if err != nil {
 		return
 	}
+
+	// Arweave client
+	client := arweave.NewClient(self.Ctx, config).
+		WithTagValidator(warp.ValidateTag)
 
 	// Sequencer/Cosmos client
 	sequencerClient, err := rpchttp.New(config.Relayer.SequencerUrl, "/websocket")
@@ -46,9 +52,18 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithClient(sequencerClient).
 		WithInputChannel(streamer.Output)
 
+	// Parses blocks into payload
+	parser := NewParser(config).
+		WithInputChannel(source.Output)
+
+	// Fill in Arweave blocks
+	blockDownloader := NewOneBlockDownloader(config).
+		WithClient(client).
+		WithInputChannel(parser.Output)
+
 	// Store blocks in the database, in batches
 	store := NewStore(config).
-		WithInputChannel(source.Output).
+		WithInputChannel(parser.Output).
 		WithMonitor(monitor).
 		WithDB(db)
 
@@ -57,6 +72,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(monitor.Task).
 		WithSubtask(server.Task).
 		WithSubtask(source.Task).
+		WithSubtask(parser.Task).
+		WithSubtask(blockDownloader.Task).
 		WithSubtask(store.Task).
 		WithSubtask(streamer.Task)
 
