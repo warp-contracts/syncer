@@ -14,8 +14,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
-// Task that periodically checks for new arweave network info.
-// Optionally waits for a number of required confirmation blocks before emitting the info
+// Task for filling in the arweave blocks in Payload
 type OneBlockDownloader struct {
 	*task.Task
 

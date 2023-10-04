@@ -4,6 +4,7 @@ import (
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/listener"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	monitor_relayer "github.com/warp-contracts/syncer/src/utils/monitoring/relayer"
@@ -60,6 +61,19 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	blockDownloader := NewOneBlockDownloader(config).
 		WithClient(client).
 		WithInputChannel(parser.Output)
+
+	// Connect both transaction downloader
+	transactionOrchestrator := NewTransactionOrchestrator(config).
+		WithInputChannel(blockDownloader.Output)
+
+	transactionDownloader := listener.NewTransactionDownloader(config).
+		WithClient(client).
+		WithInputChannel(transactionOrchestrator.TransactionOutput).
+		WithMonitor(monitor).
+		WithBackoff(0, config.Syncer.TransactionMaxInterval).
+		WithFilterInteractions()
+
+	transactionOrchestrator.WithTransactionInput(transactionDownloader.Output)
 
 	// Store blocks in the database, in batches
 	store := NewStore(config).
