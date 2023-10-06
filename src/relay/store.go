@@ -70,6 +70,11 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 		return
 	}
 
+	if self.finishedHeight <= 0 {
+		err = errors.New("block height too small")
+		return
+	}
+
 	// Interactions from all blocks
 	var (
 		interactions []*model.Interaction
@@ -94,17 +99,15 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 
 	err = self.DB.WithContext(self.Ctx).
 		Transaction(func(tx *gorm.DB) error {
-			if self.finishedHeight <= 0 {
-				return errors.New("block height too small")
-			}
 			err = tx.WithContext(self.Ctx).
 				Model(&model.State{
 					Name: model.SyncedComponentRelayer,
 				}).
-				Updates(model.State{
-					FinishedBlockTimestamp: self.finishedTimestamp,
-					FinishedBlockHeight:    self.finishedHeight,
-					// FinishedBlockHash:      self.finishedBlockHash,
+				// State struct accepts block hash as bytes, but here we have only a string
+				Updates(map[string]interface{}{
+					"finished_block_timestamp": self.finishedTimestamp,
+					"finished_block_height":    self.finishedHeight,
+					"finished_block_hash":      self.finishedBlockHash,
 				}).
 				Error
 			if err != nil {
@@ -112,57 +115,58 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 				return err
 			}
 
-			// No interactions and bundle items to save
-			if len(interactions) == 0 {
-				return nil
+			if len(interactions) != 0 {
+				// Save interactions if there are any
+				err = tx.WithContext(self.Ctx).
+					Table(model.TableInteraction).
+					Clauses(clause.OnConflict{
+						DoNothing: true,
+						Columns:   []clause.Column{{Name: "interaction_id"}},
+						UpdateAll: false,
+					}).
+					CreateInBatches(interactions, self.Config.Relayer.StoreBatchSize).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to insert Interactions")
+					self.Log.WithField("interactions", interactions).Debug("Failed interactions")
+					return err
+				}
 			}
 
-			// Save interactions
-			err = tx.WithContext(self.Ctx).
-				Table("interactions").
-				Clauses(clause.OnConflict{
-					DoNothing: true,
-					Columns:   []clause.Column{{Name: "interaction_id"}},
-					UpdateAll: false,
-				}).
-				CreateInBatches(interactions, self.Config.Relayer.StoreBatchSize).
-				Error
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to insert Interactions")
-				self.Log.WithField("interactions", interactions).Debug("Failed interactions")
-				return err
-			}
-
-			// Save bundle items
-			err = tx.WithContext(self.Ctx).
-				Table("bundle_items").
-				Clauses(clause.OnConflict{
-					DoNothing: true,
-					Columns:   []clause.Column{{Name: "interaction_id"}},
-					UpdateAll: false,
-				}).
-				CreateInBatches(bundleItems, self.Config.Relayer.StoreBatchSize).
-				Error
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to insert BundleItems")
-				return err
+			if len(bundleItems) != 0 {
+				// Save bundle items if there are any
+				err = tx.WithContext(self.Ctx).
+					Table(model.TableBundleItem).
+					Clauses(clause.OnConflict{
+						DoNothing: true,
+						Columns:   []clause.Column{{Name: "interaction_id"}},
+						UpdateAll: false,
+					}).
+					CreateInBatches(bundleItems, self.Config.Relayer.StoreBatchSize).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to insert bundle items")
+					return err
+				}
 			}
 
 			return nil
 		})
 	if err != nil {
+		self.Log.WithError(err).Error("Failed to insert bundle items, interactions and update state")
 		return
 	}
 
-	// // Successfuly saved interactions
-	// self.monitor.GetReport().Syncer.State.InteractionsSaved.Add(uint64(len(data)))
+	// Update saved block height
+	self.savedBlockHeight = self.finishedHeight
 
-	// // Update saved block height
-	// self.savedBlockHeight = self.finishedHeight
+	// Successfuly saved interactions
+	self.monitor.GetReport().Syncer.State.InteractionsSaved.Add(uint64(len(interactions)))
+	self.monitor.GetReport().Syncer.State.FinishedHeight.Store(int64(self.savedBlockHeight))
+	self.monitor.GetReport().Relayer.State.BundleItemsSaved.Store(uint64(len(bundleItems)))
 
-	// self.monitor.GetReport().Syncer.State.FinishedHeight.Store(int64(self.savedBlockHeight))
+	// Processing stops here, no need to return anything
+	out = nil
 
-	// // Processing stops here, no need to return anything
-	// out = nil
 	return
 }

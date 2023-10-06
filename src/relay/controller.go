@@ -78,10 +78,10 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Parse arweave transactions into interactions
 
 	// Store blocks in the database, in batches
-	// store := NewStore(config).
-	// 	WithInputChannel(parser.Output).
-	// 	WithMonitor(monitor).
-	// 	WithDB(db)
+	store := NewStore(config).
+		WithInputChannel(parser.Output).
+		WithMonitor(monitor).
+		WithDB(db)
 
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
@@ -90,7 +90,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(source.Task).
 		WithSubtask(parser.Task).
 		WithSubtask(blockDownloader.Task).
-		// WithSubtask(store.Task).
+		WithSubtask(store.Task).
 		WithSubtask(streamer.Task)
 
 	return

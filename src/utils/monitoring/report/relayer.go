@@ -9,6 +9,8 @@ type RelayerErrors struct {
 
 type RelayerState struct {
 	BlocksReceived atomic.Uint64 `json:"blocks_received"`
+
+	BundleItemsSaved atomic.Uint64 `json:"bundle_items_saved"`
 }
 
 type RelayerReport struct {
