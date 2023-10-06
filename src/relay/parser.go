@@ -155,7 +155,11 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg) (interaction *model.In
 		},
 	})
 
-	bundleItem.Tags.Set(tags)
+	err = bundleItem.Tags.Set(tags)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
@@ -277,11 +281,7 @@ func (self *Parser) run() (err error) {
 			err = errors.New("task closing")
 			return
 		case self.Output <- payload:
-
 		}
-
-		return
-
 	}
 
 	return nil

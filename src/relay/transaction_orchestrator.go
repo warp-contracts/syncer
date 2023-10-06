@@ -1,12 +1,9 @@
 package relay
 
 import (
-	"time"
-
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/listener"
-	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
@@ -15,21 +12,11 @@ import (
 type TransactionOrchestrator struct {
 	*task.Task
 
-	client  *arweave.Client
-	monitor monitoring.Monitor
-
 	input  chan *Payload
 	Output chan *Payload
 
 	transactionInput  chan *listener.Payload
 	TransactionOutput chan *arweave.Block
-
-	// Parameters
-	maxElapsedTime time.Duration
-	maxInterval    time.Duration
-
-	lastBlockHeight int64
-	lastBlockHash   arweave.Base64String
 }
 
 // Using Arweave client periodically checks for blocks of transactions

@@ -37,7 +37,7 @@ $(BIN)/%: | $(BIN) ; $(info $(M) installing $(REPOSITORY)…)
 
 GOLANGCILINT = $(BIN)/golangci-lint
 $(BIN)/golangci-lint:
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.53.3
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.54.2
 
 GENTOOL = $(BIN)/gentool
 $(BIN)/gentool: REPOSITORY=gorm.io/gen/tools/gentool@latest
