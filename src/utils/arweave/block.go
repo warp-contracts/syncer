@@ -11,35 +11,40 @@ import (
 const (
 	HEIGHT_2_5 = int64(812970)
 	HEIGHT_2_6 = int64(1132210)
+	HEIGHT_2_7 = int64(1275480)
 )
 
 type Block struct {
-	Nonce                    Base64String   `json:"nonce"`
-	PreviousBlock            Base64String   `json:"previous_block"`
-	Timestamp                int64          `json:"timestamp"`
-	LastRetarget             int64          `json:"last_retarget"`
-	Diff                     BigInt         `json:"diff"`
-	Height                   int64          `json:"height"`
-	Hash                     Base64String   `json:"hash"`
-	IndepHash                Base64String   `json:"indep_hash"`
-	Txs                      []Base64String `json:"txs"`
-	TxRoot                   Base64String   `json:"tx_root"`
-	TxTree                   interface{}    `json:"tx_tree"`
-	HashList                 interface{}    `json:"hash_list"`
-	HashListMerkle           Base64String   `json:"hash_list_merkle"`
-	WalletList               Base64String   `json:"wallet_list"`
-	RewardAddr               RewardAddr     `json:"reward_addr"`
-	Tags                     []interface{}  `json:"tags"`
-	RewardPool               BigInt         `json:"reward_pool"`
-	WeaveSize                BigInt         `json:"weave_size"`
-	BlockSize                BigInt         `json:"block_size"`
-	CumulativeDiff           BigInt         `json:"cumulative_diff"`
-	SizeTaggedTxs            interface{}    `json:"size_tagged_txs"`
-	Poa                      POA            `json:"poa"`
-	UsdToArRate              []BigInt       `json:"usd_to_ar_rate"`
-	ScheduledUsdToArRate     []BigInt       `json:"scheduled_usd_to_ar_rate"`
-	Packing25Threshold       BigInt         `json:"packing_2_5_threshold"`
-	StrictDataSplitThreshold BigInt         `json:"strict_data_split_threshold"`
+	MerkleRebaseSupportThreshold BigInt         `json:"merkle_rebase_support_threshold"`
+	ChunkHash                    Base64String   `json:"chunk_hash"`
+	Chunk2Hash                   Base64String   `json:"chunk2_hash"`
+	BlockTimeHistoryHash         Base64String   `json:"block_time_history_hash"`
+	Nonce                        Base64String   `json:"nonce"`
+	PreviousBlock                Base64String   `json:"previous_block"`
+	Timestamp                    int64          `json:"timestamp"`
+	LastRetarget                 int64          `json:"last_retarget"`
+	Diff                         BigInt         `json:"diff"`
+	Height                       int64          `json:"height"`
+	Hash                         Base64String   `json:"hash"`
+	IndepHash                    Base64String   `json:"indep_hash"`
+	Txs                          []Base64String `json:"txs"`
+	TxRoot                       Base64String   `json:"tx_root"`
+	TxTree                       interface{}    `json:"tx_tree"`
+	HashList                     interface{}    `json:"hash_list"`
+	HashListMerkle               Base64String   `json:"hash_list_merkle"`
+	WalletList                   Base64String   `json:"wallet_list"`
+	RewardAddr                   RewardAddr     `json:"reward_addr"`
+	Tags                         []interface{}  `json:"tags"`
+	RewardPool                   BigInt         `json:"reward_pool"`
+	WeaveSize                    BigInt         `json:"weave_size"`
+	BlockSize                    BigInt         `json:"block_size"`
+	CumulativeDiff               BigInt         `json:"cumulative_diff"`
+	SizeTaggedTxs                interface{}    `json:"size_tagged_txs"`
+	Poa                          POA            `json:"poa"`
+	UsdToArRate                  []BigInt       `json:"usd_to_ar_rate"`
+	ScheduledUsdToArRate         []BigInt       `json:"scheduled_usd_to_ar_rate"`
+	Packing25Threshold           BigInt         `json:"packing_2_5_threshold"`
+	StrictDataSplitThreshold     BigInt         `json:"strict_data_split_threshold"`
 
 	// Fields added in v2.6
 	HashPreimage                  Base64String       `json:"hash_preimage"`
@@ -48,7 +53,7 @@ type Block struct {
 	PreviousSolutionHash          Base64String       `json:"previous_solution_hash"`
 	PartitionNumber               uint64             `json:"partition_number"`
 	NonceLimiterInfo              NonceLimiterInfo   `json:"nonce_limiter_info"`
-	POA2                          POA                `json:"poa2"`
+	Poa2                          POA                `json:"poa2"`
 	RecallByte2                   BigInt             `json:"recall_byte2"`
 	Signature                     Base64String       `json:"signature"`
 	RewardKey                     Base64String       `json:"reward_key"`
@@ -81,6 +86,8 @@ type NonceLimiterInfo struct {
 	PrevOutput          Base64String   `json:"prev_output"`
 	LastStepCheckpoints []Base64String `json:"last_step_checkpoints"`
 	Checkpoints         []Base64String `json:"checkpoints"`
+	VdfDifficulty       BigInt         `json:"vdf_difficulty"`
+	NextVdfDifficulty   BigInt         `json:"next_vdf_difficulty"`
 }
 
 type DoubleSigningProof struct {
@@ -120,9 +127,90 @@ func (b *Block) IsValid() bool {
 		return false
 	} else if b.Height < HEIGHT_2_6 {
 		return b.IsValid_2_5()
-	} else {
+	} else if b.Height < HEIGHT_2_7 {
 		return b.IsValid_2_6()
+	} else {
+		return b.IsValid_2_7()
 	}
+}
+
+// https://github.com/ArweaveTeam/arweave/blob/d2c5fd1809a3a0f0f7be831f1d51c9eae23013ba/apps/arweave/src/ar_block.erl#L251C1-L251C21
+func (b *Block) IsValid_2_7() bool {
+	buf := Encoder{Buffer: bytes.NewBuffer(nil)}
+
+	buf.Write(b.PreviousBlock, 1)
+	buf.Write(b.Timestamp, 1)
+	buf.Write(b.Nonce, 2)
+	buf.Write(b.Height, 1)
+	buf.Write(b.Diff, 2)
+	buf.Write(b.CumulativeDiff, 2)
+	buf.Write(b.LastRetarget, 1)
+	buf.Write(b.Hash, 1)
+	buf.Write(b.BlockSize, 2)
+	buf.Write(b.WeaveSize, 2)
+	buf.Write(b.RewardAddr, 1)
+	buf.Write(b.TxRoot, 1)
+	buf.Write(b.WalletList, 1)
+	buf.Write(b.HashListMerkle, 1)
+	buf.Write(b.RewardPool, 1)
+	buf.Write(b.Packing25Threshold, 1)
+	buf.Write(b.StrictDataSplitThreshold, 1)
+	buf.Write(b.UsdToArRate[0], 1)
+	buf.Write(b.UsdToArRate[1], 1)
+	buf.Write(b.ScheduledUsdToArRate[0], 1)
+	buf.Write(b.ScheduledUsdToArRate[1], 1)
+	buf.WriteSlice(b.Tags, 2, 2)
+	buf.WriteSlice(b.Txs, 2, 1)
+	buf.Write(b.Reward, 1)
+	buf.Write(b.RecallByte, 2)
+	buf.Write(b.HashPreimage, 1)
+	buf.Write(b.RecallByte2, 2)
+	buf.Write(b.RewardKey, 2)
+	buf.Write(b.PartitionNumber, 1)
+	buf.RawWriteSize(b.NonceLimiterInfo.Output, 32)
+	buf.RawWriteSize(b.NonceLimiterInfo.GlobalStepNumber, 8)
+	buf.RawWriteSize(b.NonceLimiterInfo.Seed, 48)
+	buf.RawWriteSize(b.NonceLimiterInfo.NextSeed, 48)
+	buf.RawWriteSize(b.NonceLimiterInfo.ZoneUpperBound, 32)
+	buf.RawWriteSize(b.NonceLimiterInfo.NextZoneUpperBound, 32)
+	buf.Write(b.NonceLimiterInfo.PrevOutput, 1)
+	buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.Checkpoints)), 2)
+	buf.RawWrite(b.NonceLimiterInfo.Checkpoints)
+	buf.RawWriteSize(uint16(len(b.NonceLimiterInfo.LastStepCheckpoints)), 2)
+	buf.RawWrite(b.NonceLimiterInfo.LastStepCheckpoints)
+	buf.Write(b.PreviousSolutionHash, 1)
+	buf.Write(b.PricePerGibMinute, 1)
+	buf.Write(b.ScheduledPricePerGibMinute, 1)
+	buf.RawWriteSize(b.RewardHistoryHash, 32)
+	buf.Write(b.DebtSupply, 1)
+	buf.RawWriteSize(b.KryderPlusRateMultiplier, 3)
+	buf.RawWriteSize(b.KryderPlusRateMultiplierLatch, 1)
+	buf.RawWriteSize(b.Denomination, 3)
+	buf.Write(b.RedenominationHeight, 1)
+	buf.RawWrite(b.DoubleSigningProof.Bytes())
+	buf.Write(b.PreviousCumulativeDiff, 2)
+
+	// Added in 2_7
+	buf.Write(b.MerkleRebaseSupportThreshold, 2)
+	buf.Write(b.Poa.DataPath, 3)
+	buf.Write(b.Poa.TxPath, 3)
+	buf.Write(b.Poa2.DataPath, 3)
+	buf.Write(b.Poa2.TxPath, 3)
+	buf.RawWriteSize(b.ChunkHash, 32)
+	buf.Write(b.Chunk2Hash, 1)
+	buf.RawWriteSize(b.BlockTimeHistoryHash, 32)
+	buf.Write(b.NonceLimiterInfo.VdfDifficulty, 1)
+	buf.Write(b.NonceLimiterInfo.NextVdfDifficulty, 1)
+
+	// "Signed hash"
+	sha := sha256.New()
+	sha.Write(buf.Bytes())
+	signedHash := sha.Sum(nil)
+
+	// indep_hash2
+	hash := sha512.Sum384(append(signedHash[:], b.Signature.Bytes()[:]...))
+
+	return bytes.Equal(hash[:], b.IndepHash)
 }
 
 func (b *Block) IsValid_2_6() bool {
