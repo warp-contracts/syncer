@@ -2,10 +2,7 @@ package relay
 
 import (
 	"errors"
-	"sync"
 	"time"
-
-	"github.com/cometbft/cometbft/types"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -20,7 +17,7 @@ import (
 // - groups incoming Interactions into batches,
 // - ensures data isn't stuck even if a batch isn't big enough
 type Store struct {
-	*task.Processor[*types.Block, *types.Block]
+	*task.Processor[*Payload, *Payload]
 
 	DB      *gorm.DB
 	monitor monitoring.Monitor
@@ -28,13 +25,13 @@ type Store struct {
 	savedBlockHeight  uint64
 	finishedTimestamp uint64
 	finishedHeight    uint64
-	finishedBlockHash []byte
+	finishedBlockHash string
 }
 
 func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
 
-	self.Processor = task.NewProcessor[*types.Block, *types.Block](config, "store").
+	self.Processor = task.NewProcessor[*Payload, *Payload](config, "store").
 		WithBatchSize(config.Relayer.StoreBatchSize).
 		WithOnFlush(config.Relayer.StoreMaxTimeInQueue, self.flush).
 		WithOnProcess(self.process).
@@ -48,7 +45,7 @@ func (self *Store) WithMonitor(v monitoring.Monitor) *Store {
 	return self
 }
 
-func (self *Store) WithInputChannel(v chan *types.Block) *Store {
+func (self *Store) WithInputChannel(v chan *Payload) *Store {
 	self.Processor = self.Processor.WithInputChannel(v)
 	return self
 }
@@ -58,74 +55,31 @@ func (self *Store) WithDB(v *gorm.DB) *Store {
 	return self
 }
 
-func (self *Store) process(block *types.Block) (out []*types.Block, err error) {
-	self.Log.WithField("height", block.Height).Debug("Processing")
-	self.finishedTimestamp = uint64(block.Time.UnixMilli())
-	self.finishedHeight = uint64(block.Height)
-	self.finishedBlockHash = block.LastCommitHash
-	out = []*types.Block{block}
+func (self *Store) process(payload *Payload) (out []*Payload, err error) {
+	self.Log.WithField("sequencer_height", payload.SequencerBlockHeight).Debug("Processing")
+	self.finishedTimestamp = uint64(payload.SequencerBlockTimestamp)
+	self.finishedHeight = uint64(payload.SequencerBlockHeight)
+	self.finishedBlockHash = payload.SequencerBlockHash
+	out = []*Payload{payload}
 	return
 }
 
-func (self *Store) parseBlock(block *types.Block) (interactions []*model.Interaction, bundleItems []*model.BundleItem, err error) {
-	if len(block.Txs) == 0 {
-		return
-	}
-	var wg sync.WaitGroup
-	wg.Add(len(block.Txs))
-	var mtx sync.Mutex
-
-	interactions = make([]*model.Interaction, 0, len(block.Txs))
-	bundleItems = make([]*model.BundleItem, 0, len(block.Txs))
-
-	for _, txBytes := range block.Txs {
-		txBytes := txBytes
-
-		self.SubmitToWorker(func() {
-			interactionsFromTx, bundleItemsFromTx, err := self.parseTransaction(txBytes)
-			if err != nil {
-				// FIXME: Monitoring
-				self.Log.WithError(err).Error("Failed to parse interaction, skipping")
-				goto done
-			}
-
-			mtx.Lock()
-			interactions = append(interactions, interactionsFromTx...)
-			bundleItems = append(bundleItems, bundleItemsFromTx...)
-			mtx.Unlock()
-
-		done:
-			wg.Done()
-		})
-	}
-
-	wg.Wait()
-
-	return
-}
-
-func (self *Store) flush(blocks []*types.Block) (out []*types.Block, err error) {
-	if self.savedBlockHeight == self.finishedHeight && len(blocks) == 0 {
+func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
+	if self.savedBlockHeight == self.finishedHeight && len(payloads) == 0 {
 		// No need to flush, nothing changed
 		return
 	}
 
 	// Interactions from all blocks
 	var (
-		interactions, interactionsFromBlock []*model.Interaction
-		bundleItems, bundleItemsFromBlock   []*model.BundleItem
+		interactions []*model.Interaction
+		bundleItems  []*model.BundleItem
 	)
 
-	// Parse interactions block by block
-	for _, block := range blocks {
-		interactionsFromBlock, bundleItemsFromBlock, err = self.parseBlock(block)
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to parse interaction, skipping")
-			continue
-		}
-		interactions = append(interactions, interactionsFromBlock...)
-		bundleItems = append(bundleItems, bundleItemsFromBlock...)
-
+	// Concatenate data from all payloads
+	for _, payload := range payloads {
+		interactions = append(interactions, payload.Interactions...)
+		bundleItems = append(bundleItems, payload.BundleItems...)
 	}
 
 	// Set sync timestamp
@@ -150,7 +104,7 @@ func (self *Store) flush(blocks []*types.Block) (out []*types.Block, err error) 
 				Updates(model.State{
 					FinishedBlockTimestamp: self.finishedTimestamp,
 					FinishedBlockHeight:    self.finishedHeight,
-					FinishedBlockHash:      self.finishedBlockHash,
+					// FinishedBlockHash:      self.finishedBlockHash,
 				}).
 				Error
 			if err != nil {

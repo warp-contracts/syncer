@@ -18,7 +18,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
 	"github.com/warp-contracts/syncer/src/utils/config"
-	"github.com/warp-contracts/syncer/src/utils/listener"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
@@ -286,40 +285,4 @@ func (self *Parser) run() (err error) {
 	}
 
 	return nil
-}
-
-func (self *Parser) parseAll(payload *listener.Payload) (out []*model.Interaction, err error) {
-	if len(payload.Transactions) == 0 {
-		// Skip empty blocks
-		return
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(len(payload.Transactions))
-	var mtx sync.Mutex
-
-	// Fill int
-	out = make([]*model.Interaction, 0, len(payload.Transactions))
-	for _, tx := range payload.Transactions {
-		tx := tx
-		self.SubmitToWorker(func() {
-			// Parse transactions into interaction
-			interaction, err := self.interactionParser.Parse(tx, payload.BlockHeight, payload.BlockHash, payload.BlockTimestamp)
-			if err != nil {
-				self.monitor.GetReport().Syncer.State.FailedInteractionParsing.Inc()
-				self.Log.WithField("tx_id", tx.ID).Warn("Failed to parse interaction from tx, neglecting")
-				goto done
-			}
-
-			mtx.Lock()
-			out = append(out, interaction)
-			mtx.Unlock()
-
-		done:
-			wg.Done()
-		})
-	}
-
-	wg.Wait()
-	return
 }
