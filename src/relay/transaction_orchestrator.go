@@ -8,7 +8,8 @@ import (
 )
 
 // Task that saves transactions to the payload
-// It reuses listener.TransactionOrchestrator
+// It reuses listener.TransactionOrchestrator.
+// This is prepared for multiple Arweave blocks in one Sequencer transaction.
 type TransactionOrchestrator struct {
 	*task.Task
 

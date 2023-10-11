@@ -128,6 +128,9 @@ func (self *Source) send(block *types.Block) (err error) {
 	case self.Output <- block:
 		self.lastSyncedHeight = uint64(block.Height)
 	}
+
+	self.monitor.GetReport().Relayer.State.BlocksReceived.Inc()
+
 	return
 }
 
