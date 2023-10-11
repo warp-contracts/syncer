@@ -24,7 +24,7 @@ type BlockDownloader struct {
 	*task.Task
 
 	// Runtime configuration
-	startHeight            uint64
+	startHeightChannel     chan uint64
 	previousBlockIndepHash arweave.Base64String
 
 	// Optionally synchonization can be stopped at a certain height
@@ -45,8 +45,9 @@ type BlockDownloader struct {
 func NewBlockDownloader(config *config.Config) (self *BlockDownloader) {
 	self = new(BlockDownloader)
 
-	// By default range allows all possible heights
-	self.startHeight = 0
+	// It's a channel of capacity 1, so it's non-blocking upon sending
+	self.startHeightChannel = make(chan uint64, 1)
+	// By default allow syncing blocks indefinitely
 	self.stopBlockHeight = math.MaxUint64
 
 	self.Output = make(chan *arweave.Block)
@@ -88,7 +89,8 @@ func (self *BlockDownloader) WithHeightRange(start, stop uint64) *BlockDownloade
 			return errors.New("Invalid block")
 		}
 
-		self.startHeight = uint64(block.Height)
+		// This will never block
+		self.startHeightChannel <- uint64(block.Height)
 		self.previousBlockIndepHash = block.IndepHash
 		self.stopBlockHeight = stop
 
@@ -107,7 +109,8 @@ func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB, component model.Sy
 			return
 		}
 
-		self.startHeight = state.FinishedBlockHeight
+		// This will never block
+		self.startHeightChannel <- state.FinishedBlockHeight
 		self.previousBlockIndepHash = state.FinishedBlockHash
 
 		return nil
@@ -120,9 +123,23 @@ func (self *BlockDownloader) WithInputChannel(v chan *arweave.NetworkInfo) *Bloc
 	return self
 }
 
+func (self *BlockDownloader) SetStartHeight(v uint64) {
+	self.startHeightChannel <- v
+}
+
 // Listens for changed height and downloads the missing blocks
 func (self *BlockDownloader) run() error {
-	lastSyncedHeight := self.startHeight
+	// Wait for the start height.
+	// It's set during the initialization phase or asynchronously
+	var lastSyncedHeight uint64
+	select {
+	case <-self.Ctx.Done():
+		return nil
+	case v := <-self.startHeightChannel:
+		lastSyncedHeight = v
+		close(self.startHeightChannel)
+	}
+
 	lastProcessedBlockHash := self.previousBlockIndepHash
 
 	// Listen for new blocks (blocks)
@@ -136,7 +153,7 @@ func (self *BlockDownloader) run() error {
 			Debug("Discovered new blocks")
 
 		// Download transactions from
-		for height := lastSyncedHeight + 1; height <= uint64(networkInfo.Height) && height >= self.startHeight && height <= self.stopBlockHeight; height++ {
+		for height := lastSyncedHeight + 1; height <= uint64(networkInfo.Height) && height <= self.stopBlockHeight; height++ {
 			self.monitor.GetReport().BlockDownloader.State.CurrentHeight.Store(int64(height))
 
 			self.Log.WithField("height", height).Trace("Downloading block")
