@@ -123,8 +123,9 @@ func (self *BlockDownloader) WithInputChannel(v chan *arweave.NetworkInfo) *Bloc
 	return self
 }
 
-func (self *BlockDownloader) SetStartHeight(v uint64) {
-	self.startHeightChannel <- v
+func (self *BlockDownloader) SetPreviousBlock(previousBlockHeight uint64, previousBlockIndepHash arweave.Base64String) {
+	self.previousBlockIndepHash = previousBlockIndepHash
+	self.startHeightChannel <- previousBlockHeight
 }
 
 // Listens for changed height and downloads the missing blocks
