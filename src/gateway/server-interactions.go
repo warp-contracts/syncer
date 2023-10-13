@@ -76,7 +76,7 @@ func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
 				tx.Raw(`SELECT 1 FROM interactions
 				WHERE interactions.sync_timestamp >= ?
 				AND interactions.sync_timestamp < ?
-				AND interactions.block_height > ?
+				AND interactions.block_height > ?				
 				LIMIT 1`, in.Start, in.End, forwarderState.FinishedBlockHeight).
 					Scan(&isOverlapping)
 				if isOverlapping > 0 {
@@ -92,6 +92,10 @@ func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
 					Limit(in.Limit).
 					Offset(in.Offset).
 					Order("interactions.sort_key ASC")
+
+				if len(in.BlacklistedContracts) > 0 {
+					query = query.Where("interactions.contract_id NOT IN ?", in.BlacklistedContracts)
+				}
 
 				if len(in.SrcIds) > 0 {
 					query = query.Where("contracts.src_tx_id IN ?", in.SrcIds).
