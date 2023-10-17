@@ -45,7 +45,7 @@ func (self *Blacklist) RemoveOldest(n int) {
 		return a.Inserted.Before(b.Inserted)
 	})
 
-	for i := 0; i < n; i++ {
+	for i := 0; i < n && i < len(items); i++ {
 		self.peers.Delete(items[i])
 	}
 
