@@ -18,7 +18,7 @@ import (
 
 const (
 	CONFIG_PATH_FORMAT      = "network/local/sequencer-%d/config/"
-	LAST_SORT_KEYS_FILE     = "last_sort_keys.json"
+	PREV_SORT_KEYS_FILE     = "prev_sort_keys.json"
 	LAST_ARWEAVE_BLOCK_FILE = "last_arweave_block.json"
 	NUMBER_OF_NODES         = 3
 )
@@ -61,7 +61,7 @@ func (self *Writer) WithInput(input chan *arweave.Block) *Writer {
 }
 
 func (self *Writer) run() (err error) {
-	err = self.fetchLastSortKeys()
+	err = self.fetchPrevSortKeys()
 	if err != nil {
 		return
 	}
@@ -74,32 +74,32 @@ func (self *Writer) run() (err error) {
 	return
 }
 
-func (self *Writer) fetchLastSortKeys() (err error) {
-	var lastSortKeys []*types.LastSortKey
+func (self *Writer) fetchPrevSortKeys() (err error) {
+	var prevSortKeys []*types.PrevSortKey
 	err = self.db.WithContext(self.Ctx).
 		Transaction(func(tx *gorm.DB) error {
 			return self.db.Table(model.TableInteraction).
 				Select("contract_id as contract, max(sort_key) as sort_key").
 				Where("contract_id != ''").
 				Group("contract_id").
-				Scan(&lastSortKeys).
+				Scan(&prevSortKeys).
 				Error
 		})
 	if err != nil {
 		return err
 	}
 
-	keysJson, err := json.Marshal(lastSortKeys)
+	keysJson, err := json.Marshal(prevSortKeys)
 	if err != nil {
 		return
 	}
 
-	err = self.writeToConfigFile(LAST_SORT_KEYS_FILE, keysJson)
+	err = self.writeToConfigFile(PREV_SORT_KEYS_FILE, keysJson)
 	if err != nil {
 		return
 	}
 
-	self.Log.WithField("number of keys", len(lastSortKeys)).Debug("Last sort keys saved to files")
+	self.Log.WithField("number of keys", len(prevSortKeys)).Debug("Prev sort keys saved to files")
 	return
 }
 
