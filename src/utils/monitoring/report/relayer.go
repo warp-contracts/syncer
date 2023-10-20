@@ -5,6 +5,8 @@ import (
 )
 
 type RelayerErrors struct {
+	SequencerBlockDownloadError          atomic.Uint64 `json:"sequencer_block_download_error"`
+	SequencerPermanentBlockDownloadError atomic.Uint64 `json:"sequencer_permanent_block_download_error"`
 }
 
 type RelayerState struct {

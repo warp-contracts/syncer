@@ -53,6 +53,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		// Forwards blocks from Streamer, but fills in the gaps.
 		source := NewSource(config).
 			WithDB(db).
+			WithMonitor(monitor).
 			WithClient(sequencerClient).
 			WithInputChannel(streamer.Output)
 
