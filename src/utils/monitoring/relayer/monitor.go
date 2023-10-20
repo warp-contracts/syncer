@@ -28,9 +28,12 @@ func NewMonitor(config *config.Config) (self *Monitor) {
 	self = new(Monitor)
 
 	self.Report = report.Report{
-		Run:             &report.RunReport{},
-		RedisPublishers: make([]report.RedisPublisherReport, len(config.Redis)),
-		Relayer:         &report.RelayerReport{},
+		Run:                   &report.RunReport{},
+		RedisPublishers:       make([]report.RedisPublisherReport, len(config.Redis)),
+		Relayer:               &report.RelayerReport{},
+		BlockDownloader:       &report.BlockDownloaderReport{},
+		TransactionDownloader: &report.TransactionDownloaderReport{},
+		Peer:                  &report.PeerReport{},
 	}
 
 	// Initialization
@@ -71,8 +74,7 @@ func (self *Monitor) IsOK() bool {
 		return true
 	}
 
-	// TODO: Implement checks
-	return true
+	return self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Load() > 0.1
 }
 
 func (self *Monitor) monitor() (err error) {

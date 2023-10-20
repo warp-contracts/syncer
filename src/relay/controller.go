@@ -1,6 +1,8 @@
 package relay
 
 import (
+	"time"
+
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -41,57 +43,76 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	server := monitoring.NewServer(config).
 		WithMonitor(monitor)
 
-	// Events from Warp's sequencer
-	streamer := NewStreamer(config).
-		WithClient(sequencerClient).
-		WithMonitor(monitor)
-	streamer.Resume()
+	watched := func() *task.Task {
+		// Events from Warp's sequencer
+		streamer := NewStreamer(config).
+			WithClient(sequencerClient).
+			WithMonitor(monitor)
+		streamer.Resume()
 
-	// Forwards blocks from Streamer, but fills in the gaps.
-	source := NewSource(config).
-		WithDB(db).
-		WithClient(sequencerClient).
-		WithInputChannel(streamer.Output)
+		// Forwards blocks from Streamer, but fills in the gaps.
+		source := NewSource(config).
+			WithDB(db).
+			WithClient(sequencerClient).
+			WithInputChannel(streamer.Output)
 
-	// Parses blocks into payload
-	parser := NewParser(config).
-		WithInputChannel(source.Output)
+		// Parses blocks into payload
+		parser := NewParser(config).
+			WithInputChannel(source.Output)
 
-	// Fill in Arweave blocks
-	blockDownloader := NewOneBlockDownloader(config).
-		WithClient(client).
-		WithInputChannel(parser.Output)
+		// Fill in Arweave blocks
+		blockDownloader := NewOneBlockDownloader(config).
+			WithMonitor(monitor).
+			WithClient(client).
+			WithInputChannel(parser.Output)
 
-	// Connect both transaction downloader
-	transactionOrchestrator := NewTransactionOrchestrator(config).
-		WithInputChannel(blockDownloader.Output)
+		// Download transactions from Arweave
+		transactionOrchestrator := NewTransactionOrchestrator(config).
+			WithInputChannel(blockDownloader.Output)
 
-	transactionDownloader := listener.NewTransactionDownloader(config).
-		WithClient(client).
-		WithInputChannel(transactionOrchestrator.TransactionOutput).
-		WithMonitor(monitor).
-		WithBackoff(0, config.Syncer.TransactionMaxInterval).
-		WithFilterInteractions()
+		transactionDownloader := listener.NewTransactionDownloader(config).
+			WithClient(client).
+			WithInputChannel(transactionOrchestrator.TransactionOutput).
+			WithMonitor(monitor).
+			WithBackoff(0, config.Syncer.TransactionMaxInterval).
+			WithFilterInteractions()
 
-	transactionOrchestrator.WithTransactionInput(transactionDownloader.Output)
+		transactionOrchestrator.WithTransactionInput(transactionDownloader.Output)
 
-	// Parse arweave transactions into interactions
+		// Parse arweave transactions into interactions
 
-	// Store blocks in the database, in batches
-	store := NewStore(config).
-		WithInputChannel(parser.Output).
-		WithMonitor(monitor).
-		WithDB(db)
+		// Store blocks in the database, in batches
+		store := NewStore(config).
+			WithInputChannel(parser.Output).
+			WithMonitor(monitor).
+			WithDB(db)
+
+		return task.NewTask(config, "watched").
+			WithSubtask(source.Task).
+			WithSubtask(parser.Task).
+			WithSubtask(blockDownloader.Task).
+			WithSubtask(transactionDownloader.Task).
+			WithSubtask(transactionOrchestrator.Task).
+			WithSubtask(store.Task).
+			WithSubtask(streamer.Task)
+	}
+
+	watchdog := task.NewWatchdog(config).
+		WithTask(watched).
+		WithIsOK(30*time.Second, func() bool {
+			isOK := monitor.IsOK()
+			if !isOK {
+				monitor.Clear()
+				monitor.GetReport().Run.Errors.NumWatchdogRestarts.Inc()
+			}
+			return isOK
+		})
 
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
 		WithSubtask(monitor.Task).
 		WithSubtask(server.Task).
-		WithSubtask(source.Task).
-		WithSubtask(parser.Task).
-		WithSubtask(blockDownloader.Task).
-		WithSubtask(store.Task).
-		WithSubtask(streamer.Task)
+		WithSubtask(watchdog.Task)
 
 	return
 }
