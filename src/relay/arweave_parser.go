@@ -11,7 +11,8 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/warp"
 )
 
-// Gets contract's source and init state
+// Parses Arweave transactions into Warp's interactions
+// Passes other payloads through
 type ArweaveParser struct {
 	*task.Task
 

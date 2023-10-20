@@ -73,6 +73,16 @@ func (self *Parser) WithInputChannel(v chan *types.Block) *Parser {
 	return self
 }
 
+// func (self *Parser) validateSortKey(sortKey string) (err error) {
+// 	var arweaveHeight, sequencerHeight, index int
+// 	_, err = fmt.Sscanf(sortKey, "%d,%d,%d", &arweaveHeight, &sequencerHeight, &index)
+// 	if err != nil {
+// 		// Handle error
+// 	}
+
+// 	return
+// }
+
 func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg) (interaction *model.Interaction, bundleItem *model.BundleItem, err error) {
 	var isDataItem bool
 	dataItem, isDataItem := msg.(*sequencertypes.MsgDataItem)
@@ -96,7 +106,7 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg) (interaction *model.In
 
 	// FIXME: Parsing needs to be implemented, this is just a placeholder
 	// Parse interaction from DataItem
-	interaction, err = self.parser.Parse(&dataItem.DataItem, 0, arweave.Base64String{0}, time.Now().UnixMilli(), "", "")
+	interaction, err = self.parser.Parse(&dataItem.DataItem, 0, arweave.Base64String{0}, time.Now().UnixMilli(), dataItem.SortKey, dataItem.LastSortKey)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to parse interaction")
 		return
@@ -175,7 +185,7 @@ func (self *Parser) parseMsgArweaveBlock(msg cosmostypes.Msg) (arweaveBlock *seq
 }
 
 // Transaction consists of multiple messages
-func (self *Parser) parseTransaction(txBytes types.Tx) (interactions []*model.Interaction, bundleItems []*model.BundleItem, arweaveBlocks []*ArweaveBlock, err error) {
+func (self *Parser) parseTransaction(txBytes types.Tx) (interaction *model.Interaction, bundleItem *model.BundleItem, arweaveBlock *ArweaveBlock, err error) {
 	// Decode transaction
 	// TODO: Is this routine-safe?
 	tx, err := self.txConfig.TxDecoder()(txBytes)
@@ -183,36 +193,41 @@ func (self *Parser) parseTransaction(txBytes types.Tx) (interactions []*model.In
 		return
 	}
 
-	// Parse interactions
-	var (
-		interaction  *model.Interaction
-		bundleItem   *model.BundleItem
-		arweaveBlock *sequencertypes.MsgArweaveBlock
-	)
+	// Only one msg in tx
+	if len(tx.GetMsgs()) != 1 {
+		err = errors.New("transaction must have exactly one message")
+		return
+	}
 
-	for _, msg := range tx.GetMsgs() {
-		switch proto.MessageName(msg) {
-		case "sequencer.sequencer.MsgArweaveBlock":
-			//  L1 interactions. Part of the data, rest will be downloaded from Arweave
-			arweaveBlock, err = self.parseMsgArweaveBlock(msg)
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to parse MsgArweaveBlock")
-				return
-			}
-			arweaveBlocks = append(arweaveBlocks, &ArweaveBlock{Message: arweaveBlock})
-		case "sequencer.sequencer.MsgDataItem":
-			// L2 interactions, all needed data
-			interaction, bundleItem, err = self.parseMsgDataItem(msg)
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to parse MsgDataItem")
-				return
-			}
-			interactions = append(interactions, interaction)
-			bundleItems = append(bundleItems, bundleItem)
-		default:
-			self.Log.WithField("name", proto.MessageName(msg)).Warn("Unknown message type")
-			continue
+	// Parse message
+	msg := tx.GetMsgs()[0]
+
+	switch proto.MessageName(msg) {
+	case "sequencer.sequencer.MsgArweaveBlock":
+		//  L1 interactions. Part of the data, rest will be downloaded from Arweave
+		arweaveBlock = new(ArweaveBlock)
+		arweaveBlock.Message, err = self.parseMsgArweaveBlock(msg)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to parse MsgArweaveBlock")
+			return
 		}
+
+	case "sequencer.sequencer.MsgDataItem":
+		// L2 interactions, all needed data
+		if interaction != nil && bundleItem != nil {
+			err = errors.New("two data items in one transaction")
+			self.Log.WithError(err).Error("There can't be two data items in one transaction, signing wouldn't work")
+			return
+		}
+
+		interaction, bundleItem, err = self.parseMsgDataItem(msg)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to parse MsgDataItem")
+			return
+		}
+	default:
+		self.Log.WithField("name", proto.MessageName(msg)).Warn("Unknown message type")
+		err = errors.New("unknown sequencer message type")
 	}
 
 	return
@@ -237,11 +252,12 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 	out.Interactions = make([]*model.Interaction, 0, len(block.Txs)+1000)
 	out.BundleItems = make([]*model.BundleItem, 0, len(block.Txs)+1)
 
-	for _, txBytes := range block.Txs {
+	for i, txBytes := range block.Txs {
+		i := i
 		txBytes := txBytes
 
 		self.SubmitToWorker(func() {
-			interactions, bundleItems, arweaveBlocks, err := self.parseTransaction(txBytes)
+			interaction, bundleItem, arweaveBlock, err := self.parseTransaction(txBytes)
 			if err != nil {
 				// FIXME: Monitoring
 				self.Log.WithError(err).Error("Failed to parse interaction, skipping")
@@ -249,9 +265,9 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 			}
 
 			mtx.Lock()
-			out.Interactions = append(interactions, interactions...)
-			out.BundleItems = append(bundleItems, bundleItems...)
-			out.ArweaveBlocks = append(out.ArweaveBlocks, arweaveBlocks...)
+			out.Interactions[i] = interaction
+			out.BundleItems[i] = bundleItem
+			out.ArweaveBlocks = append(out.ArweaveBlocks, arweaveBlock)
 			mtx.Unlock()
 
 		done:
