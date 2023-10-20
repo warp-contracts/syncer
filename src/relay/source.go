@@ -17,9 +17,10 @@ import (
 )
 
 // Produces a stream of Sequencer's blocks
+// Blocks are put on the Output channel in order of height
 // It uses Streamer to get new blocks from the Sequencer
-// It uses Sequencer's REST API for downloading historical blocks
-// Downloads historical blocks in case there's a gap in the stream
+// It uses Sequencer's REST API to download historical or missing blocks
+// Handles gaps in the input stream
 type Source struct {
 	*task.Task
 
@@ -102,7 +103,6 @@ func (self *Source) initLastSyncedHeight() (err error) {
 		Name:                model.SyncedComponentRelayer,
 		FinishedBlockHeight: self.lastSyncedHeight,
 	}
-
 	err = self.db.WithContext(self.Ctx).
 		Table(model.TableState).
 		Save(&state).
@@ -121,6 +121,16 @@ func (self *Source) send(block *types.Block) (err error) {
 	self.Log.WithField("height", block.Height).
 		Debug("Sending block")
 
+	if self.lastSyncedHeight+1 != uint64(block.Height) {
+		self.monitor.GetReport().Relayer.Errors.SequencerPermanentBlockDownloadError.Inc()
+		err = errors.New("gap in the blocks stream")
+		self.Log.WithField("last_synced_height", self.lastSyncedHeight).
+			WithField("block_height", block.Height).
+			WithError(err).
+			Error("Gap in the blocks stream")
+		return
+	}
+
 	select {
 	case <-self.Ctx.Done():
 		err = errors.New("task closing")
@@ -136,22 +146,24 @@ func (self *Source) send(block *types.Block) (err error) {
 
 // Downloads blocks in parallel
 func (self *Source) download(len int) (err error) {
-	out := make([]*types.Block, 0, len)
+	out := make([]*types.Block, len)
 
 	// Sync between workers
 	var mtx sync.Mutex
 	var wg sync.WaitGroup
 	wg.Add(len)
 
-	for i := 0; i < len; i++ {
+	for i := 1; i <= len; i++ {
+		i := i
 		height := int64(self.lastSyncedHeight) + int64(i)
 		self.SubmitToWorker(func() {
+			// Current height to download should
 			var (
-				err   error
-				block *ctypes.ResultBlock
+				errWorker error
+				block     *ctypes.ResultBlock
 			)
 			// Retries downloading transaction until success or permanent error
-			err = task.NewRetry().
+			errWorker = task.NewRetry().
 				WithContext(self.Ctx).
 				WithMaxElapsedTime(self.Config.Relayer.SourceBackoffMaxElapsedTime).
 				WithMaxInterval(self.Config.Relayer.SourceBackoffMaxInterval).
@@ -163,7 +175,7 @@ func (self *Source) download(len int) (err error) {
 						// Stopping
 						return backoff.Permanent(err)
 					}
-					// self.monitor.GetReport().TransactionDownloader.Errors.Download.Inc()
+					self.monitor.GetReport().Relayer.Errors.SequencerBlockDownloadError.Inc()
 
 					return err
 				}).
@@ -174,14 +186,21 @@ func (self *Source) download(len int) (err error) {
 
 			if err != nil {
 				// Permanent error
-				// self.monitor.GetReport().TransactionDownloader.Errors.PermanentDownloadFailure.Inc()
-				// self.Log.WithError(err).WithField("txId", txId).Error("Failed to download transaction, giving up")
+				self.monitor.GetReport().Relayer.Errors.SequencerPermanentBlockDownloadError.Inc()
+				self.Log.WithError(err).WithField("height", height).Error("Failed to download sequencer block, giving up")
+
+				if !self.IsStopping.Load() {
+					mtx.Lock()
+					err = errWorker
+					mtx.Unlock()
+				}
+
 				goto end
 			}
 
 			// Add to output
 			mtx.Lock()
-			out = append(out, block.Block)
+			out[i] = block.Block
 			mtx.Unlock()
 
 		end:
@@ -191,6 +210,13 @@ func (self *Source) download(len int) (err error) {
 
 	// Wait for workers to finish
 	wg.Wait()
+
+	if err != nil {
+		// There was a permanent error
+		// This is serious, we cannot continue
+		self.Log.WithError(err).Error("Permanent error in one of the workers, can't continue")
+		return
+	}
 
 	// Put blocks into the Output channel
 	for _, block := range out {
@@ -202,7 +228,7 @@ func (self *Source) download(len int) (err error) {
 	return
 }
 
-// Download blocks from last synced blocked to the specified height (exclusive)
+// Download blocks from last synced blocked to the specified height (inclusive; height is downloaded)
 func (self *Source) catchUp(height int64) (err error) {
 	len := height - int64(self.lastSyncedHeight)
 	if len <= 0 {
@@ -214,12 +240,12 @@ func (self *Source) catchUp(height int64) (err error) {
 
 	self.Log.WithField("last_synced_height", self.lastSyncedHeight).
 		WithField("desired_height", height).
-		WithField("num_blocks", len).
+		WithField("num_blocks_to_catch_up", len).
 		Info("Catching up")
 
-		// Divide remaining blocks into batches that are downloaded in parallel and put into the Output channel
+	// Divide remaining blocks into batches that are downloaded in parallel and put into the Output channel
+	// This is to avoid big pauses in block processing needed for downloading all blocks at once
 	numBatches := int(len) / self.Config.Relayer.SourceBatchSize
-
 	for i := 0; i < numBatches; i++ {
 		err = self.download(self.Config.Relayer.SourceBatchSize)
 		if err != nil {
@@ -227,7 +253,7 @@ func (self *Source) catchUp(height int64) (err error) {
 		}
 	}
 
-	// Last batch
+	// Last batch that contains less than SourceBatchSize blocks
 	lastBatchSize := int(len) % self.Config.Relayer.SourceBatchSize
 	if lastBatchSize != 0 {
 		err = self.download(lastBatchSize)
@@ -247,8 +273,11 @@ func (self *Source) run() (err error) {
 
 	for block := range self.input {
 		if uint64(block.Height) > self.lastSyncedHeight+1 {
-			err = self.catchUp(block.Height)
+			err = self.catchUp(block.Height - 1)
 			if err != nil {
+				// This is a serious error, better stop the application
+				self.Log.WithError(err).WithField("last_synced_height", self.lastSyncedHeight).WithField("height", block.Height).Error("Stopping because it's not possible to catch up")
+				self.Stop()
 				return
 			}
 		}
