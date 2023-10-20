@@ -34,14 +34,11 @@ func (self *DataItemParser) Parse(tx *bundlr.BundleItem, blockHeight int64, bloc
 		ConfirmationStatus: "confirmed",
 
 		// FIXME: This is a placeholder name for testing
-		Source:         "cosmos",
+		Source:         "sequencer-l2",
 		BlockTimestamp: blockTimestamp,
 		SortKey:        sortKey,
 		LastSortKey:    pgtype.Text{String: lastSortKey, Status: pgtype.Present},
 	}
-
-	// Last sort key will be set by the forwarder
-	out.LastSortKey.Status = pgtype.Null
 
 	// Fill tags, already decoded from base64
 	err = self.fillTags(tx, out)
