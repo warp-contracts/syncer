@@ -371,6 +371,9 @@ func (self *Task) Start() (err error) {
 func (self *Task) Stop() {
 	self.Log.Info("Stopping...")
 	self.stopOnce.Do(func() {
+		// Mark that we're stopping
+		self.IsStopping.Store(true)
+
 		// Stop subtasks
 		for _, subtask := range self.subtasks {
 			subtask.Stop()
@@ -381,9 +384,6 @@ func (self *Task) Stop() {
 
 		// Inform child context that we're stopping
 		self.cancel()
-
-		// Mark that we're stopping
-		self.IsStopping.Store(true)
 
 		// Run hooks
 		for _, cb := range self.onStop {
