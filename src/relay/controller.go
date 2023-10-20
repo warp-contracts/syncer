@@ -22,28 +22,28 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	self = new(Controller)
 	self.Task = task.NewTask(config, "relayer")
 
-	// SQL database
-	db, err := model.NewConnection(self.Ctx, config, "relayer")
-	if err != nil {
-		return
-	}
-
-	// Arweave client
-	client := arweave.NewClient(self.Ctx, config).
-		WithTagValidator(warp.ValidateTag)
-
-	// Sequencer/Cosmos client
-	sequencerClient, err := rpchttp.New(config.Relayer.SequencerUrl, "/websocket")
-	if err != nil {
-		return
-	}
-
 	// Monitoring
 	monitor := monitor_relayer.NewMonitor(config)
 	server := monitoring.NewServer(config).
 		WithMonitor(monitor)
 
 	watched := func() *task.Task {
+		// SQL database
+		db, err := model.NewConnection(self.Ctx, config, "relayer")
+		if err != nil {
+			panic(err)
+		}
+
+		// Arweave client
+		client := arweave.NewClient(self.Ctx, config).
+			WithTagValidator(warp.ValidateTag)
+
+		// Sequencer/Cosmos client
+		sequencerClient, err := rpchttp.New(config.Relayer.SequencerUrl, "/websocket")
+		if err != nil {
+			panic(err)
+		}
+
 		// Events from Warp's sequencer
 		streamer := NewStreamer(config).
 			WithClient(sequencerClient).
@@ -81,10 +81,12 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		transactionOrchestrator.WithTransactionInput(transactionDownloader.Output)
 
 		// Parse arweave transactions into interactions
+		arweaveParser := NewArweaveParser(config).
+			WithInputChannel(transactionOrchestrator.Output)
 
 		// Store blocks in the database, in batches
 		store := NewStore(config).
-			WithInputChannel(parser.Output).
+			WithInputChannel(arweaveParser.Output).
 			WithMonitor(monitor).
 			WithDB(db)
 
@@ -94,6 +96,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithSubtask(blockDownloader.Task).
 			WithSubtask(transactionDownloader.Task).
 			WithSubtask(transactionOrchestrator.Task).
+			WithSubtask(arweaveParser.Task).
 			WithSubtask(store.Task).
 			WithSubtask(streamer.Task)
 	}
