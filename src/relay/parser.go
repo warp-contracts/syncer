@@ -106,7 +106,7 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg) (interaction *model.In
 
 	// FIXME: Parsing needs to be implemented, this is just a placeholder
 	// Parse interaction from DataItem
-	interaction, err = self.parser.Parse(&dataItem.DataItem, 0, arweave.Base64String{0}, time.Now().UnixMilli(), dataItem.SortKey, dataItem.LastSortKey)
+	interaction, err = self.parser.Parse(&dataItem.DataItem, 0, arweave.Base64String{0}, time.Now().UnixMilli(), dataItem.SortKey, dataItem.PrevSortKey)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to parse interaction")
 		return
