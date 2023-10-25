@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/warp-contracts/sequencer/x/sequencer/types"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -18,7 +19,7 @@ type ArweaveBlock struct {
 }
 
 type Payload struct {
-	SequencerBlockHash      string
+	SequencerBlockHash      bytes.HexBytes
 	SequencerBlockHeight    int64
 	SequencerBlockTimestamp int64
 

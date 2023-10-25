@@ -222,7 +222,7 @@ func (self *Parser) parseTransaction(txBytes types.Tx, blockTimestamp time.Time)
 func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 	// Meta info about the block
 	out = new(Payload)
-	out.SequencerBlockHash = string(block.DataHash)
+	out.SequencerBlockHash = block.DataHash
 	out.SequencerBlockHeight = block.Height
 	out.SequencerBlockTimestamp = block.Time.UnixMilli()
 

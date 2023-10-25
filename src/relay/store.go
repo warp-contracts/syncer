@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
@@ -25,7 +26,7 @@ type Store struct {
 	savedBlockHeight  uint64
 	finishedTimestamp uint64
 	finishedHeight    uint64
-	finishedBlockHash string
+	finishedBlockHash bytes.HexBytes
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -107,7 +108,7 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 				Updates(map[string]interface{}{
 					"finished_block_timestamp": self.finishedTimestamp,
 					"finished_block_height":    self.finishedHeight,
-					"finished_block_hash":      self.finishedBlockHash,
+					"finished_block_hash":      self.finishedBlockHash.String(),
 				}).
 				Error
 			if err != nil {
