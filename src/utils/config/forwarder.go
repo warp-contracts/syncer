@@ -7,6 +7,9 @@ import (
 )
 
 type Forwarder struct {
+	// If true, L1 interactions get last sort key assigned and saved before being sent further
+	FetcherLastSortKeySettingEnabled bool
+
 	// How many L1 interactions are fetched from the DB at once
 	FetcherBatchSize int
 
@@ -31,6 +34,7 @@ type Forwarder struct {
 }
 
 func setForwarderDefaults() {
+	viper.SetDefault("Forwarder.FetcherLastSortKeySettingEnabled", "true")
 	viper.SetDefault("Forwarder.FetcherBatchSize", "10")
 	viper.SetDefault("Forwarder.PublisherRedisChannelName", "contracts")
 	viper.SetDefault("Forwarder.HeightDelay", "1s")

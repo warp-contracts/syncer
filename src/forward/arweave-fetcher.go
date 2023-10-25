@@ -87,7 +87,8 @@ func (self *ArweaveFetcher) run() (err error) {
 						return
 					}
 
-					if len(interactions) != 0 {
+					if self.Config.Forwarder.FetcherLastSortKeySettingEnabled &&
+						len(interactions) != 0 {
 						// Update last_sort_key for each interaction in the database
 						// As a optimization lastSortKeys are cached in memory
 						lastSortKeys, err = self.updateLastSortKey(tx, interactions, height, lastSortKeys)
