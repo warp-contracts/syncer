@@ -128,7 +128,7 @@ func (self *Store) updateFinishedBlock(tx *gorm.DB) (err error) {
 		Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get state")
-		self.monitor.GetReport().Contractor.Errors.DbLastTransactionBlockHeight.Inc()
+		self.monitor.GetReport().Syncer.Errors.DbLastTransactionBlockHeightError.Inc()
 		return err
 	}
 

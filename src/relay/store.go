@@ -80,14 +80,18 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 
 	// Interactions from all blocks
 	var (
-		interactions []*model.Interaction
-		bundleItems  []*model.BundleItem
+		interactions     []*model.Interaction
+		bundleItems      []*model.BundleItem
+		lastArweaveBlock *ArweaveBlock
 	)
 
 	// Concatenate data from all payloads
 	for _, payload := range payloads {
 		interactions = append(interactions, payload.Interactions...)
 		bundleItems = append(bundleItems, payload.BundleItems...)
+		if len(payload.ArweaveBlocks) > 0 {
+			lastArweaveBlock = payload.ArweaveBlocks[len(payload.ArweaveBlocks)-1]
+		}
 	}
 
 	// Set sync timestamp
@@ -116,6 +120,14 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to update last transaction block height")
 				return err
+			}
+
+			if lastArweaveBlock != nil {
+				// Arweave interactions are saved in this transactions
+				err = self.updateFinishedArweaveBlock(tx, lastArweaveBlock)
+				if err != nil {
+					return err
+				}
 			}
 
 			if len(interactions) != 0 {
@@ -170,6 +182,40 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 
 	// Processing stops here, no need to return anything
 	out = nil
+
+	return
+}
+
+func (self *Store) updateFinishedArweaveBlock(tx *gorm.DB, arweaveBlock *ArweaveBlock) (err error) {
+	var state model.State
+	err = tx.WithContext(self.Ctx).
+		Where("name = ?", model.SyncedComponentInteractions).
+		First(&state).
+		Error
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to get state")
+		self.monitor.GetReport().Syncer.Errors.DbLastTransactionBlockHeightError.Inc()
+		return err
+	}
+
+	// Replace finished block info, if it's newer
+	if state.FinishedBlockHeight < uint64(arweaveBlock.Block.Height) {
+		err = tx.WithContext(self.Ctx).
+			Model(&model.State{
+				Name: model.SyncedComponentInteractions,
+			}).
+			Updates(model.State{
+				FinishedBlockTimestamp: uint64(arweaveBlock.Block.Timestamp),
+				FinishedBlockHeight:    uint64(arweaveBlock.Block.Height),
+				FinishedBlockHash:      arweaveBlock.Block.Hash,
+			}).
+			Error
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to update last transaction block height")
+			self.monitor.GetReport().Syncer.Errors.DbLastTransactionBlockHeightError.Inc()
+			return err
+		}
+	}
 
 	return
 }
