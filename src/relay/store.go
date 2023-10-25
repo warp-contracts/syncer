@@ -27,6 +27,8 @@ type Store struct {
 	finishedTimestamp uint64
 	finishedHeight    uint64
 	finishedBlockHash bytes.HexBytes
+
+	isReplacing bool
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -43,6 +45,11 @@ func NewStore(config *config.Config) (self *Store) {
 
 func (self *Store) WithMonitor(v monitoring.Monitor) *Store {
 	self.monitor = v
+	return self
+}
+
+func (self *Store) WithIsReplacing(v bool) *Store {
+	self.isReplacing = v
 	return self
 }
 
@@ -135,9 +142,9 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 				err = tx.WithContext(self.Ctx).
 					Table(model.TableInteraction).
 					Clauses(clause.OnConflict{
-						DoNothing: true,
+						DoNothing: !self.isReplacing,
 						Columns:   []clause.Column{{Name: "interaction_id"}},
-						UpdateAll: false,
+						UpdateAll: self.isReplacing,
 					}).
 					CreateInBatches(interactions, self.Config.Relayer.StoreBatchSize).
 					Error
@@ -145,6 +152,10 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 					self.Log.WithError(err).Error("Failed to insert Interactions")
 					self.Log.WithField("interactions", interactions).Debug("Failed interactions")
 					return err
+				}
+
+				for i := range interactions {
+					self.Log.WithField("id", interactions[i].ID).Info("Inserted interaction")
 				}
 			}
 
