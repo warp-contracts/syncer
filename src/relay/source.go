@@ -153,9 +153,9 @@ func (self *Source) download(len int) (err error) {
 	var wg sync.WaitGroup
 	wg.Add(len)
 
-	for i := 1; i <= len; i++ {
+	for i := 0; i < len; i++ {
 		i := i
-		height := int64(self.lastSyncedHeight) + int64(i)
+		height := int64(self.lastSyncedHeight) + int64(i+1)
 		self.SubmitToWorker(func() {
 			// Current height to download should
 			var (
