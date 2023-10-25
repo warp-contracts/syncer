@@ -59,6 +59,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 		// Parses blocks into payload
 		parser := NewParser(config).
+			WithMonitor(monitor).
 			WithInputChannel(source.Output)
 
 		// Monitor current network height (output is disabled)
