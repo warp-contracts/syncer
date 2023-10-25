@@ -278,7 +278,7 @@ func (self *Parser) run() (err error) {
 			panic(err)
 		}
 
-		self.Log.WithField("height", block.Height).Debug("Parsed block")
+		// self.Log.WithField("height", block.Height).Trace("Parsed block")
 
 		select {
 		case <-self.Ctx.Done():

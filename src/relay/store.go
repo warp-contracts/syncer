@@ -57,7 +57,7 @@ func (self *Store) WithDB(v *gorm.DB) *Store {
 }
 
 func (self *Store) process(payload *Payload) (out []*Payload, err error) {
-	self.Log.WithField("sequencer_height", payload.SequencerBlockHeight).Debug("Processing")
+	// self.Log.WithField("height", payload.SequencerBlockHeight).Debug("Processing")
 	self.finishedTimestamp = uint64(payload.SequencerBlockTimestamp)
 	self.finishedHeight = uint64(payload.SequencerBlockHeight)
 	self.finishedBlockHash = payload.SequencerBlockHash
@@ -70,6 +70,8 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 		// No need to flush, nothing changed
 		return
 	}
+
+	self.Log.WithField("height", self.finishedHeight).WithField("num", len(payloads)).Debug("Saving blocks")
 
 	if self.finishedHeight <= 0 {
 		err = errors.New("block height too small")

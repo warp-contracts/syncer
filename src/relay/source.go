@@ -118,9 +118,6 @@ func (self *Source) initLastSyncedHeight() (err error) {
 }
 
 func (self *Source) send(block *types.Block) (err error) {
-	self.Log.WithField("height", block.Height).
-		Debug("Sending block")
-
 	if self.lastSyncedHeight+1 != uint64(block.Height) {
 		self.monitor.GetReport().Relayer.Errors.SequencerPermanentBlockDownloadError.Inc()
 		err = errors.New("gap in the blocks stream")
