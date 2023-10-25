@@ -104,7 +104,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 	self.Task = self.Task.
 		WithSubtask(monitor.Task).
 		WithSubtask(server.Task).
-		WithSubtask(watchdog.Task)
+		WithConditionalSubtask(config.Syncer.Enabled, watchdog.Task)
 
 	return
 }
