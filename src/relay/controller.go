@@ -61,6 +61,13 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		parser := NewParser(config).
 			WithInputChannel(source.Output)
 
+		// Monitor current network height (output is disabled)
+		networkMonitor := listener.NewNetworkMonitor(config).
+			WithClient(client).
+			WithMonitor(monitor).
+			WithInterval(config.NetworkMonitor.Period).
+			WithEnableOutput(false)
+
 		// Fill in Arweave blocks
 		blockDownloader := NewOneBlockDownloader(config).
 			WithMonitor(monitor).
@@ -93,6 +100,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		return task.NewTask(config, "watched").
 			WithSubtask(source.Task).
 			WithSubtask(parser.Task).
+			WithSubtask(networkMonitor.Task).
 			WithSubtask(blockDownloader.Task).
 			WithSubtask(transactionDownloader.Task).
 			WithSubtask(transactionOrchestrator.Task).

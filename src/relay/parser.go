@@ -3,7 +3,6 @@ package relay
 import (
 	"errors"
 	"runtime"
-	"strconv"
 	"sync"
 	"time"
 
@@ -83,7 +82,7 @@ func (self *Parser) WithInputChannel(v chan *types.Block) *Parser {
 // 	return
 // }
 
-func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg) (interaction *model.Interaction, bundleItem *model.BundleItem, err error) {
+func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, blockTimestamp time.Time) (interaction *model.Interaction, bundleItem *model.BundleItem, err error) {
 	var isDataItem bool
 	dataItem, isDataItem := msg.(*sequencertypes.MsgDataItem)
 	if !isDataItem {
@@ -106,7 +105,7 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg) (interaction *model.In
 
 	// FIXME: Parsing needs to be implemented, this is just a placeholder
 	// Parse interaction from DataItem
-	interaction, err = self.parser.Parse(&dataItem.DataItem, 0, arweave.Base64String{0}, time.Now().UnixMilli(), dataItem.SortKey, dataItem.PrevSortKey)
+	interaction, err = self.parser.Parse(&dataItem.DataItem, 0, arweave.Base64String{0}, blockTimestamp.UnixMilli(), dataItem.SortKey, dataItem.PrevSortKey)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to parse interaction")
 		return
@@ -130,7 +129,7 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg) (interaction *model.In
 			Name:  "Sequencer",
 			Value: "RedStone",
 		},
-		// FIXME: Is this the right value for owner? What about ethereum?
+		// FIXME: Make sure this is correct for arweave and ethereum
 		{
 			Name:  "Sequencer-Owner",
 			Value: dataItem.DataItem.Owner.Base64(),
@@ -140,28 +139,12 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg) (interaction *model.In
 			Value: interaction.InteractionId.Base64(),
 		},
 		{
-			Name:  "Sequencer-Block-Height",
-			Value: strconv.FormatInt(interaction.BlockHeight, 10),
-		},
-		{
-			Name:  "Sequencer-Block-Id",
-			Value: "",
-		},
-		{
-			Name:  "Sequencer-Block-Timestamp",
-			Value: "",
-		},
-		{
-			Name:  "Sequencer-Mills",
-			Value: dataItem.DataItem.Owner.Base64(),
-		},
-		{
 			Name:  "Sequencer-Sort-Key",
-			Value: dataItem.DataItem.Owner.Base64(),
+			Value: dataItem.SortKey,
 		},
 		{
 			Name:  "Sequencer-Prev-Sort-Key",
-			Value: dataItem.DataItem.Owner.Base64(),
+			Value: dataItem.PrevSortKey,
 		},
 	})
 
@@ -185,7 +168,7 @@ func (self *Parser) parseMsgArweaveBlock(msg cosmostypes.Msg) (arweaveBlock *seq
 }
 
 // Transaction consists of multiple messages
-func (self *Parser) parseTransaction(txBytes types.Tx) (interaction *model.Interaction, bundleItem *model.BundleItem, arweaveBlock *ArweaveBlock, err error) {
+func (self *Parser) parseTransaction(txBytes types.Tx, blockTimestamp time.Time) (interaction *model.Interaction, bundleItem *model.BundleItem, arweaveBlock *ArweaveBlock, err error) {
 	// Decode transaction
 	// TODO: Is this routine-safe?
 	tx, err := self.txConfig.TxDecoder()(txBytes)
@@ -220,7 +203,7 @@ func (self *Parser) parseTransaction(txBytes types.Tx) (interaction *model.Inter
 			return
 		}
 
-		interaction, bundleItem, err = self.parseMsgDataItem(msg)
+		interaction, bundleItem, err = self.parseMsgDataItem(msg, blockTimestamp)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to parse MsgDataItem")
 			return
@@ -257,10 +240,10 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 		txBytes := txBytes
 
 		self.SubmitToWorker(func() {
-			interaction, bundleItem, arweaveBlock, err := self.parseTransaction(txBytes)
+			interaction, bundleItem, arweaveBlock, err := self.parseTransaction(txBytes, block.Time)
 			if err != nil {
-				// FIXME: Monitoring
-				self.Log.WithError(err).Error("Failed to parse interaction, skipping")
+				self.monitor.GetReport().Relayer.Errors.SequencerPermanentParsingError.Inc()
+				self.Log.WithError(err).Error("Failed to parse transaction from sequencer, skipping")
 				goto done
 			}
 
@@ -270,6 +253,8 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 			out.ArweaveBlocks = append(out.ArweaveBlocks, arweaveBlock)
 			mtx.Unlock()
 
+			// Update monitoring
+			self.monitor.GetReport().Relayer.State.TransactionsParsed.Inc()
 		done:
 			wg.Done()
 		})

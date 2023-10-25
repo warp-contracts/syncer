@@ -5,6 +5,7 @@ import (
 )
 
 type RelayerErrors struct {
+	SequencerPermanentParsingError       atomic.Uint64 `json:"sequencer_permanent_parsing_error"`
 	SequencerBlockDownloadError          atomic.Uint64 `json:"sequencer_block_download_error"`
 	SequencerPermanentBlockDownloadError atomic.Uint64 `json:"sequencer_permanent_block_download_error"`
 }
@@ -14,7 +15,9 @@ type RelayerState struct {
 	TransactionsReceived atomic.Uint64 `json:"transactions_received"`
 	MessagesReceived     atomic.Uint64 `json:"messages_received"`
 
-	BundleItemsSaved atomic.Uint64 `json:"bundle_items_saved"`
+	TransactionsParsed                       atomic.Uint64  `json:"transactions_parsed"`
+	BundleItemsSaved                         atomic.Uint64  `json:"bundle_items_saved"`
+	AverageSequencerBlocksProcessedPerMinute atomic.Float64 `json:"average_blocks_processed_per_minute"`
 }
 
 type RelayerReport struct {

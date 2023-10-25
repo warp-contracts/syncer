@@ -25,10 +25,13 @@ type Monitor struct {
 	historySize int
 	collector   *Collector
 
-	// Block processing speed
+	// Arweave block processing speed
 	BlockHeights      *deque.Deque[int64]
 	TransactionCounts *deque.Deque[uint64]
 	InteractionsSaved *deque.Deque[uint64]
+
+	// Sequencer block processing speed
+	SequencerBlockHeights *deque.Deque[int64]
 
 	// Params
 	IsFatalError atomic.Bool
@@ -40,6 +43,7 @@ func NewMonitor(config *config.Config) (self *Monitor) {
 	self.Report = report.Report{
 		Run:                   &report.RunReport{},
 		Relayer:               &report.RelayerReport{},
+		Syncer:                &report.SyncerReport{},
 		NetworkInfo:           &report.NetworkInfoReport{},
 		BlockDownloader:       &report.BlockDownloaderReport{},
 		TransactionDownloader: &report.TransactionDownloaderReport{},
@@ -56,7 +60,8 @@ func NewMonitor(config *config.Config) (self *Monitor) {
 		WithPeriodicSubtaskFunc(30*time.Second, self.monitor).
 		WithPeriodicSubtaskFunc(time.Minute, self.monitorBlocks).
 		WithPeriodicSubtaskFunc(time.Minute, self.monitorTransactions).
-		WithPeriodicSubtaskFunc(time.Minute, self.monitorInteractions)
+		WithPeriodicSubtaskFunc(time.Minute, self.monitorInteractions).
+		WithPeriodicSubtaskFunc(time.Minute, self.monitorSequencerBlocks)
 	return
 }
 
@@ -66,6 +71,7 @@ func (self *Monitor) WithMaxHistorySize(maxHistorySize int) *Monitor {
 	self.BlockHeights = deque.New[int64](self.historySize)
 	self.TransactionCounts = deque.New[uint64](self.historySize)
 	self.InteractionsSaved = deque.New[uint64](self.historySize)
+	self.SequencerBlockHeights = deque.New[int64](self.historySize)
 
 	return self
 }
@@ -97,7 +103,29 @@ func (self *Monitor) IsOK() bool {
 		return true
 	}
 
-	return self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Load() > 0.1
+	return self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Load() > 0.1 &&
+		self.Report.Relayer.State.AverageSequencerBlocksProcessedPerMinute.Load() > 1
+}
+
+// Measure sequencer's block processing speed
+func (self *Monitor) monitorSequencerBlocks() (err error) {
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
+	loaded := self.Report.BlockDownloader.State.CurrentHeight.Load()
+	if loaded == 0 {
+		// Neglect the first 0
+		return
+	}
+
+	self.SequencerBlockHeights.PushBack(loaded)
+	if self.SequencerBlockHeights.Len() > self.historySize {
+		self.SequencerBlockHeights.PopFront()
+	}
+	value := float64(self.SequencerBlockHeights.Back()-self.SequencerBlockHeights.Front()) / float64(self.SequencerBlockHeights.Len())
+
+	self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Store(round(value))
+	return
 }
 
 // Measure block processing speed
@@ -166,13 +194,12 @@ func round(f float64) float64 {
 }
 
 func (self *Monitor) monitor() (err error) {
+	self.Report.BlockDownloader.State.BlocksBehind.Store(int64(self.Report.NetworkInfo.State.ArweaveCurrentHeight.Load()) - self.Report.BlockDownloader.State.CurrentHeight.Load())
 	self.Report.Run.State.UpForSeconds.Store(uint64(time.Now().Unix() - self.Report.Run.State.StartTimestamp.Load()))
 	return nil
 }
 
 func (self *Monitor) OnGetState(c *gin.Context) {
-	self.Report.BlockDownloader.State.BlocksBehind.Store(int64(self.Report.NetworkInfo.State.ArweaveCurrentHeight.Load()) - self.Report.BlockDownloader.State.CurrentHeight.Load())
-	self.Report.Run.State.UpForSeconds.Store(uint64(time.Now().Unix() - self.Report.Run.State.StartTimestamp.Load()))
 	c.JSON(http.StatusOK, &self.Report)
 }
 
