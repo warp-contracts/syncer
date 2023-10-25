@@ -6,14 +6,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 	proto "github.com/cosmos/gogoproto/proto"
 	"github.com/jackc/pgtype"
 	sequencertypes "github.com/warp-contracts/sequencer/x/sequencer/types"
 
 	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/warp-contracts/sequencer/app"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -44,8 +46,9 @@ func NewParser(config *config.Config) (self *Parser) {
 	proto.RegisterType((*sequencertypes.MsgDataItem)(nil), "sequencer.sequencer.MsgDataItem")
 	proto.RegisterType((*sequencertypes.MsgArweaveBlock)(nil), "sequencer.sequencer.MsgArweaveBlock")
 
-	encoding := app.MakeEncodingConfig()
-	self.txConfig = encoding.TxConfig
+	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	marshaler := codec.NewProtoCodec(interfaceRegistry)
+	self.txConfig = tx.NewTxConfig(marshaler, tx.DefaultSignModes)
 
 	// Parsing interactions
 	self.parser = warp.NewDataItemParser(config)
@@ -271,7 +274,7 @@ func (self *Parser) run() (err error) {
 	for block := range self.input {
 		payload, err = self.parseBlock(block)
 		if err != nil {
-			self.Log.WithError(err).Error("Failed to parse block")
+			self.Log.WithField("sequencer_height", block.Height).WithError(err).Error("Failed to parse block")
 			panic(err)
 		}
 
