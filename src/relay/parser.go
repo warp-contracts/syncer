@@ -2,9 +2,10 @@ package relay
 
 import (
 	"errors"
+	"fmt"
+	"regexp"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -37,6 +38,10 @@ type Parser struct {
 	input  chan *types.Block
 	Output chan *Payload
 }
+
+var (
+	sortKeyRegExp = regexp.MustCompile(`^\d{12},\d{13},\d{8}$`)
+)
 
 // Converts Arweave transactions into Warp's contracts
 func NewParser(config *config.Config) (self *Parser) {
@@ -73,17 +78,41 @@ func (self *Parser) WithInputChannel(v chan *types.Block) *Parser {
 	return self
 }
 
-// func (self *Parser) validateSortKey(sortKey string) (err error) {
-// 	var arweaveHeight, sequencerHeight, index int
-// 	_, err = fmt.Sscanf(sortKey, "%d,%d,%d", &arweaveHeight, &sequencerHeight, &index)
-// 	if err != nil {
-// 		// Handle error
-// 	}
+func (self *Parser) validateSortKey(msg *sequencertypes.MsgDataItem, block *types.Block, idxInBlock int) (err error) {
+	// Check previous sort key
+	if msg.PrevSortKey != "" && !sortKeyRegExp.MatchString(msg.PrevSortKey) {
+		err = errors.New("invalid prev sort key")
+		return
+	}
 
-// 	return
-// }
+	// Check sort key
+	if !sortKeyRegExp.MatchString(msg.SortKey) {
+		err = errors.New("invalid sort key")
+		return
+	}
 
-func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, blockTimestamp time.Time) (interaction *model.Interaction, bundleItem *model.BundleItem, err error) {
+	var arweaveHeight, sequencerHeight, idx int
+	_, err = fmt.Sscanf(msg.SortKey, "%d,%d,%d", &arweaveHeight, &sequencerHeight, &idx)
+	if err != nil {
+		return
+	}
+
+	if sequencerHeight != int(block.Height) {
+		err = errors.New("invalid sequencer height in sort key")
+		return
+	}
+
+	if idx != idxInBlock {
+		err = errors.New("invalid sequencer height in sort key")
+		return
+	}
+
+	// TODO: Validate arweave height
+
+	return
+}
+
+func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, block *types.Block, idx int) (interaction *model.Interaction, bundleItem *model.BundleItem, err error) {
 	var isDataItem bool
 	dataItem, isDataItem := msg.(*sequencertypes.MsgDataItem)
 	if !isDataItem {
@@ -104,9 +133,15 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, blockTimestamp time.Ti
 		return
 	}
 
+	err = self.validateSortKey(dataItem, block, idx)
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to validate sort key")
+		return
+	}
+
 	// FIXME: Parsing needs to be implemented, this is just a placeholder
 	// Parse interaction from DataItem
-	interaction, err = self.parser.Parse(&dataItem.DataItem, 0, arweave.Base64String{0}, blockTimestamp.UnixMilli(), dataItem.SortKey, dataItem.PrevSortKey)
+	interaction, err = self.parser.Parse(&dataItem.DataItem, 0, arweave.Base64String{0}, block.Time.UnixMilli(), dataItem.SortKey, dataItem.PrevSortKey)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to parse interaction")
 		return
@@ -169,10 +204,10 @@ func (self *Parser) parseMsgArweaveBlock(msg cosmostypes.Msg) (arweaveBlock *seq
 }
 
 // Transaction consists of multiple messages
-func (self *Parser) parseTransaction(txBytes types.Tx, blockTimestamp time.Time) (interaction *model.Interaction, bundleItem *model.BundleItem, arweaveBlock *ArweaveBlock, err error) {
+func (self *Parser) parseTransaction(idx int, block *types.Block) (interaction *model.Interaction, bundleItem *model.BundleItem, arweaveBlock *ArweaveBlock, err error) {
+
 	// Decode transaction
-	// TODO: Is this routine-safe?
-	tx, err := self.txConfig.TxDecoder()(txBytes)
+	tx, err := self.txConfig.TxDecoder()(block.Txs[idx])
 	if err != nil {
 		return
 	}
@@ -204,7 +239,7 @@ func (self *Parser) parseTransaction(txBytes types.Tx, blockTimestamp time.Time)
 			return
 		}
 
-		interaction, bundleItem, err = self.parseMsgDataItem(msg, blockTimestamp)
+		interaction, bundleItem, err = self.parseMsgDataItem(msg, block, idx)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to parse MsgDataItem")
 			return
@@ -236,12 +271,11 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 	out.Interactions = make([]*model.Interaction, 0, len(block.Txs)+1000)
 	out.BundleItems = make([]*model.BundleItem, 0, len(block.Txs)+1)
 
-	for i, txBytes := range block.Txs {
+	for i := range block.Txs {
 		i := i
-		txBytes := txBytes
 
 		self.SubmitToWorker(func() {
-			interaction, bundleItem, arweaveBlock, err := self.parseTransaction(txBytes, block.Time)
+			interaction, bundleItem, arweaveBlock, err := self.parseTransaction(i, block)
 			if err != nil {
 				self.monitor.GetReport().Relayer.Errors.SequencerPermanentParsingError.Inc()
 				self.Log.WithError(err).Error("Failed to parse transaction from sequencer, skipping")
