@@ -94,11 +94,14 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 
 	// Concatenate data from all payloads
 	for _, payload := range payloads {
-		interactions = append(interactions, payload.Interactions...)
-		bundleItems = append(bundleItems, payload.BundleItems...)
 		if len(payload.ArweaveBlocks) > 0 {
+			for _, arweaveBlock := range payload.ArweaveBlocks {
+				interactions = append(interactions, arweaveBlock.Interactions...)
+			}
 			lastArweaveBlock = payload.ArweaveBlocks[len(payload.ArweaveBlocks)-1]
 		}
+		interactions = append(interactions, payload.Interactions...)
+		bundleItems = append(bundleItems, payload.BundleItems...)
 	}
 
 	// Set sync timestamp

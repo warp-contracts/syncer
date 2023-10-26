@@ -16,6 +16,9 @@ type ArweaveBlock struct {
 
 	// Transactions from the block
 	Transactions []*arweave.Transaction
+
+	// L1 interactions parsed from Arweave txs
+	Interactions []*model.Interaction
 }
 
 type Payload struct {

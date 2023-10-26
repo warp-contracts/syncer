@@ -57,8 +57,9 @@ func (self *ArweaveParser) WithInputChannel(v chan *Payload) *ArweaveParser {
 
 func (self *ArweaveParser) run() error {
 	for payload := range self.input {
-		for _, arweaveBlock := range payload.ArweaveBlocks {
-			interactions, err := self.parseAll(arweaveBlock)
+		for i, arweaveBlock := range payload.ArweaveBlocks {
+			var err error
+			payload.ArweaveBlocks[i].Interactions, err = self.parseAll(arweaveBlock)
 			if err != nil {
 				return err
 			}
@@ -66,10 +67,8 @@ func (self *ArweaveParser) run() error {
 			// FIXME: create a bundle item with the order of arweave blocks
 			self.Log.WithField("height", arweaveBlock.Message.BlockInfo.Height).
 				WithField("hash", arweaveBlock.Message.BlockInfo.Hash).
-				WithField("len", len(interactions)).
+				WithField("len", len(payload.ArweaveBlocks[i].Interactions)).
 				Debug("Parsed interactions")
-
-			payload.Interactions = append(payload.Interactions, interactions...)
 		}
 
 		select {
