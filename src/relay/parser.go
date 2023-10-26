@@ -268,8 +268,8 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 	wg.Add(len(block.Txs))
 	var mtx sync.Mutex
 
-	out.Interactions = make([]*model.Interaction, 0, len(block.Txs)+1000)
-	out.BundleItems = make([]*model.BundleItem, 0, len(block.Txs)+1)
+	out.Interactions = make([]*model.Interaction, len(block.Txs)+1000)
+	out.BundleItems = make([]*model.BundleItem, len(block.Txs)+1)
 
 	for i := range block.Txs {
 		i := i
