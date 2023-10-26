@@ -158,6 +158,7 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, block *types.Block, id
 		InteractionID: interaction.ID,
 		DataItem:      pgtype.Bytea{Bytes: dataItemBytes, Status: pgtype.Present},
 		Tags:          pgtype.JSONB{Bytes: []byte("{}"), Status: pgtype.Present},
+		State:         model.BundleStatePending,
 	}
 
 	tags := dataItem.DataItem.Tags.Append([]bundlr.Tag{
