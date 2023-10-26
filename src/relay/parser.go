@@ -43,11 +43,9 @@ func NewParser(config *config.Config) (self *Parser) {
 	self = new(Parser)
 
 	// Decoding sequencer transactions
-	proto.RegisterType((*sequencertypes.MsgDataItem)(nil), "sequencer.sequencer.MsgDataItem")
-	proto.RegisterType((*sequencertypes.MsgArweaveBlock)(nil), "sequencer.sequencer.MsgArweaveBlock")
-
-	interfaceRegistry := codectypes.NewInterfaceRegistry()
-	marshaler := codec.NewProtoCodec(interfaceRegistry)
+	registry := codectypes.NewInterfaceRegistry()
+	sequencertypes.RegisterInterfaces(registry)
+	marshaler := codec.NewProtoCodec(registry)
 	self.txConfig = tx.NewTxConfig(marshaler, tx.DefaultSignModes)
 
 	// Parsing interactions
