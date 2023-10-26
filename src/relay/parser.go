@@ -283,9 +283,14 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 			}
 
 			mtx.Lock()
-			out.Interactions[i] = interaction
-			out.BundleItems[i] = bundleItem
-			out.ArweaveBlocks = append(out.ArweaveBlocks, arweaveBlock)
+			if interaction != nil && bundleItem != nil {
+				// L2 interaction
+				out.Interactions[i] = interaction
+				out.BundleItems[i] = bundleItem
+			}
+			if arweaveBlock != nil {
+				out.ArweaveBlocks = append(out.ArweaveBlocks, arweaveBlock)
+			}
 			mtx.Unlock()
 
 			// Update monitoring
