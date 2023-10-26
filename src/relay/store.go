@@ -157,8 +157,15 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 					return err
 				}
 
-				for i := range interactions {
-					self.Log.WithField("id", interactions[i].ID).Info("Inserted interaction")
+				// Connect bundle items with interactions
+				// L1 interactions don't have corresponding bundle items
+				// TODO: Handle bundle items with arweave interactions order
+				bundlItemIdx := 0
+				for interactionIdx := range bundleItems {
+					if interactions[interactionIdx].Source != "arweave" {
+						bundleItems[bundlItemIdx].InteractionID = interactions[bundlItemIdx].ID
+						bundlItemIdx++
+					}
 				}
 			}
 
