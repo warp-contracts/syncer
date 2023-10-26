@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"regexp"
@@ -155,11 +156,13 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, block *types.Block, id
 	}
 
 	bundleItem = &model.BundleItem{
-		InteractionID: interaction.ID,
-		Transaction:   pgtype.JSONB{Status: pgtype.Null},
-		DataItem:      pgtype.Bytea{Bytes: dataItemBytes, Status: pgtype.Present},
-		Tags:          pgtype.JSONB{Bytes: []byte("{}"), Status: pgtype.Present},
-		State:         model.BundleStatePending,
+		InteractionID:  interaction.ID,
+		Transaction:    pgtype.JSONB{Status: pgtype.Null},
+		DataItem:       pgtype.Bytea{Bytes: dataItemBytes, Status: pgtype.Present},
+		Tags:           pgtype.JSONB{Bytes: []byte("{}"), Status: pgtype.Present},
+		BundlrResponse: pgtype.JSONB{Status: pgtype.Null},
+		BlockHeight:    sql.NullInt64{Valid: false},
+		State:          model.BundleStatePending,
 	}
 
 	tags := dataItem.DataItem.Tags.Append([]bundlr.Tag{
