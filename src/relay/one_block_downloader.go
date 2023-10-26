@@ -187,6 +187,10 @@ func (self *OneBlockDownloader) run() (err error) {
 
 		// Download blocks one by one
 		for i, arweaveBlock := range payload.ArweaveBlocks {
+			if arweaveBlock == nil {
+				self.Log.WithField("idx", i).Warn("Arweave block is nil, skipping")
+				continue
+			}
 			payload.ArweaveBlocks[i].Block, err = self.download(arweaveBlock)
 			if err != nil {
 				self.Log.WithError(err).WithField("hash", arweaveBlock.Message).Error("Failed to download block, stop retrying")
