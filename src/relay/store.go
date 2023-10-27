@@ -107,9 +107,6 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 	// Set sync timestamp
 	now := time.Now().UnixMilli()
 	for _, interaction := range interactions {
-		if interaction == nil {
-			self.Log.WithError(err).Error("Interaction is nil")
-		}
 		err = interaction.SyncTimestamp.Set(now)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to set sync_timestamp")

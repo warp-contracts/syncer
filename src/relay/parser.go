@@ -209,7 +209,7 @@ func (self *Parser) parseMsgArweaveBlock(msg cosmostypes.Msg) (arweaveBlock *seq
 }
 
 // Transaction consists of multiple messages
-func (self *Parser) parseTransaction(idx int, block *types.Block) (interaction *model.Interaction, bundleItem *model.BundleItem, arweaveBlock *ArweaveBlock, err error) {
+func (self *Parser) parseTransaction(block *types.Block, idx int) (interaction *model.Interaction, bundleItem *model.BundleItem, arweaveBlock *ArweaveBlock, err error) {
 
 	// Decode transaction
 	tx, err := self.txConfig.TxDecoder()(block.Txs[idx])
@@ -273,14 +273,14 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 	wg.Add(len(block.Txs))
 	var mtx sync.Mutex
 
-	out.Interactions = make([]*model.Interaction, len(block.Txs))
-	out.BundleItems = make([]*model.BundleItem, len(block.Txs))
+	out.Interactions = make([]*model.Interaction, 0, len(block.Txs))
+	out.BundleItems = make([]*model.BundleItem, 0, len(block.Txs))
 
 	for i := range block.Txs {
 		i := i
 
 		self.SubmitToWorker(func() {
-			interaction, bundleItem, arweaveBlock, err := self.parseTransaction(i, block)
+			interaction, bundleItem, arweaveBlock, err := self.parseTransaction(block, i)
 			if err != nil {
 				self.monitor.GetReport().Relayer.Errors.SequencerPermanentParsingError.Inc()
 				self.Log.WithError(err).Error("Failed to parse transaction from sequencer, skipping")
@@ -290,8 +290,8 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 			mtx.Lock()
 			if interaction != nil && bundleItem != nil {
 				// L2 interaction
-				out.Interactions[i] = interaction
-				out.BundleItems[i] = bundleItem
+				out.Interactions = append(out.Interactions, interaction)
+				out.BundleItems = append(out.BundleItems, bundleItem)
 			}
 			if arweaveBlock != nil {
 				out.ArweaveBlocks = append(out.ArweaveBlocks, arweaveBlock)
