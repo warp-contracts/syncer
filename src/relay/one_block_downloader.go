@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"sort"
-	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
@@ -23,10 +22,6 @@ type OneBlockDownloader struct {
 
 	input  chan *Payload
 	Output chan *Payload
-
-	// Parameters
-	maxElapsedTime time.Duration
-	maxInterval    time.Duration
 
 	lastBlockHeight int64
 	lastBlockHash   arweave.Base64String
@@ -57,19 +52,13 @@ func (self *OneBlockDownloader) WithClient(client *arweave.Client) *OneBlockDown
 	return self
 }
 
-func (self *OneBlockDownloader) WithBackoff(maxElapsedTime, maxInterval time.Duration) *OneBlockDownloader {
-	self.maxElapsedTime = maxElapsedTime
-	self.maxInterval = maxInterval
-	return self
-}
-
 func (self *OneBlockDownloader) WithInputChannel(v chan *Payload) *OneBlockDownloader {
 	self.input = v
 	return self
 }
 
 func (self *OneBlockDownloader) downloadBlock(arweaveBlock *ArweaveBlock) (block *arweave.Block, err error) {
-	ctx, cancel := context.WithTimeout(self.Ctx, self.maxInterval)
+	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Relayer.ArweaveBlockDownloadTimeout)
 	defer cancel()
 
 	block, resp, err := self.client.GetBlockByHash(ctx, arweaveBlock.Message.BlockInfo.Hash)
@@ -139,9 +128,9 @@ func (self *OneBlockDownloader) download(arweaveBlock *ArweaveBlock) (out *arwea
 
 	err = task.NewRetry().
 		WithContext(self.Ctx).
-		WithMaxElapsedTime(self.maxElapsedTime).
-		WithMaxInterval(self.maxInterval).
-		WithAcceptableDuration(self.maxInterval * 2).
+		WithMaxElapsedTime(self.Config.Relayer.ArweaveBlockDownloadMaxElapsedTime).
+		WithMaxInterval(self.Config.Relayer.ArweaveBlockDownloadMaxInterval).
+		WithAcceptableDuration(self.Config.Relayer.ArweaveBlockDownloadTimeout * 2).
 		WithOnError(func(err error, isDurationAcceptable bool) error {
 			if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
 				// Stopping

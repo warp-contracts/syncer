@@ -13,6 +13,15 @@ type Relayer struct {
 	// How many incomming events should be stored in channel
 	SequencerQueueSize int
 
+	// Max time request for a block to be downloaded. 0 means no limit
+	ArweaveBlockDownloadTimeout time.Duration
+
+	// Max time for a block to be downloaded. 0 means no limit
+	ArweaveBlockDownloadMaxElapsedTime time.Duration
+
+	// Max time between transaction download retries
+	ArweaveBlockDownloadMaxInterval time.Duration
+
 	// Worker pool size for downloading Sequencer's blocks
 	SourceMaxWorkers int
 
@@ -42,6 +51,9 @@ type Relayer struct {
 
 func setRelayerDefaults() {
 	viper.SetDefault("Relayer.SequencerUrl", "tcp://127.0.0.1:26657")
+	viper.SetDefault("Relayer.ArweaveBlockDownloadTimeout", "45s")
+	viper.SetDefault("Relayer.ArweaveBlockDownloadMaxElapsedTime", "0s")
+	viper.SetDefault("Relayer.ArweaveBlockDownloadMaxInterval", "5s")
 	viper.SetDefault("Relayer.SequencerQueueSize", "100")
 	viper.SetDefault("Relayer.SourceMaxWorkers", "50")
 	viper.SetDefault("Relayer.SourceMaxQueueSize", "1")
