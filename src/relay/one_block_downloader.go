@@ -124,7 +124,11 @@ func (self *OneBlockDownloader) download(arweaveBlock *ArweaveBlock) (out *arwea
 		WithField("last_hash", self.lastBlockHash.Base64()).
 		WithField("height", arweaveBlock.Message.BlockInfo.Height).
 		WithField("hash", arweaveBlock.Message.BlockInfo.Hash).
-		Debug("Downloading block")
+		Debug("Downloading block...")
+
+	defer self.Log.WithField("height", arweaveBlock.Message.BlockInfo.Height).
+		WithField("hash", arweaveBlock.Message.BlockInfo.Hash).
+		Debug("...Downloaded block")
 
 	err = task.NewRetry().
 		WithContext(self.Ctx).
@@ -185,10 +189,6 @@ func (self *OneBlockDownloader) run() (err error) {
 				self.Log.WithError(err).WithField("hash", arweaveBlock.Message).Error("Failed to download block, stop retrying")
 				return err
 			}
-
-			self.Log.WithField("height", payload.ArweaveBlocks[i].Block.Height).
-				WithField("hash", payload.ArweaveBlocks[i].Block.Hash.Base64()).
-				Debug("Downloaded block")
 
 			// Prepare for the next block
 			self.lastBlockHeight = payload.ArweaveBlocks[i].Block.Height
