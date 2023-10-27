@@ -140,7 +140,7 @@ func (self *Streamer) run() (err error) {
 					continue
 				}
 
-				self.monitor.GetReport().Relayer.State.BlocksReceived.Inc()
+				self.monitor.GetReport().Relayer.State.SequencerBlocksDownloaded.Inc()
 				select {
 				case <-self.Ctx.Done():
 					return

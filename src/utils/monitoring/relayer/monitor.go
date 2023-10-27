@@ -31,7 +31,7 @@ type Monitor struct {
 	InteractionsSaved *deque.Deque[uint64]
 
 	// Sequencer block processing speed
-	SequencerBlockHeights *deque.Deque[int64]
+	SequencerBlockHeights *deque.Deque[uint64]
 
 	// Params
 	IsFatalError atomic.Bool
@@ -71,7 +71,7 @@ func (self *Monitor) WithMaxHistorySize(maxHistorySize int) *Monitor {
 	self.BlockHeights = deque.New[int64](self.historySize)
 	self.TransactionCounts = deque.New[uint64](self.historySize)
 	self.InteractionsSaved = deque.New[uint64](self.historySize)
-	self.SequencerBlockHeights = deque.New[int64](self.historySize)
+	self.SequencerBlockHeights = deque.New[uint64](self.historySize)
 
 	return self
 }
@@ -112,7 +112,7 @@ func (self *Monitor) monitorSequencerBlocks() (err error) {
 	self.mtx.Lock()
 	defer self.mtx.Unlock()
 
-	loaded := self.Report.BlockDownloader.State.CurrentHeight.Load()
+	loaded := self.Report.Relayer.State.SequencerBlocksDownloaded.Load()
 	if loaded == 0 {
 		// Neglect the first 0
 		return
@@ -124,7 +124,7 @@ func (self *Monitor) monitorSequencerBlocks() (err error) {
 	}
 	value := float64(self.SequencerBlockHeights.Back()-self.SequencerBlockHeights.Front()) / float64(self.SequencerBlockHeights.Len())
 
-	self.Report.BlockDownloader.State.AverageBlocksProcessedPerMinute.Store(round(value))
+	self.Report.Relayer.State.AverageSequencerBlocksProcessedPerMinute.Store(round(value))
 	return
 }
 

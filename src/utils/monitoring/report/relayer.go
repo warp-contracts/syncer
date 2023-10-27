@@ -11,9 +11,9 @@ type RelayerErrors struct {
 }
 
 type RelayerState struct {
-	BlocksReceived       atomic.Uint64 `json:"blocks_received"`
-	TransactionsReceived atomic.Uint64 `json:"transactions_received"`
-	MessagesReceived     atomic.Uint64 `json:"messages_received"`
+	SequencerBlocksDownloaded atomic.Uint64 `json:"sequencer_blocks_downloaded"`
+	TransactionsReceived      atomic.Uint64 `json:"transactions_received"`
+	MessagesReceived          atomic.Uint64 `json:"messages_received"`
 
 	TransactionsParsed                       atomic.Uint64  `json:"transactions_parsed"`
 	BundleItemsSaved                         atomic.Uint64  `json:"bundle_items_saved"`

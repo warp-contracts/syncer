@@ -136,7 +136,7 @@ func (self *Source) send(block *types.Block) (err error) {
 		self.lastSyncedHeight = uint64(block.Height)
 	}
 
-	self.monitor.GetReport().Relayer.State.BlocksReceived.Inc()
+	self.monitor.GetReport().Relayer.State.SequencerBlocksDownloaded.Inc()
 
 	return
 }

@@ -83,7 +83,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithClient(client).
 			WithInputChannel(transactionOrchestrator.TransactionOutput).
 			WithMonitor(monitor).
-			WithBackoff(0, config.Syncer.TransactionMaxInterval).
+			WithBackoff(0, config.Relayer.ArweaveBlockDownloadMaxElapsedTime).
 			WithFilterInteractions()
 
 		transactionOrchestrator.WithTransactionInput(transactionDownloader.Output)
