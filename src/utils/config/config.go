@@ -50,7 +50,7 @@ type Config struct {
 
 func setDefaults() {
 	viper.SetDefault("IsDevelopment", "false")
-	viper.SetDefault("RESTListenAddress", ":3333")
+	viper.SetDefault("RESTListenAddress", ":7777")
 	viper.SetDefault("LogLevel", "DEBUG")
 	viper.SetDefault("StopTimeout", "30s")
 
