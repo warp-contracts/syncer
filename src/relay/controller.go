@@ -23,7 +23,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	self.Task = task.NewTask(config, "relayer")
 
 	// Monitoring
-	monitor := monitor_relayer.NewMonitor(config)
+	monitor := monitor_relayer.NewMonitor(config).
+		WithMaxHistorySize(30)
 	server := monitoring.NewServer(config).
 		WithMonitor(monitor)
 
