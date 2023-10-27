@@ -44,7 +44,7 @@ func (self *NextFinishedBlock) run() (err error) {
 	}
 
 	self.Output <- &arweave.NetworkInfo{
-		Height: int64(state.FinishedBlockHeight) + 1,
+		Height: int64(state.FinishedBlockHeight),
 	}
 
 	// Wait till the context is done
