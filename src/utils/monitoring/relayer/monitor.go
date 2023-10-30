@@ -48,7 +48,6 @@ func NewMonitor(config *config.Config) (self *Monitor) {
 		BlockDownloader:       &report.BlockDownloaderReport{},
 		TransactionDownloader: &report.TransactionDownloaderReport{},
 		Peer:                  &report.PeerReport{},
-		RedisPublishers:       make([]report.RedisPublisherReport, len(config.Redis)),
 	}
 
 	// Initialization

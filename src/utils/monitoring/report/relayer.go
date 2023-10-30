@@ -11,11 +11,11 @@ type RelayerErrors struct {
 }
 
 type RelayerState struct {
-	SequencerBlocksDownloaded atomic.Uint64 `json:"sequencer_blocks_downloaded"`
-	TransactionsReceived      atomic.Uint64 `json:"transactions_received"`
-	MessagesReceived          atomic.Uint64 `json:"messages_received"`
+	SequencerBlocksDownloaded     atomic.Uint64 `json:"sequencer_blocks_downloaded"`
+	SequencerTransactionsReceived atomic.Uint64 `json:"sequencer_transactions_received"`
+	SequencerMessagesReceived     atomic.Uint64 `json:"sequencer_messages_received"`
+	SequencerTransactionsParsed   atomic.Uint64 `json:"sequencer_transactions_parsed"`
 
-	TransactionsParsed                       atomic.Uint64  `json:"transactions_parsed"`
 	BundleItemsSaved                         atomic.Uint64  `json:"bundle_items_saved"`
 	AverageSequencerBlocksProcessedPerMinute atomic.Float64 `json:"average_blocks_processed_per_minute"`
 }
