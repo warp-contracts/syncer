@@ -95,7 +95,7 @@ func (self *Parser) parseAll(payload *listener.Payload) (out []*model.Interactio
 		tx := tx
 		self.SubmitToWorker(func() {
 			// Parse transactions into interaction
-			interaction, err := self.interactionParser.Parse(tx, payload.BlockHeight, payload.BlockHash, payload.BlockTimestamp, nil)
+			interaction, err := self.interactionParser.Parse(tx, payload.BlockHeight, payload.BlockHash, payload.BlockTimestamp, nil, "", "")
 			if err != nil {
 				self.monitor.GetReport().Syncer.State.FailedInteractionParsing.Inc()
 				self.Log.WithField("tx_id", tx.ID).Warn("Failed to parse interaction from tx, neglecting")

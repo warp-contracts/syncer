@@ -93,11 +93,20 @@ func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.In
 
 	// Fill int
 	out = make([]*model.Interaction, 0, len(arweaveBlock.Transactions))
-	for _, tx := range arweaveBlock.Transactions {
+	for i, tx := range arweaveBlock.Transactions {
 		tx := tx
+		i := i
 		self.SubmitToWorker(func() {
+			info := arweaveBlock.Message.Transactions[i]
 			// Parse transactions into interaction
-			interaction, err := self.interactionParser.Parse(tx, arweaveBlock.Block.Height, arweaveBlock.Block.Hash, arweaveBlock.Block.Timestamp, nil)
+			interaction, err := self.interactionParser.Parse(tx,
+				arweaveBlock.Block.Height,
+				arweaveBlock.Block.Hash,
+				arweaveBlock.Block.Timestamp,
+				info.Random,
+				info.Transaction.SortKey,
+				info.PrevSortKey,
+			)
 			if err != nil {
 				self.monitor.GetReport().Syncer.State.FailedInteractionParsing.Inc()
 				self.Log.WithField("tx_id", tx.ID).Warn("Failed to parse interaction from tx, neglecting")

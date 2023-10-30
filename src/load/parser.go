@@ -60,7 +60,7 @@ func (self *Parser) run() (err error) {
 
 		block := self.blockDownloader.GetNewestBlock()
 
-		interaction, err = self.interactionParser.Parse(tx, block.Height, block.Hash, block.Timestamp, nil)
+		interaction, err = self.interactionParser.Parse(tx, block.Height, block.Hash, block.Timestamp, nil, "", "")
 		if err != nil {
 			self.Log.WithField("tx_id", tx.ID).Warn("Failed to parse transaction")
 			return

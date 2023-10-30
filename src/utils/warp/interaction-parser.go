@@ -38,8 +38,12 @@ func NewInteractionParser(config *config.Config) (self *InteractionParser, err e
 
 func (self *InteractionParser) Parse(
 	tx *arweave.Transaction,
-	blockHeight int64, blockId arweave.Base64String, blockTimestamp int64,
-	randomValue arweave.Base64String) (out *model.Interaction, err error) {
+	blockHeight int64,
+	blockId arweave.Base64String,
+	blockTimestamp int64,
+	randomValue arweave.Base64String,
+	sortKey string,
+	prevSortKey string) (out *model.Interaction, err error) {
 	out = &model.Interaction{
 		InteractionId:      tx.ID,
 		BlockHeight:        blockHeight,
@@ -49,8 +53,14 @@ func (self *InteractionParser) Parse(
 		BlockTimestamp:     blockTimestamp,
 	}
 
-	// Last sort key will be set by the forwarder
-	out.LastSortKey.Status = pgtype.Null
+	if prevSortKey != "" {
+		err = out.LastSortKey.Set(prevSortKey)
+		if err != nil {
+			return
+		}
+	} else {
+		out.LastSortKey.Status = pgtype.Null
+	}
 
 	// Fill tags, already decoded from base64
 	err = self.fillTags(tx, out)
@@ -58,7 +68,11 @@ func (self *InteractionParser) Parse(
 		return
 	}
 
-	out.SortKey = CreateSortKey(tx.ID.Bytes(), blockHeight, blockId)
+	if sortKey != "" {
+		out.SortKey = sortKey
+	} else {
+		out.SortKey = CreateSortKey(tx.ID.Bytes(), blockHeight, blockId)
+	}
 
 	out.Owner, err = GetWalletAddress(tx)
 	if err != nil {
