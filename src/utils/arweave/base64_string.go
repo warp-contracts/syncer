@@ -10,6 +10,11 @@ import (
 
 type Base64String []byte
 
+func Base64StringFromBase64(v string) (out Base64String, err error) {
+	err = out.Decode(v)
+	return
+}
+
 func (self *Base64String) UnmarshalJSON(data []byte) error {
 	var s string
 	err := json.Unmarshal(data, &s)

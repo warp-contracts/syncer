@@ -76,22 +76,15 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithClient(client).
 			WithInputChannel(parser.Output)
 
-		// Download transactions from Arweave
-		transactionOrchestrator := NewTransactionOrchestrator(config).
-			WithInputChannel(blockDownloader.Output)
-
-		transactionDownloader := listener.NewTransactionDownloader(config).
-			WithClient(client).
-			WithInputChannel(transactionOrchestrator.TransactionOutput).
+		// Download transactions from Arweave, but only those specified by the sequencer
+		transactionDownloader := NewTransactionDownloader(config).
 			WithMonitor(monitor).
-			WithBackoff(0, config.Relayer.ArweaveBlockDownloadMaxElapsedTime).
-			WithFilterInteractions()
-
-		transactionOrchestrator.WithTransactionInput(transactionDownloader.Output)
+			WithClient(client).
+			WithInputChannel(blockDownloader.Output)
 
 		// Parse arweave transactions into interactions
 		arweaveParser := NewArweaveParser(config).
-			WithInputChannel(transactionOrchestrator.Output)
+			WithInputChannel(transactionDownloader.Output)
 
 		// Store blocks in the database, in batches
 		store := NewStore(config).
@@ -105,7 +98,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithSubtask(networkMonitor.Task).
 			WithSubtask(blockDownloader.Task).
 			WithSubtask(transactionDownloader.Task).
-			WithSubtask(transactionOrchestrator.Task).
 			WithSubtask(arweaveParser.Task).
 			WithSubtask(store.Task).
 			WithSubtask(streamer.Task)

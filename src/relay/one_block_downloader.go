@@ -61,6 +61,7 @@ func (self *OneBlockDownloader) downloadBlock(arweaveBlock *ArweaveBlock) (block
 	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Relayer.ArweaveBlockDownloadTimeout)
 	defer cancel()
 
+	// Download block
 	block, resp, err := self.client.GetBlockByHash(ctx, arweaveBlock.Message.BlockInfo.Hash)
 	if err != nil {
 		self.Log.
@@ -79,6 +80,7 @@ func (self *OneBlockDownloader) downloadBlock(arweaveBlock *ArweaveBlock) (block
 			Error("Block hash doesn't match")
 		self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
 		err = errors.New("block hash isn't what we expected")
+		return
 	}
 
 	if block.Height != int64(arweaveBlock.Message.BlockInfo.Height) {
@@ -89,6 +91,7 @@ func (self *OneBlockDownloader) downloadBlock(arweaveBlock *ArweaveBlock) (block
 			Error("Block height doesn't match")
 		self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
 		err = errors.New("block height isn't what we expected")
+		return
 	}
 
 	if len(self.lastBlockHash) > 0 &&
@@ -100,8 +103,29 @@ func (self *OneBlockDownloader) downloadBlock(arweaveBlock *ArweaveBlock) (block
 			WithField("last_block_hash", self.lastBlockHash.Base64()).
 			WithField("previous_block", block.PreviousBlock.Base64()).
 			Warn("Previous block hash isn't valid")
-		// This doesn't mean it's a bad block, we may have a fork
-		// There was also a bug in arweave.net that caused this, but it was returing bad block by height
+		err = errors.New("previous block hash isn't valid")
+		return
+	}
+
+	// Check if all transactions in message are in the block
+	for _, msgTx := range arweaveBlock.Message.Transactions {
+		var msgTxBytes arweave.Base64String
+		err = msgTxBytes.Decode(msgTx.Transaction.Id)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to decode arweave transaction id from sequencer message")
+			return
+		}
+		found := false
+		for _, tx := range block.Txs {
+			if bytes.Equal(tx, msgTxBytes) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			err = errors.New("transaction from sequencer message not found in arweave block")
+		}
 	}
 
 	if !block.IsValid() {
