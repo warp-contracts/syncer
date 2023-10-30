@@ -68,6 +68,7 @@ func (self *TransactionOrchestrator) run() (err error) {
 					self.Log.Error("Transaction input channel closed")
 					return nil
 				}
+
 				payload.ArweaveBlocks[i].Transactions = p.Transactions
 			}
 			self.Log.WithField("hash", arweaveBlock.Message.BlockInfo.Hash).
@@ -75,7 +76,12 @@ func (self *TransactionOrchestrator) run() (err error) {
 		}
 
 		// Arweave blocks filled
-		self.Output <- payload
+		select {
+		case <-self.Ctx.Done():
+			return nil
+		case self.Output <- payload:
+		}
+
 	}
 
 	return nil

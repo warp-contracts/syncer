@@ -2,6 +2,7 @@ package relay
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"regexp"
@@ -187,6 +188,10 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, block *types.Block, id
 			Name:  "Sequencer-Prev-Sort-Key",
 			Value: dataItem.PrevSortKey,
 		},
+		{
+			Name:  "Sequencer-Random",
+			Value: base64.RawURLEncoding.EncodeToString(dataItem.Random),
+		},
 	})
 
 	err = bundleItem.Tags.Set(tags)
@@ -299,7 +304,7 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 			mtx.Unlock()
 
 			// Update monitoring
-			self.monitor.GetReport().Relayer.State.TransactionsParsed.Inc()
+			self.monitor.GetReport().Relayer.State.SequencerTransactionsParsed.Inc()
 		done:
 			wg.Done()
 		})

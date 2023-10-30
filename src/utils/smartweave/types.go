@@ -29,4 +29,5 @@ type Interaction struct {
 	Block     Block                `json:"block"`
 	Fee       Amount               `json:"fee"`
 	Quantity  Amount               `json:"quantity"`
+	Random    arweave.Base64String `json:"random,omitempty"`
 }
