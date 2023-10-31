@@ -210,6 +210,12 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 						return err
 					}
 
+					// Skip transactions in unsupported format
+					if tx.Format < 2 {
+						tx = nil
+						return nil
+					}
+
 					// Verify transaction signature.
 					// Peer might be malicious and send us invalid transaction for this id
 					err = tx.Verify()
