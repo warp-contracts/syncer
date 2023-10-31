@@ -73,7 +73,7 @@ func (self *TransactionDownloader) WithBackoff(maxElapsedTime, maxInterval time.
 
 func (self *TransactionDownloader) WithFilterContracts() *TransactionDownloader {
 	self.filter = func(tx *arweave.Transaction) bool {
-		if tx.Format < 2 {
+		if tx == nil || tx.Format < 2 {
 			return false
 		}
 
@@ -98,7 +98,7 @@ func (self *TransactionDownloader) WithFilterContracts() *TransactionDownloader 
 
 func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownloader {
 	self.filter = func(tx *arweave.Transaction) bool {
-		if tx.Format < 2 {
+		if tx == nil || tx.Format < 2 {
 			return false
 		}
 
