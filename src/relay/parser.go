@@ -80,28 +80,28 @@ func (self *Parser) WithInputChannel(v chan *types.Block) *Parser {
 	return self
 }
 
-func (self *Parser) validateSortKey(msg *sequencertypes.MsgDataItem, block *types.Block, idxInBlock int) (err error) {
+func (self *Parser) validateSortKey(interaction *model.Interaction, block *types.Block, idxInBlock int) (err error) {
 	// Check previous sort key
-	if msg.PrevSortKey != "" && !sortKeyRegExp.MatchString(msg.PrevSortKey) {
+	if interaction.LastSortKey.Status == pgtype.Present && !sortKeyRegExp.MatchString(interaction.LastSortKey.String) {
 		err = errors.New("invalid prev sort key")
 		return
 	}
 
 	// Check sort key
-	if !sortKeyRegExp.MatchString(msg.SortKey) {
+	if !sortKeyRegExp.MatchString(interaction.SortKey) {
 		err = errors.New("invalid sort key")
 		return
 	}
 
 	var arweaveHeight, sequencerHeight, idx int
-	_, err = fmt.Sscanf(msg.SortKey, "%d,%d,%d", &arweaveHeight, &sequencerHeight, &idx)
+	_, err = fmt.Sscanf(interaction.SortKey, "%d,%d,%d", &arweaveHeight, &sequencerHeight, &idx)
 	if err != nil {
 		return
 	}
 
 	if sequencerHeight != int(block.Height) {
 		err = errors.New("invalid sequencer height in sort key")
-		self.Log.WithField("sort_key", msg.SortKey).
+		self.Log.WithField("sort_key", interaction.SortKey).
 			WithField("parsed_sequencer_height", sequencerHeight).
 			WithField("block_height", block.Height).
 			Error("Invalid sequencer height in sort key")
@@ -110,7 +110,7 @@ func (self *Parser) validateSortKey(msg *sequencertypes.MsgDataItem, block *type
 
 	if idx != idxInBlock {
 		err = errors.New("invalid index in sort key")
-		self.Log.WithField("sort_key", msg.SortKey).
+		self.Log.WithField("sort_key", interaction.SortKey).
 			WithField("parsed_index", idx).
 			WithField("block_index", idxInBlock).
 			Error("Invalid index in sort key")
@@ -122,7 +122,7 @@ func (self *Parser) validateSortKey(msg *sequencertypes.MsgDataItem, block *type
 	return
 }
 
-func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, block *types.Block, idx int) (interaction *model.Interaction, bundleItem *model.BundleItem, err error) {
+func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, block *types.Block) (interaction *model.Interaction, bundleItem *model.BundleItem, err error) {
 	var isDataItem bool
 	dataItem, isDataItem := msg.(*sequencertypes.MsgDataItem)
 	if !isDataItem {
@@ -140,12 +140,6 @@ func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, block *types.Block, id
 	err = dataItem.DataItem.VerifySignature()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to verify data item signature")
-		return
-	}
-
-	err = self.validateSortKey(dataItem, block, idx)
-	if err != nil {
-		self.Log.WithError(err).Error("Failed to validate sort key")
 		return
 	}
 
@@ -222,10 +216,10 @@ func (self *Parser) parseMsgArweaveBlock(msg cosmostypes.Msg) (arweaveBlock *seq
 }
 
 // Transaction consists of multiple messages
-func (self *Parser) parseTransaction(block *types.Block, idx int) (interaction *model.Interaction, bundleItem *model.BundleItem, arweaveBlock *ArweaveBlock, err error) {
+func (self *Parser) parseTransaction(txBytes []byte, block *types.Block) (interaction *model.Interaction, bundleItem *model.BundleItem, arweaveBlock *ArweaveBlock, err error) {
 
 	// Decode transaction
-	tx, err := self.txConfig.TxDecoder()(block.Txs[idx])
+	tx, err := self.txConfig.TxDecoder()(txBytes)
 	if err != nil {
 		return
 	}
@@ -257,7 +251,7 @@ func (self *Parser) parseTransaction(block *types.Block, idx int) (interaction *
 			return
 		}
 
-		interaction, bundleItem, err = self.parseMsgDataItem(msg, block, idx)
+		interaction, bundleItem, err = self.parseMsgDataItem(msg, block)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to parse MsgDataItem")
 			return
@@ -293,7 +287,7 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 		i := i
 
 		self.SubmitToWorker(func() {
-			interaction, bundleItem, arweaveBlock, err := self.parseTransaction(block, i)
+			interaction, bundleItem, arweaveBlock, err := self.parseTransaction(block.Txs[i], block)
 			if err != nil {
 				self.monitor.GetReport().Relayer.Errors.SequencerPermanentParsingError.Inc()
 				self.Log.WithError(err).Error("Failed to parse transaction from sequencer, skipping")
@@ -319,6 +313,15 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 	}
 
 	wg.Wait()
+
+	// Validate L2 sort keys
+	for idx, dataItem := range out.Interactions {
+		err = self.validateSortKey(dataItem, block, idx)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to validate sort key")
+			return
+		}
+	}
 
 	return
 }
