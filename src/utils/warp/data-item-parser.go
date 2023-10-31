@@ -34,11 +34,21 @@ func (self *DataItemParser) Parse(tx *bundlr.BundleItem, blockHeight int64, bloc
 		ConfirmationStatus: "confirmed",
 
 		// FIXME: This is a placeholder name for testing
-		Source:         "sequencer-l2",
+		Source:         "redstone-sequencer",
 		BlockTimestamp: blockTimestamp,
 		SortKey:        sortKey,
-		LastSortKey:    pgtype.Text{String: lastSortKey, Status: pgtype.Present},
 	}
+
+	// Fill last sort key
+	if lastSortKey == "" {
+		out.LastSortKey.Status = pgtype.Null
+	} else {
+		out.LastSortKey.Status = pgtype.Present
+		out.LastSortKey.String = lastSortKey
+	}
+
+	// Fill Sort Key
+	out.SortKey = sortKey
 
 	// Fill tags, already decoded from base64
 	err = self.fillTags(tx, out)
