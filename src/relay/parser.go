@@ -16,6 +16,7 @@ import (
 	proto "github.com/cosmos/gogoproto/proto"
 	"github.com/jackc/pgtype"
 	sequencertypes "github.com/warp-contracts/sequencer/x/sequencer/types"
+	"golang.org/x/exp/slices"
 
 	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -315,6 +316,10 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 	wg.Wait()
 
 	// Validate L2 sort keys
+	slices.SortFunc(out.Interactions, func(a *model.Interaction, b *model.Interaction) bool {
+		return a.SortKey < b.SortKey
+	})
+
 	for idx, dataItem := range out.Interactions {
 		err = self.validateSortKey(dataItem, block, idx)
 		if err != nil {
