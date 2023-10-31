@@ -101,11 +101,19 @@ func (self *Parser) validateSortKey(msg *sequencertypes.MsgDataItem, block *type
 
 	if sequencerHeight != int(block.Height) {
 		err = errors.New("invalid sequencer height in sort key")
+		self.Log.WithField("sort_key", msg.SortKey).
+			WithField("parsed_sequencer_height", sequencerHeight).
+			WithField("block_height", block.Height).
+			Error("Invalid sequencer height in sort key")
 		return
 	}
 
 	if idx != idxInBlock {
-		err = errors.New("invalid sequencer height in sort key")
+		err = errors.New("invalid index in sort key")
+		self.Log.WithField("sort_key", msg.SortKey).
+			WithField("parsed_index", idx).
+			WithField("block_index", idxInBlock).
+			Error("Invalid index in sort key")
 		return
 	}
 
