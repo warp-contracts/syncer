@@ -32,11 +32,9 @@ func (self *DataItemParser) Parse(tx *bundlr.BundleItem, blockHeight int64, bloc
 		BlockHeight:        blockHeight,
 		BlockId:            blockId,
 		ConfirmationStatus: "confirmed",
-
-		// FIXME: This is a placeholder name for testing
-		Source:         "redstone-sequencer",
-		BlockTimestamp: blockTimestamp,
-		SortKey:        sortKey,
+		Source:             "redstone-sequencer",
+		BlockTimestamp:     blockTimestamp,
+		SortKey:            sortKey,
 	}
 
 	// Fill last sort key
