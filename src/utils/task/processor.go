@@ -1,8 +1,11 @@
 package task
 
 import (
+	"context"
+	"errors"
 	"math"
 
+	"github.com/cenkalti/backoff"
 	"github.com/warp-contracts/syncer/src/utils/config"
 
 	"time"
@@ -95,6 +98,13 @@ func (self *Processor[In, Out]) flush() {
 		WithContext(self.Ctx).
 		WithMaxElapsedTime(self.maxElapsedTime).
 		WithMaxInterval(self.maxInterval).
+		WithOnError(func(err error, isDurationAcceptable bool) error {
+			if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
+				// Stopping
+				return backoff.Permanent(err)
+			}
+			return err
+		}).
 		Run(func() error {
 			var err error
 			out, err = self.onFlush(data)
