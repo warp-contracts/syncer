@@ -15,7 +15,7 @@ const (
 )
 
 type Interaction struct {
-	ID                 int `json:"id"`
+	ID                 int `json:"id" gorm:"primaryKey"`
 	InteractionId      arweave.Base64String
 	Interaction        pgtype.JSONB `json:"interaction"`
 	BlockHeight        int64
@@ -56,7 +56,9 @@ type Interaction struct {
 }
 
 func (self *Interaction) GetInteraction() *smartweave.Interaction {
-
 	return &smartweave.Interaction{}
+}
 
+func (Interaction) TableName() string {
+	return TableInteraction
 }

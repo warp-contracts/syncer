@@ -90,6 +90,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		store := NewStore(config).
 			WithInputChannel(arweaveParser.Output).
 			WithMonitor(monitor).
+			WithIsReplacing(true).
 			WithDB(db)
 
 		return task.NewTask(config, "watched").

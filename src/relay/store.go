@@ -78,7 +78,8 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 		return
 	}
 
-	self.Log.WithField("height", self.finishedHeight).WithField("num", len(payloads)).Debug("Saving blocks")
+	self.Log.WithField("height", self.finishedHeight).WithField("num", len(payloads)).Debug("-> Saving blocks")
+	defer self.Log.WithField("height", self.finishedHeight).WithField("num", len(payloads)).Debug("<- Saving blocks")
 
 	if self.finishedHeight <= 0 {
 		err = errors.New("block height too small")
@@ -87,16 +88,17 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 
 	// Interactions from all blocks
 	var (
-		interactions     []*model.Interaction
-		bundleItems      []*model.BundleItem
-		lastArweaveBlock *ArweaveBlock
+		lastArweaveBlock    *ArweaveBlock
+		arweaveInteractions []*model.Interaction
+		interactions        []*model.Interaction
+		bundleItems         []*model.BundleItem
 	)
 
 	// Concatenate data from all payloads
 	for _, payload := range payloads {
 		if len(payload.ArweaveBlocks) > 0 {
 			for _, arweaveBlock := range payload.ArweaveBlocks {
-				interactions = append(interactions, arweaveBlock.Interactions...)
+				arweaveInteractions = append(arweaveInteractions, arweaveBlock.Interactions...)
 			}
 			lastArweaveBlock = payload.ArweaveBlocks[len(payload.ArweaveBlocks)-1]
 		}
@@ -113,8 +115,22 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 			return
 		}
 	}
+	for _, interaction := range arweaveInteractions {
+		err = interaction.SyncTimestamp.Set(now)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to set sync_timestamp")
+			return
+		}
+	}
+
+	if len(interactions) != len(bundleItems) {
+		err = errors.New("bundle items and interactions count mismatch")
+		self.Log.WithError(err).Error("Bundle items and interactions count mismatch")
+		return
+	}
 
 	err = self.DB.WithContext(self.Ctx).
+		// Debug().
 		Transaction(func(tx *gorm.DB) error {
 			err = tx.WithContext(self.Ctx).
 				Model(&model.State{
@@ -133,6 +149,22 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 			}
 
 			if lastArweaveBlock != nil {
+				// Save L1 interactions if there are any
+				err = tx.WithContext(self.Ctx).
+					Table(model.TableInteraction).
+					Clauses(clause.OnConflict{
+						DoNothing: !self.isReplacing,
+						Columns:   []clause.Column{{Name: "interaction_id"}},
+						UpdateAll: self.isReplacing,
+					}, clause.Returning{Columns: []clause.Column{{Name: "id"}}}).
+					CreateInBatches(arweaveInteractions, self.Config.Relayer.StoreBatchSize).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to insert Interactions")
+					// self.Log.WithField("interactions", interactions).Debug("Failed interactions")
+					return err
+				}
+
 				// Arweave interactions are saved in this transactions
 				err = self.updateFinishedArweaveBlock(tx, lastArweaveBlock)
 				if err != nil {
@@ -141,36 +173,26 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 			}
 
 			if len(interactions) != 0 {
-				// Save interactions if there are any
+				// Save L2 interactions if there are any
 				err = tx.WithContext(self.Ctx).
-					Table(model.TableInteraction).
 					Clauses(clause.OnConflict{
 						DoNothing: !self.isReplacing,
 						Columns:   []clause.Column{{Name: "interaction_id"}},
 						UpdateAll: self.isReplacing,
 					}).
-					Create(interactions).
+					CreateInBatches(&interactions, self.Config.Relayer.StoreBatchSize).
 					Error
+
 				if err != nil {
 					self.Log.WithError(err).Error("Failed to insert Interactions")
-					self.Log.WithField("interactions", interactions).Debug("Failed interactions")
 					return err
 				}
 
 				// Connect bundle items with interactions
 				// L1 interactions don't have corresponding bundle items
 				// TODO: Handle bundle items with arweave interactions order
-				bundlItemIdx := 0
-				for interactionIdx := range bundleItems {
-					if interactions[interactionIdx].Source != "arweave" {
-						if interactions[interactionIdx].ID == 0 {
-							err = errors.New("interaction id isn't set")
-							self.Log.WithError(err).Error("Interaction id isn't set")
-							return err
-						}
-						bundleItems[bundlItemIdx].InteractionID = interactions[interactionIdx].ID
-						bundlItemIdx++
-					}
+				for idx := range interactions {
+					bundleItems[idx].InteractionID = interactions[idx].ID
 				}
 			}
 
