@@ -120,8 +120,8 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 	for _, tx := range transactions {
 		tx := tx
 		self.SubmitToWorker(func() {
-			self.Log.WithField("id", tx.ID).Debug("Worker loading contract...")
-			defer self.Log.WithField("id", tx.ID).Debug("...Worker loading contract")
+			self.Log.WithField("id", tx.ID.Base64()).Debug("Worker loading contract...")
+			defer self.Log.WithField("id", tx.ID.Base64()).Debug("...Worker loading contract")
 
 			// Retry loading contract upon error
 			// Skip contract after LoaderBackoffMaxElapsedTime
@@ -133,7 +133,7 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 				WithOnError(func(err error, isDurationAcceptable bool) error {
 					self.Log.WithError(err).
 						WithField("is_acceptable", isDurationAcceptable).
-						WithField("id", tx.ID).
+						WithField("id", tx.ID.Base64()).
 						Warn("Failed to load contract, retrying...")
 
 					if isDurationAcceptable || errors.Is(err, &backoff.PermanentError{}) {
@@ -145,7 +145,7 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 					if err == arweave.ErrNotFound {
 						// No need to retry if any of the data is not found
 						// Arweave client already retries with multiple peers
-						self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, couldn't download source or init state")
+						self.Log.WithError(err).WithField("id", tx.ID.Base64()).Error("Failed to load contract, couldn't download source or init state")
 						return backoff.Permanent(err)
 					}
 
@@ -166,7 +166,7 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 					return
 				})
 			if err != nil {
-				self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to load contract, stopped trying!")
+				self.Log.WithError(err).WithField("id", tx.ID.Base64()).Error("Failed to load contract, stopped trying!")
 				self.monitor.GetReport().Contractor.Errors.LoadPersistentContract.Inc()
 			}
 
@@ -180,14 +180,14 @@ func (self *Loader) loadAll(transactions []*arweave.Transaction) (out []*Contrac
 }
 
 func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error) {
-	self.Log.WithField("id", tx.ID).Debug("Start loading contract...")
-	defer self.Log.WithField("id", tx.ID).Debug("...Stop loading contract")
+	self.Log.WithField("id", tx.ID.Base64()).Debug("Start loading contract...")
+	defer self.Log.WithField("id", tx.ID.Base64()).Debug("...Stop loading contract")
 
 	out = new(ContractData)
 
 	out.Contract, err = self.getContract(tx)
 	if err != nil {
-		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to parse contract")
+		self.Log.WithError(err).WithField("id", tx.ID.Base64()).Error("Failed to parse contract")
 		self.monitor.GetReport().Contractor.Errors.LoadContract.Inc()
 		return
 	}
@@ -216,8 +216,8 @@ func (self *Loader) load(tx *arweave.Transaction) (out *ContractData, err error)
 }
 
 func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, err error) {
-	self.Log.WithField("id", tx.ID).Debug("-> getContract")
-	defer self.Log.WithField("id", tx.ID).Debug("<- getContract")
+	self.Log.WithField("id", tx.ID.Base64()).Debug("-> getContract")
+	defer self.Log.WithField("id", tx.ID.Base64()).Debug("<- getContract")
 
 	var ok bool
 	out = model.NewContract()
@@ -265,7 +265,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 	// Init state
 	initStateBytes, err := self.getInitState(tx)
 	if err != nil {
-		self.Log.WithError(err).WithField("id", tx.ID).Error("Failed to get contract init state")
+		self.Log.WithError(err).WithField("id", tx.ID.Base64()).Error("Failed to get contract init state")
 		self.monitor.GetReport().Contractor.Errors.LoadInitState.Inc()
 		return
 	}
@@ -421,8 +421,8 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 }
 
 func (self *Loader) getInitState(contractTx *arweave.Transaction) (out []byte, err error) {
-	self.Log.WithField("id", contractTx.ID).Debug("--> getInitState")
-	defer self.Log.WithField("id", contractTx.ID).Debug("<-- getInitState")
+	self.Log.WithField("id", contractTx.ID.Base64()).Debug("--> getInitState")
+	defer self.Log.WithField("id", contractTx.ID.Base64()).Debug("<-- getInitState")
 
 	initState, ok := contractTx.GetTag(warp.TagInitState)
 	if ok {
