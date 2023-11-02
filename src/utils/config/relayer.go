@@ -60,7 +60,7 @@ func setRelayerDefaults() {
 	viper.SetDefault("Relayer.SourceBackoffMaxElapsedTime", "30s")
 	viper.SetDefault("Relayer.SourceBackoffMaxInterval", "2s")
 	viper.SetDefault("Relayer.SourceBatchSize", "10")
-	viper.SetDefault("Relayer.StoreBatchSize", "500")
-	viper.SetDefault("Relayer.StoreMaxTimeInQueue", "1s")
+	viper.SetDefault("Relayer.StoreBatchSize", "100")
+	viper.SetDefault("Relayer.StoreMaxTimeInQueue", "10s")
 	viper.SetDefault("Relayer.StoreMaxBackoffInterval", "10s")
 }
