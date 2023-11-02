@@ -149,7 +149,7 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 						Columns:   []clause.Column{{Name: "interaction_id"}},
 						UpdateAll: self.isReplacing,
 					}).
-					CreateInBatches(interactions, self.Config.Relayer.StoreBatchSize).
+					Create(interactions).
 					Error
 				if err != nil {
 					self.Log.WithError(err).Error("Failed to insert Interactions")
@@ -163,6 +163,11 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 				bundlItemIdx := 0
 				for interactionIdx := range bundleItems {
 					if interactions[interactionIdx].Source != "arweave" {
+						if interactions[interactionIdx].ID == 0 {
+							err = errors.New("interaction id isn't set")
+							self.Log.WithError(err).Error("Interaction id isn't set")
+							return err
+						}
 						bundleItems[bundlItemIdx].InteractionID = interactions[interactionIdx].ID
 						bundlItemIdx++
 					}
