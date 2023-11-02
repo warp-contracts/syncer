@@ -54,7 +54,7 @@ func setRelayerDefaults() {
 	viper.SetDefault("Relayer.ArweaveBlockDownloadTimeout", "45s")
 	viper.SetDefault("Relayer.ArweaveBlockDownloadMaxElapsedTime", "0s")
 	viper.SetDefault("Relayer.ArweaveBlockDownloadMaxInterval", "5s")
-	viper.SetDefault("Relayer.SequencerQueueSize", "100")
+	viper.SetDefault("Relayer.SequencerQueueSize", "5")
 	viper.SetDefault("Relayer.SourceMaxWorkers", "50")
 	viper.SetDefault("Relayer.SourceMaxQueueSize", "1")
 	viper.SetDefault("Relayer.SourceBackoffMaxElapsedTime", "30s")
