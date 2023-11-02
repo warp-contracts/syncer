@@ -63,7 +63,7 @@ run: build-race | ; $(info $(M) starting app with default params…)
 
 .PHONY: contract
 contract: build-race | ; $(info $(M) starting synchronizing contracts with default params…)
-	bin/$(PACKAGE) contract
+	bin/$(PACKAGE) contract --start 1289644 --stop 1289645
 
 .PHONY: bundle
 bundle: build-race | ; $(info $(M) starting bundling with default params…)
