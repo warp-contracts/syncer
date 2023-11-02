@@ -43,7 +43,7 @@ require (
 	golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb
 	golang.org/x/time v0.3.0
 	gorm.io/driver/postgres v1.4.5
-	gorm.io/gorm v1.24.3
+	gorm.io/gorm v1.25.5
 	nhooyr.io/websocket v1.8.7
 )
 
