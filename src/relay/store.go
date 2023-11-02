@@ -163,7 +163,7 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 				bundlItemIdx := 0
 				for interactionIdx := range bundleItems {
 					if interactions[interactionIdx].Source != "arweave" {
-						bundleItems[bundlItemIdx].InteractionID = interactions[bundlItemIdx].ID
+						bundleItems[bundlItemIdx].InteractionID = interactions[interactionIdx].ID
 						bundlItemIdx++
 					}
 				}
