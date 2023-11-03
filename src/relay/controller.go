@@ -11,7 +11,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	monitor_relayer "github.com/warp-contracts/syncer/src/utils/monitoring/relayer"
 	"github.com/warp-contracts/syncer/src/utils/task"
-	"github.com/warp-contracts/syncer/src/utils/warp"
 )
 
 type Controller struct {
@@ -36,8 +35,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		}
 
 		// Arweave client
-		client := arweave.NewClient(self.Ctx, config).
-			WithTagValidator(warp.ValidateTag)
+		client := arweave.NewClient(self.Ctx, config)
 
 		// Sequencer/Cosmos client
 		sequencerClient, err := rpchttp.New(config.Relayer.SequencerUrl, "/websocket")

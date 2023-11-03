@@ -13,7 +13,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/peer_monitor"
 	"github.com/warp-contracts/syncer/src/utils/publisher"
 	"github.com/warp-contracts/syncer/src/utils/task"
-	"github.com/warp-contracts/syncer/src/utils/warp"
 )
 
 type Controller struct {
@@ -39,8 +38,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 			panic(err)
 		}
 
-		client := arweave.NewClient(self.Ctx, config).
-			WithTagValidator(warp.ValidateTag)
+		client := arweave.NewClient(self.Ctx, config)
 
 		peerMonitor := peer_monitor.NewPeerMonitor(config).
 			WithClient(client).

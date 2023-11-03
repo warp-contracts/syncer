@@ -7,7 +7,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/model"
 	monitor_syncer "github.com/warp-contracts/syncer/src/utils/monitoring/syncer"
 	"github.com/warp-contracts/syncer/src/utils/task"
-	"github.com/warp-contracts/syncer/src/utils/warp"
 )
 
 type Controller struct {
@@ -27,8 +26,7 @@ func NewController(config *config.Config, sequencerRepoPath string) (self *Contr
 	monitor := monitor_syncer.NewMonitor().
 		WithMaxHistorySize(30)
 
-	client := arweave.NewClient(self.Ctx, config).
-		WithTagValidator(warp.ValidateTag)
+	client := arweave.NewClient(self.Ctx, config)
 
 	nextFinishedBlock := NewNextFinishedBlock(config).
 		WithDB(db)

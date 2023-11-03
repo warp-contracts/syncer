@@ -18,19 +18,12 @@ import (
 
 type Client struct {
 	*BaseClient
-
-	validateTag func(*Tag) error
 }
 
 func NewClient(ctx context.Context, config *config.Config) (self *Client) {
 	self = new(Client)
 	self.BaseClient = newBaseClient(ctx, config)
 	return
-}
-
-func (self *Client) WithTagValidator(v func(*Tag) error) *Client {
-	self.validateTag = v
-	return self
 }
 
 // https://docs.arweave.org/developers/server/http-api#network-info
