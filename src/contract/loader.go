@@ -219,6 +219,13 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 	self.Log.WithField("id", tx.ID.Base64()).Debug("-> getContract")
 	defer self.Log.WithField("id", tx.ID.Base64()).Debug("<- getContract")
 
+	// Check tag values
+	err = warp.ValidateTags(tx.Tags)
+	if err != nil {
+		err = backoff.Permanent(err)
+		return
+	}
+
 	var ok bool
 	out = model.NewContract()
 	out.ContractId = tx.ID.Base64()
