@@ -86,46 +86,9 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 		return
 	}
 
-	// Interactions from all blocks
-	var (
-		lastArweaveBlock    *ArweaveBlock
-		arweaveInteractions []*model.Interaction
-		interactions        []*model.Interaction
-		bundleItems         []*model.BundleItem
-	)
-
-	// Concatenate data from all payloads
-	for _, payload := range payloads {
-		if len(payload.ArweaveBlocks) > 0 {
-			for _, arweaveBlock := range payload.ArweaveBlocks {
-				arweaveInteractions = append(arweaveInteractions, arweaveBlock.Interactions...)
-			}
-			lastArweaveBlock = payload.ArweaveBlocks[len(payload.ArweaveBlocks)-1]
-		}
-		interactions = append(interactions, payload.Interactions...)
-		bundleItems = append(bundleItems, payload.BundleItems...)
-	}
-
-	// Set sync timestamp
-	now := time.Now().UnixMilli()
-	for _, interaction := range interactions {
-		err = interaction.SyncTimestamp.Set(now)
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to set sync_timestamp")
-			return
-		}
-	}
-	for _, interaction := range arweaveInteractions {
-		err = interaction.SyncTimestamp.Set(now)
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to set sync_timestamp")
-			return
-		}
-	}
-
-	if len(interactions) != len(bundleItems) {
-		err = errors.New("bundle items and interactions count mismatch")
-		self.Log.WithError(err).Error("Bundle items and interactions count mismatch")
+	// Get data from payloads
+	lastArweaveBlock, arweaveInteractions, interactions, bundleItems, err := self.getData(payloads)
+	if err != nil {
 		return
 	}
 
@@ -160,8 +123,7 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 					CreateInBatches(arweaveInteractions, self.Config.Relayer.StoreBatchSize).
 					Error
 				if err != nil {
-					self.Log.WithError(err).Error("Failed to insert Interactions")
-					// self.Log.WithField("interactions", interactions).Debug("Failed interactions")
+					self.Log.WithError(err).Error("Failed to insert Arweave interactions")
 					return err
 				}
 
@@ -190,13 +152,11 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 
 				// Connect bundle items with interactions
 				// L1 interactions don't have corresponding bundle items
-				// TODO: Handle bundle items with arweave interactions order
+				// FIXME: Handle bundle items with arweave interactions order
 				for idx := range interactions {
 					bundleItems[idx].InteractionID = interactions[idx].ID
 				}
-			}
 
-			if len(bundleItems) != 0 {
 				// Save bundle items if there are any
 				err = tx.WithContext(self.Ctx).
 					Table(model.TableBundleItem).
@@ -240,6 +200,44 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 	// Processing stops here, no need to return anything
 	out = nil
 
+	return
+}
+
+func (self *Store) getData(payloads []*Payload) (lastArweaveBlock *ArweaveBlock, arweaveInteractions []*model.Interaction, interactions []*model.Interaction, bundleItems []*model.BundleItem, err error) {
+	// Concatenate data from all payloads
+	for _, payload := range payloads {
+		if len(payload.ArweaveBlocks) > 0 {
+			for _, arweaveBlock := range payload.ArweaveBlocks {
+				arweaveInteractions = append(arweaveInteractions, arweaveBlock.Interactions...)
+			}
+			lastArweaveBlock = payload.ArweaveBlocks[len(payload.ArweaveBlocks)-1]
+		}
+		interactions = append(interactions, payload.Interactions...)
+		bundleItems = append(bundleItems, payload.BundleItems...)
+	}
+
+	// Set sync timestamp
+	now := time.Now().UnixMilli()
+	for _, interaction := range interactions {
+		err = interaction.SyncTimestamp.Set(now)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to set sync_timestamp")
+			return
+		}
+	}
+	for _, interaction := range arweaveInteractions {
+		err = interaction.SyncTimestamp.Set(now)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to set sync_timestamp")
+			return
+		}
+	}
+
+	if len(interactions) != len(bundleItems) {
+		err = errors.New("bundle items and interactions count mismatch")
+		self.Log.WithError(err).Error("Bundle items and interactions count mismatch")
+		return
+	}
 	return
 }
 
