@@ -425,7 +425,7 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out []byte, e
 	defer self.Log.WithField("id", contractTx.ID.Base64()).Debug("<-- getInitState")
 
 	initState, ok := contractTx.GetTag(warp.TagInitState)
-	if ok {
+	if ok && initState != "" {
 		// Init state in tags
 		out = []byte(initState)
 		return

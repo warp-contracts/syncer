@@ -38,7 +38,7 @@ var validators = map[string][]Validator{
 	TagSequencerBlockId:           {min(0), max(10000)},
 	TagSequencerBlockTimestamp:    {min(0), max(10000)},
 	TagSequencerNonce:             {min(0), max(10000)},
-	TagInitState:                  {min(1), max(10000)},
+	TagInitState:                  {min(0), max(10000)},
 	TagInitStateTx:                {min(0), max(10000)},
 	TagInteractWrite:              {min(0), max(10000)},
 	TagWasmLang:                   {min(0), max(10000)},
