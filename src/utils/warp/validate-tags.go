@@ -75,3 +75,13 @@ func ValidateTag(tag *arweave.Tag) (err error) {
 
 	return
 }
+
+func ValidateTags(tags []arweave.Tag) (err error) {
+	for _, tag := range tags {
+		err = ValidateTag(&tag)
+		if err != nil {
+			return
+		}
+	}
+	return nil
+}

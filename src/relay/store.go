@@ -224,9 +224,18 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 	self.savedBlockHeight = self.finishedHeight
 
 	// Successfuly saved interactions
-	self.monitor.GetReport().Syncer.State.InteractionsSaved.Add(uint64(len(interactions)))
-	self.monitor.GetReport().Syncer.State.FinishedHeight.Store(int64(self.savedBlockHeight))
+	self.monitor.GetReport().Relayer.State.InteractionsSaved.Add(uint64(len(interactions) + len(arweaveInteractions)))
+	self.monitor.GetReport().Relayer.State.L1InteractionsSaved.Add(uint64(len(arweaveInteractions)))
+	self.monitor.GetReport().Relayer.State.L2InteractionsSaved.Add(uint64(len(interactions)))
+
+	// Bundle items saved
 	self.monitor.GetReport().Relayer.State.BundleItemsSaved.Store(uint64(len(bundleItems)))
+
+	// Finished height of sequencer and arweave
+	self.monitor.GetReport().Relayer.State.SequencerFinishedHeight.Store(int64(self.savedBlockHeight))
+	if lastArweaveBlock != nil {
+		self.monitor.GetReport().Relayer.State.ArwaeveFinishedHeight.Store(int64(lastArweaveBlock.Block.Height))
+	}
 
 	// Processing stops here, no need to return anything
 	out = nil
@@ -242,7 +251,7 @@ func (self *Store) updateFinishedArweaveBlock(tx *gorm.DB, arweaveBlock *Arweave
 		Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get state")
-		self.monitor.GetReport().Syncer.Errors.DbLastTransactionBlockHeightError.Inc()
+		self.monitor.GetReport().Relayer.Errors.DbError.Inc()
 		return err
 	}
 
@@ -260,7 +269,7 @@ func (self *Store) updateFinishedArweaveBlock(tx *gorm.DB, arweaveBlock *Arweave
 			Error
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to update last transaction block height")
-			self.monitor.GetReport().Syncer.Errors.DbLastTransactionBlockHeightError.Inc()
+			self.monitor.GetReport().Relayer.Errors.DbError.Inc()
 			return err
 		}
 	}

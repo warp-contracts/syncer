@@ -213,16 +213,6 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 		return
 	}
 
-	// Validate tags
-	if self.validateTag != nil {
-		for _, tag := range out.Tags {
-			err = self.validateTag(&tag)
-			if err != nil {
-				return
-			}
-		}
-	}
-
 	return
 }
 

@@ -61,6 +61,10 @@ func (self *ArweaveParser) run() error {
 			var err error
 			payload.ArweaveBlocks[i].Interactions, err = self.parseAll(arweaveBlock)
 			if err != nil {
+				self.Log.WithField("sequencer_block_height", payload.SequencerBlockHeight).
+					WithField("arweave_block_height", arweaveBlock.Message.BlockInfo.Height).
+					Error("Persistent error. Failed to parse some Arweave transactions into interactions.")
+
 				return err
 			}
 
@@ -91,7 +95,7 @@ func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.In
 	wg.Add(len(arweaveBlock.Transactions))
 	var mtx sync.Mutex
 
-	// Fill int
+	// Fill interactions, order doesn't matter
 	out = make([]*model.Interaction, 0, len(arweaveBlock.Transactions))
 	for i, tx := range arweaveBlock.Transactions {
 		tx := tx
@@ -99,7 +103,7 @@ func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.In
 		self.SubmitToWorker(func() {
 			info := arweaveBlock.Message.Transactions[i]
 			// Parse transactions into interaction
-			interaction, err := self.interactionParser.Parse(tx,
+			interaction, errParse := self.interactionParser.Parse(tx,
 				arweaveBlock.Block.Height,
 				arweaveBlock.Block.Hash,
 				arweaveBlock.Block.Timestamp,
@@ -107,15 +111,22 @@ func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.In
 				info.Transaction.SortKey,
 				info.PrevSortKey,
 			)
-			if err != nil {
-				self.monitor.GetReport().Syncer.State.FailedInteractionParsing.Inc()
-				self.Log.WithField("tx_id", tx.ID).Warn("Failed to parse interaction from tx, neglecting")
+			mtx.Lock()
+			defer mtx.Unlock()
+
+			if errParse != nil {
+				self.monitor.GetReport().Relayer.Errors.PersistentArweaveFailedParsing.Inc()
+				self.Log.WithField("tx_id", tx.ID.Base64()).Warn("Failed to parse interaction from tx, neglecting")
+
+				if err == nil {
+					// Don't overwrite previous error
+					err = errParse
+				}
+
 				goto done
 			}
 
-			mtx.Lock()
 			out = append(out, interaction)
-			mtx.Unlock()
 
 		done:
 			wg.Done()
@@ -123,5 +134,6 @@ func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.In
 	}
 
 	wg.Wait()
+
 	return
 }

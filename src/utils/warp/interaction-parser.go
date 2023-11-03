@@ -53,6 +53,12 @@ func (self *InteractionParser) Parse(
 		BlockTimestamp:     blockTimestamp,
 	}
 
+	// Check tags format
+	err = ValidateTags(tx.Tags)
+	if err != nil {
+		return
+	}
+
 	if prevSortKey != "" {
 		err = out.LastSortKey.Set(prevSortKey)
 		if err != nil {
