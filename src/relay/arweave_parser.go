@@ -61,6 +61,9 @@ func (self *ArweaveParser) run() error {
 			var err error
 			payload.ArweaveBlocks[i].Interactions, err = self.parseAll(arweaveBlock)
 			if err != nil {
+				// We don't allow parsing errors because all those transactions were already parsed in sequecer
+				// Neglecting them here would cause loosing data
+
 				self.Log.WithField("sequencer_block_height", payload.SequencerBlockHeight).
 					WithField("arweave_block_height", arweaveBlock.Message.BlockInfo.Height).
 					Error("Persistent error. Failed to parse some Arweave transactions into interactions.")
