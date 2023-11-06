@@ -172,17 +172,18 @@ func (self *TransactionDownloader) run() (err error) {
 		// Download transactions one by one using TransactionDownloader
 		for i, arweaveBlock := range payload.ArweaveBlocks {
 			transactions, err := self.downloadTransactions(arweaveBlock)
-			if self.IsStopping.Load() {
-				// Neglect those transactions
-				return nil
-			}
 			if err != nil {
+				if self.IsStopping.Load() {
+					// Neglect those transactions, we're stopping anyway
+					return nil
+				}
 				self.Log.WithError(err).
 					WithField("sequencer_height", payload.SequencerBlockHeight).
 					WithField("arweave_height", arweaveBlock.Block.Height).
 					Error("Failed to one of the transactions")
 
 				// Stop everything
+				// We can't neglect missing transactions
 				self.Stop()
 				return err
 			}

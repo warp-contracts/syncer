@@ -272,8 +272,16 @@ func (self *Source) run() (err error) {
 		if uint64(block.Height) > self.lastSyncedHeight+1 {
 			err = self.catchUp(block.Height - 1)
 			if err != nil {
+				if self.IsStopping.Load() {
+					return nil
+				}
+
+				self.Log.WithError(err).
+					WithField("last_synced_height", self.lastSyncedHeight).
+					WithField("height", block.Height).
+					Error("Failed to catch up")
+
 				// This is a serious error, better stop the application
-				self.Log.WithError(err).WithField("last_synced_height", self.lastSyncedHeight).WithField("height", block.Height).Error("Stopping because it's not possible to catch up")
 				self.Stop()
 				return
 			}

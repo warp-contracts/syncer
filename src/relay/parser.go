@@ -337,8 +337,18 @@ func (self *Parser) run() (err error) {
 	for block := range self.input {
 		payload, err = self.parseBlock(block)
 		if err != nil {
+			if self.IsStopping.Load() {
+				// Neglect those transactions, we're stopping anyway
+				return nil
+			}
+
 			self.Log.WithField("sequencer_height", block.Height).WithError(err).Error("Failed to parse block")
-			panic(err)
+
+			// Stop everything
+			// We can't neglect parsing errors
+			self.Stop()
+
+			return err
 		}
 
 		// self.Log.WithField("height", block.Height).Trace("Parsed block")
