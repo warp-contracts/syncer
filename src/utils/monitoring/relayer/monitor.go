@@ -172,7 +172,7 @@ func (self *Monitor) monitorInteractions() (err error) {
 	self.mtx.Lock()
 	defer self.mtx.Unlock()
 
-	loaded := self.Report.Syncer.State.InteractionsSaved.Load()
+	loaded := self.Report.Relayer.State.InteractionsSaved.Load()
 	if loaded == 0 {
 		// Neglect the first 0
 		return
@@ -183,7 +183,7 @@ func (self *Monitor) monitorInteractions() (err error) {
 		self.InteractionsSaved.PopFront()
 	}
 	value := float64(self.InteractionsSaved.Back()-self.InteractionsSaved.Front()) / float64(self.InteractionsSaved.Len())
-	self.Report.Syncer.State.AverageInteractionsSavedPerMinute.Store(round(value))
+	self.Report.Relayer.State.AverageInteractionsSavedPerMinute.Store(round(value))
 	return
 }
 
