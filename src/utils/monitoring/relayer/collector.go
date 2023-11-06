@@ -95,7 +95,7 @@ func NewCollector(config *config.Config) *Collector {
 		SequencerBlocksDownloaded:                prometheus.NewDesc("sequencer_blocks_downloaded", "", nil, nil),
 		SequencerBlocksStreamed:                  prometheus.NewDesc("sequencer_blocks_streamed", "", nil, nil),
 		SequencerBlocksCatchedUp:                 prometheus.NewDesc("sequencer_blocks_catched_up", "", nil, nil),
-		AverageSequencerBlocksProcessedPerMinute: prometheus.NewDesc("average_blocks_processed_per_minute", "", nil, nil),
+		AverageSequencerBlocksProcessedPerMinute: prometheus.NewDesc("average_sequencer_blocks_processed_per_minute", "", nil, nil),
 		SequencerTransactionsParsed:              prometheus.NewDesc("sequencer_transactions_parsed", "", nil, nil),
 		ArwaeveFinishedHeight:                    prometheus.NewDesc("arweave_finished_height", "", nil, nil),
 		SequencerFinishedHeight:                  prometheus.NewDesc("sequencer_finished_height", "", nil, nil),

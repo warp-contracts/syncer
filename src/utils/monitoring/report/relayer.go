@@ -19,7 +19,7 @@ type RelayerState struct {
 	SequencerBlocksDownloaded                atomic.Uint64  `json:"sequencer_blocks_downloaded"`
 	SequencerBlocksStreamed                  atomic.Uint64  `json:"sequencer_blocks_streamed"`
 	SequencerBlocksCatchedUp                 atomic.Uint64  `json:"sequencer_blocks_catched_up"`
-	AverageSequencerBlocksProcessedPerMinute atomic.Float64 `json:"average_blocks_processed_per_minute"`
+	AverageSequencerBlocksProcessedPerMinute atomic.Float64 `json:"average_sequencer_blocks_processed_per_minute"`
 
 	// Parser
 	SequencerTransactionsParsed atomic.Uint64 `json:"sequencer_transactions_parsed"`
