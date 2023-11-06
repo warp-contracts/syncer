@@ -9,9 +9,8 @@ type RelayerErrors struct {
 	SequencerBlockDownloadError          atomic.Uint64 `json:"sequencer_block_download_error"`
 	SequencerPermanentBlockDownloadError atomic.Uint64 `json:"sequencer_permanent_block_download_error"`
 
-	PersistentSequencerFailedParsing atomic.Uint64 `json:"persistent_sequencer_failed_parsing"`
-	PersistentArweaveFailedParsing   atomic.Uint64 `json:"persistent_arweave_failed_parsing"`
-	DbError                          atomic.Uint64 `json:"db_error"`
+	PersistentArweaveFailedParsing atomic.Uint64 `json:"persistent_arweave_failed_parsing"`
+	DbError                        atomic.Uint64 `json:"db_error"`
 }
 
 type RelayerState struct {

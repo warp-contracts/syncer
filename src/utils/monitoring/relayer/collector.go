@@ -194,7 +194,6 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.SequencerPermanentParsingError, prometheus.CounterValue, float64(self.monitor.Report.Relayer.Errors.SequencerPermanentParsingError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.SequencerBlockDownloadError, prometheus.CounterValue, float64(self.monitor.Report.Relayer.Errors.SequencerBlockDownloadError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.SequencerPermanentBlockDownloadError, prometheus.CounterValue, float64(self.monitor.Report.Relayer.Errors.SequencerPermanentBlockDownloadError.Load()))
-	ch <- prometheus.MustNewConstMetric(self.PersistentSequencerFailedParsing, prometheus.CounterValue, float64(self.monitor.Report.Relayer.Errors.PersistentSequencerFailedParsing.Load()))
 	ch <- prometheus.MustNewConstMetric(self.PersistentArweaveFailedParsing, prometheus.CounterValue, float64(self.monitor.Report.Relayer.Errors.PersistentArweaveFailedParsing.Load()))
 	ch <- prometheus.MustNewConstMetric(self.DbError, prometheus.CounterValue, float64(self.monitor.Report.Relayer.Errors.DbError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.SequencerBlocksDownloaded, prometheus.CounterValue, float64(self.monitor.Report.Relayer.State.SequencerBlocksDownloaded.Load()))
