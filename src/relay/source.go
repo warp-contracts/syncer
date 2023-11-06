@@ -195,6 +195,9 @@ func (self *Source) download(len int) (err error) {
 				goto end
 			}
 
+			// Update monitoring
+			self.monitor.GetReport().Relayer.State.SequencerBlocksCatchedUp.Inc()
+
 			// Add to output
 			mtx.Lock()
 			out[i] = block.Block

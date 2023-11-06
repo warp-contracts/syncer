@@ -123,6 +123,23 @@ func (self *Parser) validateSortKey(interaction *model.Interaction, block *types
 	return
 }
 
+func (self *Parser) validateSortKeys(block *types.Block, interactions []*model.Interaction) (err error) {
+	// Downlaod order may differ from the order in the block
+	sortedInteractions := append(make([]*model.Interaction, 0, len(interactions)), interactions...)
+	slices.SortFunc(sortedInteractions, func(a *model.Interaction, b *model.Interaction) bool {
+		return a.SortKey < b.SortKey
+	})
+
+	for idx, dataItem := range sortedInteractions {
+		err = self.validateSortKey(dataItem, block, idx)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to validate sort key")
+			return
+		}
+	}
+	return
+}
+
 func (self *Parser) parseMsgDataItem(msg cosmostypes.Msg, block *types.Block) (interaction *model.Interaction, bundleItem *model.BundleItem, err error) {
 	var isDataItem bool
 	dataItem, isDataItem := msg.(*sequencertypes.MsgDataItem)
@@ -313,19 +330,13 @@ func (self *Parser) parseBlock(block *types.Block) (out *Payload, err error) {
 		})
 	}
 
+	// Wait for all transactions to be parsed
 	wg.Wait()
 
-	// Validate L2 sort keys
-	slices.SortFunc(out.Interactions, func(a *model.Interaction, b *model.Interaction) bool {
-		return a.SortKey < b.SortKey
-	})
-
-	for idx, dataItem := range out.Interactions {
-		err = self.validateSortKey(dataItem, block, idx)
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to validate sort key")
-			return
-		}
+	err = self.validateSortKeys(block, out.Interactions)
+	if err != nil {
+		self.Log.WithField("sequencer_height", block.Header.Height).WithError(err).Error("Failed to validate sort key")
+		return
 	}
 
 	return

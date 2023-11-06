@@ -15,22 +15,24 @@ type RelayerErrors struct {
 }
 
 type RelayerState struct {
-	SequencerBlocksDownloaded     atomic.Uint64 `json:"sequencer_blocks_downloaded"`
-	SequencerTransactionsReceived atomic.Uint64 `json:"sequencer_transactions_received"`
-	SequencerMessagesReceived     atomic.Uint64 `json:"sequencer_messages_received"`
-	SequencerTransactionsParsed   atomic.Uint64 `json:"sequencer_transactions_parsed"`
-	SequencerFinishedHeight       atomic.Int64  `json:"sequencer_finished_height"`
-
-	BundleItemsSaved                         atomic.Uint64  `json:"bundle_items_saved"`
+	// Source
+	SequencerBlocksDownloaded                atomic.Uint64  `json:"sequencer_blocks_downloaded"`
+	SequencerBlocksStreamed                  atomic.Uint64  `json:"sequencer_blocks_streamed"`
+	SequencerBlocksCatchedUp                 atomic.Uint64  `json:"sequencer_blocks_catched_up"`
 	AverageSequencerBlocksProcessedPerMinute atomic.Float64 `json:"average_blocks_processed_per_minute"`
 
+	// Parser
+	SequencerTransactionsParsed atomic.Uint64 `json:"sequencer_transactions_parsed"`
+
 	// Store
-	ArwaeveFinishedHeight             atomic.Int64   `json:"arweave_finished_height"`
+	ArwaeveFinishedHeight   atomic.Int64  `json:"arweave_finished_height"`
+	SequencerFinishedHeight atomic.Int64  `json:"sequencer_finished_height"`
+	BundleItemsSaved        atomic.Uint64 `json:"bundle_items_saved"`
+
 	AverageInteractionsSavedPerMinute atomic.Float64 `json:"average_interactions_saved_per_minute"`
 	L1InteractionsSaved               atomic.Uint64  `json:"l1_interactions_saved"`
 	L2InteractionsSaved               atomic.Uint64  `json:"l2_interactions_saved"`
 	InteractionsSaved                 atomic.Uint64  `json:"interactions_saved"`
-	FailedInteractionParsing          atomic.Uint64  `json:"failed_interaction_parsing"`
 }
 
 type RelayerReport struct {

@@ -43,7 +43,6 @@ func NewMonitor(config *config.Config) (self *Monitor) {
 	self.Report = report.Report{
 		Run:                   &report.RunReport{},
 		Relayer:               &report.RelayerReport{},
-		Syncer:                &report.SyncerReport{},
 		NetworkInfo:           &report.NetworkInfoReport{},
 		BlockDownloader:       &report.BlockDownloaderReport{},
 		TransactionDownloader: &report.TransactionDownloaderReport{},

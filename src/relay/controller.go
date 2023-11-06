@@ -10,6 +10,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	monitor_relayer "github.com/warp-contracts/syncer/src/utils/monitoring/relayer"
+	"github.com/warp-contracts/syncer/src/utils/peer_monitor"
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
@@ -36,6 +37,10 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 		// Arweave client
 		client := arweave.NewClient(self.Ctx, config)
+
+		peerMonitor := peer_monitor.NewPeerMonitor(config).
+			WithClient(client).
+			WithMonitor(monitor)
 
 		// Sequencer/Cosmos client
 		sequencerClient, err := rpchttp.New(config.Relayer.SequencerUrl, "/websocket")
@@ -99,7 +104,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithSubtask(transactionDownloader.Task).
 			WithSubtask(arweaveParser.Task).
 			WithSubtask(store.Task).
-			WithSubtask(streamer.Task)
+			WithSubtask(streamer.Task).
+			WithSubtask(peerMonitor.Task)
 	}
 
 	watchdog := task.NewWatchdog(config).
