@@ -135,6 +135,7 @@ docker-build: all | ; $(info $(M) building docker container) @
 .PHONY: docker-push
 docker-push: all | ; $(info $(M) building docker container) @ 
 	$(GO) mod vendor
+	docker login
 	DOCKER_BUILDKIT=0 TAG=$(VERSION) docker buildx bake -f docker-bake.hcl --push
 	rm -rf vendor
 
