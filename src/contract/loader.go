@@ -473,7 +473,16 @@ func (self *Loader) getInitState(contractTx *arweave.Transaction) (out []byte, e
 	// It didn't fit into the data field, fetch chunks
 	buf, err := self.client.GetChunks(self.Ctx, contractTx)
 	if err != nil {
-		return
+		self.Log.WithError(err).Warn("Failed to get init data from chunks")
+
+		// There was a bug in arweave.net that caused missing chunks, but the tx is still valid
+		var err2 error
+		buf, err2 = self.client.GetCachedTransactionDataById(self.Ctx, contractTx)
+		if err2 != nil {
+			self.Log.WithError(err2).Error("Failed to get init data from /tx_id endpoint")
+			// Return the original error
+			return
+		}
 	}
 
 	out = buf.Bytes()
