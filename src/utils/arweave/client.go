@@ -331,3 +331,26 @@ func (self *Client) GetTransactionDataById(ctx context.Context, tx *Transaction)
 
 	return self.GetChunks(ctx, tx)
 }
+
+func (self *Client) GetCachedTransactionDataById(ctx context.Context, tx *Transaction) (out bytes.Buffer, err error) {
+	ctx = context.WithValue(ctx, ContextDisablePeers, true)
+
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
+		SetPathParam("id", tx.ID.Base64()).
+		Get("{id}")
+	if err != nil {
+		return
+	}
+
+	out.Write(resp.Body())
+
+	if out.Len() != int(tx.DataSize.Int64()) {
+		err = ErrDataSizeMismatch
+		return
+	}
+
+	return
+}
