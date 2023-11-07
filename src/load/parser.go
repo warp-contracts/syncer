@@ -62,7 +62,7 @@ func (self *Parser) run() (err error) {
 
 		interaction, err = self.interactionParser.Parse(tx, block.Height, block.Hash, block.Timestamp, nil, "", "")
 		if err != nil {
-			self.Log.WithField("tx_id", tx.ID).Warn("Failed to parse transaction")
+			self.Log.WithError(err).WithField("tx_id", tx.ID.Base64()).Warn("Failed to parse transaction")
 			return
 		}
 		interaction.Source = "bundler-load-tests"

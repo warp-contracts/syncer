@@ -286,7 +286,7 @@ func (self *Loader) getContract(tx *arweave.Transaction) (out *model.Contract, e
 			l = 50
 		}
 		self.Log.WithField("data", str[:l]).Debug("Failed to parse init state as JSON")
-		self.Log.WithError(err).WithField("id", tx.ID).Error("Init state isn't valid JSON")
+		self.Log.WithError(err).WithField("id", tx.ID.Base64()).Error("Init state isn't valid JSON")
 		err = backoff.Permanent(err)
 		return
 	}

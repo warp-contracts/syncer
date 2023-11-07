@@ -127,7 +127,7 @@ func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.In
 
 			if errParse != nil {
 				self.monitor.GetReport().Relayer.Errors.PersistentArweaveFailedParsing.Inc()
-				self.Log.WithField("tx_id", tx.ID.Base64()).Warn("Failed to parse interaction from tx, neglecting")
+				self.Log.WithError(err).WithField("tx_id", tx.ID.Base64()).Warn("Failed to parse interaction from tx, neglecting")
 
 				if err == nil {
 					// Don't overwrite previous error
