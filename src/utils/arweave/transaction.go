@@ -131,3 +131,11 @@ func (tx *Transaction) Size() int {
 	}
 	return len(json)
 }
+
+func (tx *Transaction) String() string {
+	json, err := tx.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	return string(json)
+}
