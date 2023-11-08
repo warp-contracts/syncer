@@ -87,6 +87,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 		// Parse arweave transactions into interactions
 		arweaveParser := NewArweaveParser(config).
+			WithMonitor(monitor).
 			WithInputChannel(transactionDownloader.Output)
 
 		// Store blocks in the database, in batches
