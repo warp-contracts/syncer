@@ -17,19 +17,21 @@ import (
 )
 
 const (
-	CONFIG_PATH_FORMAT      = "network/local/sequencer-%d/config/"
-	PREV_SORT_KEYS_FILE     = "prev_sort_keys.json"
-	LAST_ARWEAVE_BLOCK_FILE = "last_arweave_block.json"
-	NUMBER_OF_NODES         = 3
+	WARP_INTERNAL_REPO_CONFIG_PATH_FORMAT = "k8s/dev/sequencer-%d/config/"
+	SEQUENCER_REPO_CONFIG_PATH_FORMAT     = "network/local/sequencer-%d/config/"
+	PREV_SORT_KEYS_FILE                   = "prev_sort_keys.json"
+	LAST_ARWEAVE_BLOCK_FILE               = "last_arweave_block.json"
+	NUMBER_OF_NODES                       = 3
 )
 
 type Writer struct {
 	*task.Task
 
-	sequencerRepoPath string
-	db                *gorm.DB
-	input             chan *arweave.Block
-	Output            chan struct{}
+	warpInternalRepoPath string
+	sequencerRepoPath    string
+	db                   *gorm.DB
+	input                chan *arweave.Block
+	Output               chan struct{}
 }
 
 func NewWriter(config *config.Config, sequencerRepoPath string) (self *Writer) {
@@ -43,6 +45,11 @@ func NewWriter(config *config.Config, sequencerRepoPath string) (self *Writer) {
 		})
 
 	return
+}
+
+func (self *Writer) WithWarpInternalRepoPath(warpInternalRepoPath string) *Writer {
+	self.warpInternalRepoPath = warpInternalRepoPath
+	return self
 }
 
 func (self *Writer) WithSequencerRepoPath(sequencerRepoPath string) *Writer {
@@ -94,7 +101,12 @@ func (self *Writer) fetchPrevSortKeys() (err error) {
 		return
 	}
 
-	err = self.writeToConfigFile(PREV_SORT_KEYS_FILE, keysJson)
+	err = self.writeToConfigFile(self.sequencerRepoPath, SEQUENCER_REPO_CONFIG_PATH_FORMAT, PREV_SORT_KEYS_FILE, keysJson)
+	if err != nil {
+		return
+	}
+
+	err = self.writeToConfigFile(self.warpInternalRepoPath, WARP_INTERNAL_REPO_CONFIG_PATH_FORMAT, PREV_SORT_KEYS_FILE, keysJson)
 	if err != nil {
 		return
 	}
@@ -116,7 +128,12 @@ func (self *Writer) fetchLastArweaveBlock() (err error) {
 			return err
 		}
 
-		err = self.writeToConfigFile(LAST_ARWEAVE_BLOCK_FILE, blockJson)
+		err = self.writeToConfigFile(self.sequencerRepoPath, SEQUENCER_REPO_CONFIG_PATH_FORMAT, LAST_ARWEAVE_BLOCK_FILE, blockJson)
+		if err != nil {
+			return err
+		}
+
+		err = self.writeToConfigFile(self.warpInternalRepoPath, WARP_INTERNAL_REPO_CONFIG_PATH_FORMAT, LAST_ARWEAVE_BLOCK_FILE, blockJson)
 		if err != nil {
 			return err
 		}
@@ -128,9 +145,9 @@ func (self *Writer) fetchLastArweaveBlock() (err error) {
 	return
 }
 
-func (self *Writer) writeToConfigFile(filePath string, jsonData []byte) error {
+func (self *Writer) writeToConfigFile(repoPath string, configPathFormat string, filePath string, jsonData []byte) error {
 	for i := 0; i < NUMBER_OF_NODES; i++ {
-		filePath := filepath.Join(self.sequencerRepoPath, fmt.Sprintf(CONFIG_PATH_FORMAT, i), filePath)
+		filePath := filepath.Join(repoPath, fmt.Sprintf(configPathFormat, i), filePath)
 		err := os.WriteFile(filePath, jsonData, 0644)
 		if err != nil {
 			return err
