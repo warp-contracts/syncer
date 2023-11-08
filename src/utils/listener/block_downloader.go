@@ -118,6 +118,26 @@ func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB, component model.Sy
 	return self
 }
 
+func (self *BlockDownloader) WithStopHeight(db *gorm.DB, stop uint64, component model.SyncedComponent) *BlockDownloader {
+	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
+		// Get the last storeserverd block height from the database
+		var state model.State
+		err = db.WithContext(self.Ctx).First(&state, component).Error
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to get last transaction block height")
+			return
+		}
+
+		// This will never block
+		self.startHeightChannel <- state.FinishedBlockHeight
+		self.previousBlockIndepHash = state.FinishedBlockHash
+		self.stopBlockHeight = stop
+
+		return nil
+	})
+	return self
+}
+
 func (self *BlockDownloader) WithInputChannel(v chan *arweave.NetworkInfo) *BlockDownloader {
 	self.input = v
 	return self

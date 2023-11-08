@@ -57,6 +57,9 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 		if startBlockHeight > 0 && stopBlockHeight > 0 {
 			// Sync only a range of blocks
 			blockDownloader = blockDownloader.WithHeightRange(startBlockHeight, stopBlockHeight)
+		} else if startBlockHeight <= 0 && startBlockHeight > 0 {
+			// Sync normally, but stop at a given height
+			blockDownloader = blockDownloader.WithStopHeight(db, startBlockHeight, model.SyncedComponentInteractions)
 		} else {
 			// By default sync using the height saved in the db and never stop
 			blockDownloader = blockDownloader.WithInitStartHeight(db, model.SyncedComponentInteractions)
