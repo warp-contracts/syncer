@@ -9,14 +9,14 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
-type NextFinishedBlock struct {
+type FinishedBlock struct {
 	*task.Task
 	db     *gorm.DB
 	Output chan *arweave.NetworkInfo
 }
 
-func NewNextFinishedBlock(config *config.Config) (self *NextFinishedBlock) {
-	self = new(NextFinishedBlock)
+func NewFinishedBlock(config *config.Config) (self *FinishedBlock) {
+	self = new(FinishedBlock)
 
 	self.Output = make(chan *arweave.NetworkInfo)
 
@@ -29,16 +29,13 @@ func NewNextFinishedBlock(config *config.Config) (self *NextFinishedBlock) {
 	return
 }
 
-func (self *NextFinishedBlock) WithDB(db *gorm.DB) *NextFinishedBlock {
+func (self *FinishedBlock) WithDB(db *gorm.DB) *FinishedBlock {
 	self.db = db
 	return self
 }
 
-func (self *NextFinishedBlock) run() (err error) {
-	var state model.State
-	err = self.db.WithContext(self.Ctx).
-		First(&state, model.SyncedComponentInteractions).
-		Error
+func (self *FinishedBlock) run() (err error) {
+	state, err := self.getLastSyncedBlock()
 	if err != nil {
 		return
 	}
@@ -51,4 +48,11 @@ func (self *NextFinishedBlock) run() (err error) {
 	<-self.Ctx.Done()
 
 	return
+}
+
+func (self *FinishedBlock) getLastSyncedBlock() (state model.State, err error) {
+	err = self.db.WithContext(self.Ctx).
+		First(&state, model.SyncedComponentInteractions).
+		Error
+	return state, err
 }

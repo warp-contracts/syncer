@@ -28,15 +28,20 @@ func NewController(config *config.Config, sequencerRepoPath string) (self *Contr
 
 	client := arweave.NewClient(self.Ctx, config)
 
-	nextFinishedBlock := NewNextFinishedBlock(config).
+	finishedBlock := NewFinishedBlock(config).
 		WithDB(db)
+
+	lastSyncedBlock, err := finishedBlock.getLastSyncedBlock()
+	if err != nil {
+		panic(err)
+	}
 
 	blockDownloader := listener.NewBlockDownloader(config).
 		WithClient(client).
 		WithMonitor(monitor).
-		WithInputChannel(nextFinishedBlock.Output).
+		WithInputChannel(finishedBlock.Output).
 		WithBackoff(0, config.Syncer.TransactionMaxInterval).
-		WithInitStartHeight(db, model.SyncedComponentInteractions)
+		WithHeightRange(lastSyncedBlock.FinishedBlockHeight, lastSyncedBlock.FinishedBlockHeight)
 
 	writer := NewWriter(config, sequencerRepoPath).
 		WithSequencerRepoPath(sequencerRepoPath).
@@ -44,7 +49,7 @@ func NewController(config *config.Config, sequencerRepoPath string) (self *Contr
 		WithInput(blockDownloader.Output)
 
 	self.Task = self.Task.
-		WithSubtask(nextFinishedBlock.Task).
+		WithSubtask(finishedBlock.Task).
 		WithSubtask(blockDownloader.Task).
 		WithSubtask(writer.Task).
 		WithStopChannel(writer.Output)
