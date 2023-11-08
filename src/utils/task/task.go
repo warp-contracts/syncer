@@ -322,7 +322,7 @@ func (self *Task) run(subtask func() error) {
 				break
 			}
 
-			self.Log.Error("Subtask func returned, but task wasn't stopped. Restarting...")
+			self.Log.WithError(err).Error("Subtask func returned, but task wasn't stopped. Restarting...")
 		}
 	}()
 }

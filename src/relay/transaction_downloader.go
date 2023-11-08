@@ -184,8 +184,7 @@ func (self *TransactionDownloader) run() (err error) {
 
 				// Stop everything
 				// We can't neglect missing transactions
-				self.Stop()
-				return err
+				panic(err)
 			}
 			payload.ArweaveBlocks[i].Transactions = transactions
 			self.Log.WithField("hash", arweaveBlock.Message.BlockInfo.Hash).

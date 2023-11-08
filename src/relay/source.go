@@ -285,8 +285,7 @@ func (self *Source) run() (err error) {
 					Error("Failed to catch up")
 
 				// This is a serious error, better stop the application
-				self.Stop()
-				return
+				panic(err)
 			}
 		}
 

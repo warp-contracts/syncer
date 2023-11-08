@@ -223,8 +223,7 @@ func (self *OneBlockDownloader) run() (err error) {
 
 				// Stop everything
 				// We can't neglect a missing block
-				self.Stop()
-				return err
+				panic(err)
 			}
 
 			// Prepare for the next block

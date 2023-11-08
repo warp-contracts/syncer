@@ -71,12 +71,12 @@ func (self *ArweaveParser) run() error {
 
 				self.Log.WithField("sequencer_block_height", payload.SequencerBlockHeight).
 					WithField("arweave_block_height", arweaveBlock.Message.BlockInfo.Height).
+					WithError(err).
 					Error("Persistent error. Failed to parse some Arweave transactions into interactions.")
 
 				// Stop everything
 				// We can't neglect a parsing error
-				self.Stop()
-				return err
+				panic(err)
 			}
 
 			// FIXME: create a bundle item with the order of arweave blocks
@@ -126,7 +126,7 @@ func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.In
 			defer mtx.Unlock()
 
 			if errParse != nil {
-				self.Log.WithError(err).WithField("tx_id", tx.ID.Base64()).Warn("Failed to parse interaction from tx, neglecting")
+				self.Log.WithError(err).WithField("tx_id", tx.ID.Base64()).Warn("Failed to parse interaction from tx")
 				self.monitor.GetReport().Relayer.Errors.PersistentArweaveFailedParsing.Inc()
 
 				if err == nil {

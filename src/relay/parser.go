@@ -357,9 +357,7 @@ func (self *Parser) run() (err error) {
 
 			// Stop everything
 			// We can't neglect parsing errors
-			self.Stop()
-
-			return err
+			panic(err)
 		}
 
 		// self.Log.WithField("height", block.Height).Trace("Parsed block")
