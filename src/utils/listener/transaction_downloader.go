@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"regexp"
 	"sync"
 	"time"
 
@@ -15,6 +16,10 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/tool"
 
 	"github.com/cenkalti/backoff/v4"
+)
+
+var (
+	contractIdRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{43}$")
 )
 
 // Fills in transactions for a given block
@@ -98,10 +103,15 @@ func (self *TransactionDownloader) WithFilterContracts() *TransactionDownloader 
 }
 
 func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownloader {
-	self.filter = func(tx *arweave.Transaction) (isInteraction bool) {
+	self.filter = func(tx *arweave.Transaction) bool {
 		if tx == nil || tx.Format < 2 {
 			return false
 		}
+
+		var (
+			isInteraction bool
+			isContractId  bool
+		)
 
 		for _, tag := range tx.Tags {
 			switch string(tag.Name) {
@@ -117,10 +127,16 @@ func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownload
 					self.Log.WithField("txId", tx.ID.Base64()).Warn("Invalid JSON in Input tag, neglecting interaction")
 					return false
 				}
+			case smartweave.TagContractTxId:
+				if !contractIdRegex.Match(tag.Value) {
+					self.Log.WithField("txId", tx.ID.Base64()).Warn("ContractTxId tag doesn't validate as a contractId, neglecting interaction")
+					return false
+				}
+				isContractId = true
 			}
 		}
 
-		return isInteraction
+		return isInteraction && isContractId
 	}
 	return self
 }
