@@ -16,6 +16,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/logger"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/smartweave"
+	"github.com/warp-contracts/syncer/src/utils/tool"
 
 	"github.com/dvsekhvalnov/jose2go/base64url"
 	"github.com/sirupsen/logrus"
@@ -144,12 +145,11 @@ func (self *InteractionParser) parseTags(tags []arweave.Tag) (out []smartweave.T
 	return
 }
 
-func AddTagToInteraction(out *model.Interaction, name, value string) (err error) {
+func AddTagToInteraction(out *model.Interaction, name, value string) error {
 	switch string(name) {
 	case "Contract":
 		if !contractIdRegex.MatchString(value) {
-			err = errors.New("tag doesn't validate as a contractId")
-			return
+			return errors.New("tag doesn't validate as a contractId")
 		}
 		out.ContractId = value
 	case "Interact-Write":
@@ -162,6 +162,12 @@ func AddTagToInteraction(out *model.Interaction, name, value string) (err error)
 	case "Input":
 		out.Input = value
 
+		// It will allow any JSON. Arrays, objects, strings, numbers, booleans, and null
+		err := tool.CheckJSON([]byte(value))
+		if err != nil {
+			return err
+		}
+
 		// Marshal tag into tmp struct
 		var input struct {
 			Function *string `json:"function"`
@@ -170,12 +176,12 @@ func AddTagToInteraction(out *model.Interaction, name, value string) (err error)
 
 		err = json.Unmarshal([]byte(out.Input), &input)
 		if err != nil {
-			return
+			return nil
 		}
 
 		// Check function name
 		if input.Function == nil {
-			break
+			return nil
 		}
 
 		// Cleanup function name
@@ -192,7 +198,7 @@ func AddTagToInteraction(out *model.Interaction, name, value string) (err error)
 			}
 		}
 	}
-	return
+	return nil
 }
 
 func (self *InteractionParser) fillTags(tx *arweave.Transaction, out *model.Interaction) (err error) {
