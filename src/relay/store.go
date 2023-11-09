@@ -1,9 +1,11 @@
 package relay
 
 import (
+	"context"
 	"errors"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -176,6 +178,11 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 			return nil
 		})
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			self.Log.WithError(err).Warn("Failed to insert bundle items, interactions and update state (context canceled)")
+			err = backoff.Permanent(err)
+			return
+		}
 		self.Log.WithError(err).Error("Failed to insert bundle items, interactions and update state")
 		return
 	}
