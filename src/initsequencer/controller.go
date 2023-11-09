@@ -13,7 +13,7 @@ type Controller struct {
 	*task.Task
 }
 
-func NewController(config *config.Config, warpInternalRepoPath string, sequencerRepoPath string) (self *Controller, err error) {
+func NewController(config *config.Config, sequencerRepoPath string) (self *Controller, err error) {
 	self = new(Controller)
 
 	self.Task = task.NewTask(config, "init-sequencer-controller")
@@ -43,8 +43,7 @@ func NewController(config *config.Config, warpInternalRepoPath string, sequencer
 		WithBackoff(0, config.Syncer.TransactionMaxInterval).
 		WithHeightRange(lastSyncedBlock.FinishedBlockHeight, lastSyncedBlock.FinishedBlockHeight)
 
-	writer := NewWriter(config, sequencerRepoPath).
-		WithWarpInternalRepoPath(warpInternalRepoPath).
+	writer := NewWriter(config).
 		WithSequencerRepoPath(sequencerRepoPath).
 		WithDB(db).
 		WithInput(blockDownloader.Output)
