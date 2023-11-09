@@ -136,6 +136,10 @@ func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownload
 			}
 		}
 
+		if isInteraction && !isContractId {
+			self.Log.WithField("txId", tx.ID.Base64()).Warn("Missing ContractTxId in interaction")
+		}
+
 		return isInteraction && isContractId
 	}
 	return self
