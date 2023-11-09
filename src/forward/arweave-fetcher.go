@@ -2,6 +2,7 @@ package forward
 
 import (
 	"database/sql"
+	"errors"
 	"runtime"
 	"strings"
 	"time"
@@ -334,12 +335,25 @@ func (self *ArweaveFetcher) getSrcTxIds(tx *gorm.DB, interactions []*model.Inter
 		interactionIds[i] = interaction.ID
 	}
 
-	err = self.db.WithContext(self.Ctx).
-		Raw(`SELECT src_tx_id from contracts
+	for _, interaction := range interactions {
+		var srcTxId string
+		err = self.db.WithContext(self.Ctx).
+			Raw(`SELECT src_tx_id from contracts
 		INNER JOIN interactions ON interactions.contract_id = contracts.contract_id
-		WHERE interactions.id IN (?)
-		ORDER BY interactions.sort_key ASC`, interactionIds).
-		Scan(&srcTxIds).Error
+		WHERE interactions.id = ?`, interaction.InteractionId).
+			Scan(&srcTxId).Error
+
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				self.Log.WithField("interaction_id", interaction.InteractionId).Warn("No src_tx_id for interaction")
+				srcTxIds = append(srcTxIds, "")
+				continue
+			}
+			return
+		}
+
+		srcTxIds = append(srcTxIds, srcTxId)
+	}
 
 	return
 }
