@@ -12,6 +12,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/smartweave"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/tool"
 
 	"github.com/cenkalti/backoff/v4"
 )
@@ -97,19 +98,29 @@ func (self *TransactionDownloader) WithFilterContracts() *TransactionDownloader 
 }
 
 func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownloader {
-	self.filter = func(tx *arweave.Transaction) bool {
+	self.filter = func(tx *arweave.Transaction) (isInteraction bool) {
 		if tx == nil || tx.Format < 2 {
 			return false
 		}
 
 		for _, tag := range tx.Tags {
-			if string(tag.Value) == "SmartWeaveAction" &&
-				string(tag.Name) == smartweave.TagAppName {
-				return true
+			switch string(tag.Name) {
+			case smartweave.TagAppName:
+				if string(tag.Value) != "SmartWeaveAction" {
+					return false
+				}
+				// Valid interaction
+				isInteraction = true
+			case smartweave.TagInput:
+				// Input tag must be a valid JSON
+				if tool.CheckJSON(tag.Value) != nil {
+					self.Log.WithField("txId", tx.ID.Base64()).Warn("Invalid JSON in Input tag, neglecting interaction")
+					return false
+				}
 			}
 		}
 
-		return false
+		return isInteraction
 	}
 	return self
 }
