@@ -7,6 +7,9 @@ import (
 )
 
 type Forwarder struct {
+	// Last block height forwarder will attempt to set last sort keys
+	FetcherLastSortKeySettingBlockHeight uint64
+
 	// If true, L1 interactions get last sort key assigned and saved before being sent further
 	FetcherLastSortKeySettingEnabled bool
 
