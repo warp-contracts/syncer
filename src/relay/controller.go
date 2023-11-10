@@ -38,6 +38,13 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		// Arweave client
 		client := arweave.NewClient(self.Ctx, config)
 
+		// Monitor current network height (output is disabled)
+		networkMonitor := listener.NewNetworkMonitor(config).
+			WithClient(client).
+			WithMonitor(monitor).
+			WithInterval(config.NetworkMonitor.Period).
+			WithEnableOutput(false)
+
 		peerMonitor := peer_monitor.NewPeerMonitor(config).
 			WithClient(client).
 			WithMonitor(monitor)
@@ -61,23 +68,26 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithClient(sequencerClient).
 			WithInputChannel(streamer.Output)
 
-		// Parses blocks into payload
-		parser := NewParser(config).
+		// Decodes messages, creates payload
+		decoder := NewDecoder(config).
 			WithMonitor(monitor).
 			WithInputChannel(source.Output)
 
-		// Monitor current network height (output is disabled)
-		networkMonitor := listener.NewNetworkMonitor(config).
-			WithClient(client).
+		// Fills in arweave block info in the payload
+		msgArweaveBlockParser := NewMsgArweaveBlockParser(config).
 			WithMonitor(monitor).
-			WithInterval(config.NetworkMonitor.Period).
-			WithEnableOutput(false)
+			WithInputChannel(decoder.Output)
+
+		// Parses blocks into payload
+		msgDataItemParser := NewMsgDataItemParser(config).
+			WithMonitor(monitor).
+			WithInputChannel(msgArweaveBlockParser.Output)
 
 		// Fill in Arweave blocks
 		blockDownloader := NewOneBlockDownloader(config).
 			WithMonitor(monitor).
 			WithClient(client).
-			WithInputChannel(parser.Output)
+			WithInputChannel(msgDataItemParser.Output)
 
 		// Download transactions from Arweave, but only those specified by the sequencer
 		transactionDownloader := NewTransactionDownloader(config).
@@ -99,7 +109,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 		return task.NewTask(config, "watched").
 			WithSubtask(source.Task).
-			WithSubtask(parser.Task).
+			WithSubtask(decoder.Task).
+			WithSubtask(msgArweaveBlockParser.Task).
+			WithSubtask(msgDataItemParser.Task).
 			WithSubtask(networkMonitor.Task).
 			WithSubtask(blockDownloader.Task).
 			WithSubtask(transactionDownloader.Task).

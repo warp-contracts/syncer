@@ -2,6 +2,7 @@ package relay
 
 import (
 	"github.com/cometbft/cometbft/libs/bytes"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/warp-contracts/sequencer/x/sequencer/types"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -25,6 +26,12 @@ type Payload struct {
 	SequencerBlockHash      bytes.HexBytes
 	SequencerBlockHeight    int64
 	SequencerBlockTimestamp int64
+
+	// Arweave block height used to generate sort keys for this sequencer height
+	LastArweaveBlockHeight uint64
+
+	// Raw messages from the block, only decoded
+	Messages []cosmostypes.Msg
 
 	// L2 interactions parsed from Sequencer's txs
 	Interactions []*model.Interaction
