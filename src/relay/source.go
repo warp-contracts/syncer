@@ -39,7 +39,10 @@ func NewSource(config *config.Config) (self *Source) {
 
 	self.Task = task.NewTask(config, "source").
 		WithWorkerPool(config.Relayer.SourceMaxWorkers, config.Relayer.SourceMaxQueueSize).
-		WithSubtaskFunc(self.run)
+		WithSubtaskFunc(self.run).
+		WithOnAfterStop(func() {
+			close(self.Output)
+		})
 
 	return
 }

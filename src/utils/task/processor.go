@@ -86,7 +86,7 @@ func (self *Processor[In, Out]) WithBackoff(maxElapsedTime, maxInterval time.Dur
 	return self
 }
 
-func (self *Processor[In, Out]) flush() {
+func (self *Processor[In, Out]) flush() (err error) {
 	size := self.queue.Len()
 	data := make([]Out, 0, size)
 	for i := 0; i < size; i++ {
@@ -94,7 +94,7 @@ func (self *Processor[In, Out]) flush() {
 	}
 
 	var out []Out
-	err := NewRetry().
+	err = NewRetry().
 		WithContext(self.Ctx).
 		WithMaxElapsedTime(self.maxElapsedTime).
 		WithMaxInterval(self.maxInterval).
@@ -121,6 +121,8 @@ func (self *Processor[In, Out]) flush() {
 		case self.Output <- out:
 		}
 	}
+
+	return
 }
 
 // Receives data from the input channel and saves in the database
@@ -134,8 +136,7 @@ func (self *Processor[In, Out]) run() (err error) {
 			if !ok {
 				// The only way input channel is closed is that the Processor's source is stopping
 				// There will be no more data, flush everything there is and quit.
-				self.flush()
-
+				err = self.flush()
 				return
 			}
 
@@ -150,12 +151,18 @@ func (self *Processor[In, Out]) run() (err error) {
 			}
 
 			if self.queue.Len() >= self.batchSize {
-				self.flush()
+				err = self.flush()
+				if err != nil {
+					return err
+				}
 			}
 
 		case <-timer.C:
 			// Flush is called even if the queue is empty
-			self.flush()
+			err = self.flush()
+			if err != nil {
+				return err
+			}
 			timer = time.NewTimer(self.flushInterval)
 		}
 	}

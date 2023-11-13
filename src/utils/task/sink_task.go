@@ -97,7 +97,7 @@ func (self *SinkTask[In]) flush() {
 		}, b)
 
 		if err != nil {
-			self.Log.WithError(err).Error("Failed to flush data")
+			self.Log.WithError(err).Error("Failed to flush data to sink")
 		}
 	})
 }
