@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"runtime"
 	"sync"
-	"time"
 
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	proto "github.com/cosmos/gogoproto/proto"
@@ -107,11 +106,11 @@ func (self *MsgDataItemParser) validateSortKey(interaction *model.Interaction, p
 		return
 	}
 
-	if arweaveHeight != int64(payload.LastArweaveBlockHeight) {
+	if arweaveHeight != int64(payload.LastArweaveBlock.Height) {
 		err = errors.New("invalid arweave height in sort key")
 		self.Log.WithField("sort_key", interaction.SortKey).
 			WithField("parsed_arweave_height", arweaveHeight).
-			WithField("expected_arweave_height", payload.LastArweaveBlockHeight).
+			WithField("expected_arweave_height", payload.LastArweaveBlock.Height).
 			Error("Invalid arweave height in sort key")
 		return
 	}
@@ -159,7 +158,13 @@ func (self *MsgDataItemParser) parseMessage(msg cosmostypes.Msg, payload *Payloa
 
 	// FIXME: Parsing needs to be implemented, this is just a placeholder
 	// Parse interaction from DataItem
-	interaction, err = self.parser.Parse(&dataItem.DataItem, 0, arweave.Base64String{0}, time.Now().UnixMilli(), dataItem.SortKey, dataItem.PrevSortKey)
+	arweaveBlockHash, err := arweave.Base64StringFromBase64(payload.LastArweaveBlock.Hash)
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to decode block hash")
+		return
+	}
+
+	interaction, err = self.parser.Parse(&dataItem.DataItem, int64(payload.LastArweaveBlock.Height), arweaveBlockHash, int64(payload.LastArweaveBlock.Timestamp), dataItem.SortKey, dataItem.PrevSortKey)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to parse interaction")
 		return

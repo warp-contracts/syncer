@@ -11,7 +11,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
-	"github.com/warp-contracts/syncer/src/utils/tool"
 )
 
 // Fills the last arweave block in the Payload
@@ -27,7 +26,7 @@ type LastArweaveBlockProvider struct {
 	Output chan *Payload
 
 	// Value taken from the API and updated upon MsgArweaveBlock
-	lastArweaveBlockHeight int64
+	lastArweaveBlock *sequencertypes.ArweaveBlockInfo
 }
 
 // Converts Arweave transactions into Warp's contracts
@@ -35,8 +34,6 @@ func NewLastArweaveBlockProvider(config *config.Config) (self *LastArweaveBlockP
 	self = new(LastArweaveBlockProvider)
 
 	self.Output = make(chan *Payload)
-
-	self.lastArweaveBlockHeight = -1
 
 	self.Task = task.NewTask(config, "last_arweave_block_provider").
 		WithSubtaskFunc(self.run).
@@ -67,7 +64,7 @@ func (self *LastArweaveBlockProvider) WithDecoder(decoder *Decoder) *LastArweave
 	return self
 }
 
-func (self *LastArweaveBlockProvider) getLastBlockHeight(payload *Payload) (out int64, err error) {
+func (self *LastArweaveBlockProvider) getLastBlockHeight(payload *Payload) (out *sequencertypes.ArweaveBlockInfo, err error) {
 	ctx, cancel := context.WithTimeout(self.Ctx, time.Minute)
 	defer cancel()
 
@@ -94,7 +91,7 @@ func (self *LastArweaveBlockProvider) getLastBlockHeight(payload *Payload) (out 
 		return
 	}
 
-	out = int64(msg.BlockInfo.Height)
+	out = msg.BlockInfo
 
 	self.Log.WithField("last_arweave_block_height", msg.BlockInfo.Height).Info("Got last arweave block from sequencer")
 
@@ -104,18 +101,20 @@ func (self *LastArweaveBlockProvider) getLastBlockHeight(payload *Payload) (out 
 func (self *LastArweaveBlockProvider) fill(payload *Payload) (err error) {
 	// Update cache
 	for _, arweaveBlock := range payload.ArweaveBlocks {
-		self.lastArweaveBlockHeight = tool.Max(self.lastArweaveBlockHeight, int64(arweaveBlock.Message.BlockInfo.Height))
+		if self.lastArweaveBlock.Height < arweaveBlock.Message.BlockInfo.Height {
+			self.lastArweaveBlock = arweaveBlock.Message.BlockInfo
+		}
 	}
 
 	// Use updated cache
-	if self.lastArweaveBlockHeight > 0 {
+	if self.lastArweaveBlock != nil {
 		// self.Log.WithField("last_arweave_block_height", self.lastArweaveBlockHeight).Debug("Use last arweave block ")
-		payload.LastArweaveBlockHeight = self.lastArweaveBlockHeight
+		payload.LastArweaveBlock = self.lastArweaveBlock
 		return
 	}
 
 	// Request last arweave block for the given sequencer height
-	self.lastArweaveBlockHeight, err = self.getLastBlockHeight(payload)
+	self.lastArweaveBlock, err = self.getLastBlockHeight(payload)
 	return
 }
 
