@@ -117,7 +117,7 @@ func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownload
 			switch string(tag.Name) {
 			case smartweave.TagAppName:
 				if string(tag.Value) != "SmartWeaveAction" {
-					return false
+					continue
 				}
 				// Valid interaction
 				isInteraction = true
