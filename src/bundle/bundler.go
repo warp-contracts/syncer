@@ -118,8 +118,6 @@ func (self *Bundler) run() (err error) {
 				} else {
 					self.Log.WithError(err).
 						WithField("id", item.InteractionID).
-						// WithField("req", resp.Request.Body).
-						WithField("url", resp.Request.URL).
 						Error("Failed to upload interaction to Bundlr, no response")
 				}
 				// Update stats
