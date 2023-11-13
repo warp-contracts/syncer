@@ -116,11 +116,10 @@ func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownload
 		for _, tag := range tx.Tags {
 			switch string(tag.Name) {
 			case smartweave.TagAppName:
-				if string(tag.Value) != "SmartWeaveAction" {
-					continue
+				if string(tag.Value) == "SmartWeaveAction" {
+					// Valid interaction
+					isInteraction = true
 				}
-				// Valid interaction
-				isInteraction = true
 			case smartweave.TagInput:
 				// Input tag must be a valid JSON
 				if tool.CheckJSON(tag.Value) != nil {
