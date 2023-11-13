@@ -341,7 +341,7 @@ func (self *ArweaveFetcher) getSrcTxIds(tx *gorm.DB, interactions []*model.Inter
 		err = self.db.WithContext(self.Ctx).
 			Raw(`SELECT src_tx_id from contracts
 		INNER JOIN interactions ON interactions.contract_id = contracts.contract_id
-		WHERE interactions.id = ?`, interaction.InteractionId).
+		WHERE interactions.interaction_id = ?`, interaction.InteractionId).
 			Scan(&srcTxId).Error
 
 		if err != nil {
