@@ -314,12 +314,12 @@ func (self *Task) run(subtask func() error) {
 		}()
 		for {
 			err := subtask()
+			if self.IsStopping.Load() {
+				self.Log.WithError(err).Info("Subtask closed")
+				break
+			}
 			if err != nil {
 				self.Log.WithError(err).Error("Subtask failed")
-			}
-
-			if self.IsStopping.Load() {
-				break
 			}
 
 			self.Log.WithError(err).Error("Subtask func returned, but task wasn't stopped. Restarting...")

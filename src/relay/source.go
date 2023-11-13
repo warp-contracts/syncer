@@ -180,14 +180,14 @@ func (self *Source) download(len int) (err error) {
 					return err
 				}).
 				Run(func() error {
-					block, err = self.client.Block(self.Ctx, &height)
-					return err
+					var errBlock error
+					block, errBlock = self.client.Block(self.Ctx, &height)
+					return errBlock
 				})
-
-			if err != nil {
+			if errWorker != nil {
 				// Permanent error
 				self.monitor.GetReport().Relayer.Errors.SequencerPermanentBlockDownloadError.Inc()
-				self.Log.WithError(err).WithField("height", height).Error("Failed to download sequencer block, giving up")
+				self.Log.WithError(errWorker).WithField("height", height).Error("Failed to download sequencer block, giving up")
 
 				if !self.IsStopping.Load() {
 					mtx.Lock()
