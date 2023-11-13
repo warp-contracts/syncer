@@ -28,7 +28,7 @@ type Payload struct {
 	SequencerBlockTimestamp int64
 
 	// Arweave block height used to generate sort keys for this sequencer height
-	LastArweaveBlockHeight uint64
+	LastArweaveBlockHeight int64
 
 	// Raw messages from the block, only decoded
 	Messages []cosmostypes.Msg

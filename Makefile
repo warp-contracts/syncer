@@ -78,7 +78,7 @@ forward: build-race | ; $(info $(M) starting forwarding with default params…)
 	bin/$(PACKAGE) forward
 
 .PHONY: relay
-relay: build-race | ; $(info $(M) starting relaying with default params…)
+relay: build | ; $(info $(M) starting relaying with default params…)
 	bin/$(PACKAGE) relay
 
 .PHONY: gateway

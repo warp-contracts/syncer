@@ -78,10 +78,16 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithMonitor(monitor).
 			WithInputChannel(decoder.Output)
 
+		lastArweaveBlockProvider := NewLastArweaveBlockProvider(config).
+			WithInputChannel(msgArweaveBlockParser.Output).
+			WithClient(sequencerClient).
+			WithDecoder(decoder).
+			WithMonitor(monitor)
+
 		// Parses blocks into payload
 		msgDataItemParser := NewMsgDataItemParser(config).
 			WithMonitor(monitor).
-			WithInputChannel(msgArweaveBlockParser.Output)
+			WithInputChannel(lastArweaveBlockProvider.Output)
 
 		// Fill in Arweave blocks
 		blockDownloader := NewOneBlockDownloader(config).
@@ -111,6 +117,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithSubtask(source.Task).
 			WithSubtask(decoder.Task).
 			WithSubtask(msgArweaveBlockParser.Task).
+			WithSubtask(lastArweaveBlockProvider.Task).
 			WithSubtask(msgDataItemParser.Task).
 			WithSubtask(networkMonitor.Task).
 			WithSubtask(blockDownloader.Task).
