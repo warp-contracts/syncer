@@ -37,6 +37,7 @@ type Forwarder struct {
 }
 
 func setForwarderDefaults() {
+	viper.SetDefault("Forwarder.FetcherLastSortKeySettingBlockHeight", "0")
 	viper.SetDefault("Forwarder.FetcherLastSortKeySettingEnabled", "true")
 	viper.SetDefault("Forwarder.FetcherBatchSize", "10")
 	viper.SetDefault("Forwarder.PublisherRedisChannelName", "contracts")
