@@ -306,7 +306,7 @@ func (self *BundleItem) Unmarshal(buf []byte) (err error) {
 func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 	// Signature type
 	signatureType := make([]byte, 2)
-	n, err := reader.Read(signatureType)
+	n, err := io.ReadFull(reader, signatureType)
 	if err != nil {
 		return
 	}
@@ -324,7 +324,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 
 	// Signature (different length depending on the signature type)
 	self.Signature = make([]byte, signer.GetSignatureLength())
-	n, err = reader.Read(self.Signature)
+	n, err = io.ReadFull(reader, self.Signature)
 	if err != nil {
 		return
 	}
@@ -335,7 +335,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 
 	// Owner - public key (different length depending on the signature type)
 	self.Owner = make([]byte, signer.GetOwnerLength())
-	n, err = reader.Read(self.Owner)
+	n, err = io.ReadFull(reader, self.Owner)
 	if err != nil {
 		return
 	}
@@ -346,7 +346,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 
 	// Target (it's optional)
 	isTargetPresent := make([]byte, 1)
-	n, err = reader.Read(isTargetPresent)
+	n, err = io.ReadFull(reader, isTargetPresent)
 	if err != nil {
 		return err
 	}
@@ -360,7 +360,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 	} else {
 		// Value present
 		self.Target = make([]byte, 32)
-		n, err = reader.Read(self.Target)
+		n, err = io.ReadFull(reader, self.Target)
 		if err != nil {
 			return err
 		}
@@ -372,7 +372,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 
 	// Anchor (it's optional)
 	isAnchorPresent := make([]byte, 1)
-	n, err = reader.Read(isAnchorPresent)
+	n, err = io.ReadFull(reader, isAnchorPresent)
 	if err != nil {
 		return err
 	}
@@ -386,7 +386,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 	} else {
 		// Value present
 		self.Anchor = make([]byte, 32)
-		n, err = reader.Read(self.Anchor)
+		n, err = io.ReadFull(reader, self.Anchor)
 		if err != nil {
 			return err
 		}
@@ -398,7 +398,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 
 	// Length of the tags slice
 	numTagsBuffer := make([]byte, 8)
-	n, err = reader.Read(numTagsBuffer)
+	n, err = io.ReadFull(reader, numTagsBuffer)
 	if err != nil {
 		return
 	}
@@ -410,7 +410,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 
 	// Size of encoded tags
 	numTagsBytesBuffer := make([]byte, 8)
-	n, err = reader.Read(numTagsBytesBuffer)
+	n, err = io.ReadFull(reader, numTagsBytesBuffer)
 	if err != nil {
 		return
 	}
@@ -425,7 +425,7 @@ func (self *BundleItem) UnmarshalFromReader(reader io.Reader) (err error) {
 	if numTags > 0 {
 		// Read tags
 		self.tagsBytes = make([]byte, numTagsBytes)
-		n, err = reader.Read(self.tagsBytes)
+		n, err = io.ReadFull(reader, self.tagsBytes)
 		if err != nil {
 			return
 		}
