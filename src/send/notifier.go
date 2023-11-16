@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Gets a live stream of unbundled intearctions, parses them and puts them on the output channel
+// Gets a live stream of data item ids to send
 type Notifier struct {
 	*task.Task
 	db *gorm.DB
@@ -21,19 +21,19 @@ type Notifier struct {
 	monitor  monitoring.Monitor
 
 	// Data about the interactions that need to be bundled
-	output chan *model.BundleItem
+	output chan *model.DataItem
 }
 
 func NewNotifier(config *config.Config) (self *Notifier) {
 	self = new(Notifier)
 
-	if config.Bundler.NotifierDisabled {
-		self.Task = task.NewTask(config, "bundler-notifier")
+	if config.Sender.NotifierDisabled {
+		self.Task = task.NewTask(config, "sender-notifier")
 		return
 	}
 
-	self.streamer = streamer.NewStreamer(config, "bundler-notifier").
-		WithNotificationChannelName("bundle_items_pending").
+	self.streamer = streamer.NewStreamer(config, "sender-notifier").
+		WithNotificationChannelName("data_items_pending").
 		WithCapacity(10)
 
 	self.Task = task.NewTask(config, "notifier").
@@ -42,7 +42,7 @@ func NewNotifier(config *config.Config) (self *Notifier) {
 		// Interactions that somehow wasn't sent through the notification channel. Probably because of a restart.
 		WithSubtaskFunc(self.run).
 		// Workers unmarshal big JSON messages and optionally fetch data from the database if the messages wuldn't fit in the notification channel
-		WithWorkerPool(config.Bundler.NotifierWorkerPoolSize, config.Bundler.NotifierWorkerQueueSize)
+		WithWorkerPool(config.Sender.NotifierWorkerPoolSize, config.Sender.NotifierWorkerQueueSize)
 
 	return
 }
@@ -57,7 +57,7 @@ func (self *Notifier) WithMonitor(monitor monitoring.Monitor) *Notifier {
 	return self
 }
 
-func (self *Notifier) WithOutputChannel(bundleItems chan *model.BundleItem) *Notifier {
+func (self *Notifier) WithOutputChannel(bundleItems chan *model.DataItem) *Notifier {
 	self.output = bundleItems
 	return self
 }
@@ -65,8 +65,7 @@ func (self *Notifier) WithOutputChannel(bundleItems chan *model.BundleItem) *Not
 func (self *Notifier) run() error {
 	for {
 		select {
-		case <-self.StopChannel:
-			self.Log.Debug("Stop passing interactions from notification")
+		case <-self.Ctx.Done():
 			return nil
 		case msg, ok := <-self.streamer.Output:
 			if !ok {
@@ -75,58 +74,38 @@ func (self *Notifier) run() error {
 			}
 
 			self.SubmitToWorker(func() {
-				var notification model.BundleItemNotification
+				var notification model.DataItemNotification
 				err := json.Unmarshal([]byte(msg), &notification)
 				if err != nil {
 					self.Log.WithError(err).Error("Failed to unmarshal notification")
 					return
 				}
 
-				bundleItem := model.BundleItem{
-					InteractionID: notification.InteractionID,
+				dataItem := model.DataItem{
+					DataItemID: notification.DataItemId,
 				}
-				if notification.Transaction != nil || notification.DataItem != nil {
-					if notification.Transaction != nil {
-						bundleItem.Transaction = *notification.Transaction
-					}
 
-					if notification.Tags != nil {
-						bundleItem.Tags = *notification.Tags
-					}
-
-					if notification.DataItem != nil {
-						err = bundleItem.DataItem.Scan(*notification.DataItem)
-						if err != nil {
-							self.Log.WithError(err).Error("Failed to scan data item from notification")
-							return
-						}
-					}
-				} else {
-					// Transaction was too big to fit into the notification channel
-					// Only id is there, we need to fetch the rest of the data from the database
-					err = self.db.WithContext(self.Ctx).
-						Model(&model.BundleItem{}).
-						Select("transaction", "tags", "data_item").
-						Where("interaction_id = ?", notification.InteractionID).
-						Scan(&bundleItem).
-						Error
-					if err != nil {
-						// Action will be retried automatically, no need to do it here
-						self.Log.WithError(err).Error("Failed to get bundle item")
-						self.monitor.GetReport().Bundler.Errors.AdditionalFetchError.Inc()
-						return
-					}
-					self.monitor.GetReport().Bundler.State.AdditionalFetches.Inc()
+				// Transaction was too big to fit into the notification channel
+				// Only id is there, we need to fetch the rest of the data from the database
+				err = self.db.WithContext(self.Ctx).
+					First(&dataItem).
+					Error
+				if err != nil {
+					// Action will be retried automatically, no need to do it here
+					self.Log.WithError(err).Error("Failed to get bundle item")
+					self.monitor.GetReport().Sender.Errors.AdditionalFetchError.Inc()
+					return
 				}
+				self.monitor.GetReport().Sender.State.AdditionalFetches.Inc()
 
 				select {
-				case <-self.StopChannel:
+				case <-self.Ctx.Done():
 					return
-				case self.output <- &bundleItem:
+				case self.output <- &dataItem:
 				}
 
 				// Update metrics
-				self.monitor.GetReport().Bundler.State.BundlesFromNotifications.Inc()
+				self.monitor.GetReport().Sender.State.BundlesFromNotifications.Inc()
 
 				// This might be the workload that unpauses the streamer
 				if self.GetWorkerQueueFillFactor() < 0.1 {

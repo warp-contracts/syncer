@@ -12,9 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Periodically gets the unbundled interactions and puts them on the output channel
-// Gets interactions that somehow didn't get sent through the notification channel.
-// Probably because of a restart.
+// Periodically gets pending data items and puts them on the output channel
+// Gets data items that somehow didn't get sent through the notification channel.
 type Poller struct {
 	*task.Task
 	db *gorm.DB
@@ -22,20 +21,15 @@ type Poller struct {
 	monitor monitoring.Monitor
 
 	// Data about the interactions that need to be bundled
-	output chan *model.BundleItem
+	output chan *model.DataItem
 }
 
 func NewPoller(config *config.Config) (self *Poller) {
 	self = new(Poller)
 
-	if config.Bundler.PollerDisabled {
-		self.Task = task.NewTask(config, "poller")
-		return
-	}
-
 	self.Task = task.NewTask(config, "poller").
-		WithRepeatedSubtaskFunc(config.Bundler.PollerInterval, self.handleNewTransactions).
-		WithRepeatedSubtaskFunc(config.Bundler.PollerInterval, self.handleRetrying)
+		WithRepeatedSubtaskFunc(config.Sender.PollerInterval, self.handleNewTransactions).
+		WithRepeatedSubtaskFunc(config.Sender.PollerInterval, self.handleRetrying)
 
 	return
 }
@@ -45,8 +39,8 @@ func (self *Poller) WithDB(db *gorm.DB) *Poller {
 	return self
 }
 
-func (self *Poller) WithOutputChannel(bundleItems chan *model.BundleItem) *Poller {
-	self.output = bundleItems
+func (self *Poller) WithOutputChannel(v chan *model.DataItem) *Poller {
+	self.output = v
 	return self
 }
 
@@ -56,50 +50,50 @@ func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
 }
 
 func (self *Poller) handleNewTransactions() (repeat bool, err error) {
-	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Bundler.PollerTimeout)
+	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Sender.PollerTimeout)
 	defer cancel()
 
 	// Inserts interactions that weren't yet bundled into bundle_items table
-	var bundleItems []model.BundleItem
+	var dataItems []model.DataItem
 	err = self.db.WithContext(ctx).
-		Raw(`UPDATE bundle_items
+		Raw(`UPDATE data_items
 			SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
-			WHERE interaction_id IN (SELECT interaction_id
-				FROM bundle_items
+			WHERE data_item_id IN (SELECT data_item_id
+				FROM data_items
 				WHERE state = 'PENDING'::bundle_state
-				ORDER BY interaction_id ASC
+				ORDER BY updated_at ASC
 				LIMIT ?
 				FOR UPDATE SKIP LOCKED)
-			RETURNING *`, self.Config.Bundler.PollerMaxBatchSize).
-		Scan(&bundleItems).Error
+			RETURNING *`, self.Config.Sender.PollerMaxBatchSize).
+		Scan(&dataItems).Error
 
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			self.Log.WithError(err).Error("Failed to get new interactions")
-			self.monitor.GetReport().Bundler.Errors.PollerFetchError.Inc()
+			self.monitor.GetReport().Sender.Errors.PollerFetchError.Inc()
 		}
 		err = nil
 		return
 	}
 
-	if len(bundleItems) > 0 {
-		self.Log.WithField("count", len(bundleItems)).Debug("Polled new bundle items")
+	if len(dataItems) > 0 {
+		self.Log.WithField("count", len(dataItems)).Debug("Polled new data items")
 	}
 
-	for i := range bundleItems {
+	for i := range dataItems {
 		select {
-		case <-self.StopChannel:
+		case <-self.Ctx.Done():
 			return
-		case self.output <- &bundleItems[i]:
+		case self.output <- &dataItems[i]:
 		}
 
 		// Update metrics
-		self.monitor.GetReport().Bundler.State.BundlesFromSelects.Inc()
+		self.monitor.GetReport().Sender.State.BundlesFromSelects.Inc()
 	}
 
 	// Start another check if there can be more items to fetch
 	// Skip this if another check is scheduled
-	if len(bundleItems) != self.Config.Bundler.PollerMaxBatchSize {
+	if len(dataItems) != self.Config.Sender.PollerMaxBatchSize {
 		return
 	}
 
@@ -110,52 +104,52 @@ func (self *Poller) handleNewTransactions() (repeat bool, err error) {
 
 func (self *Poller) handleRetrying() (repeat bool, err error) {
 
-	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Bundler.PollerTimeout)
+	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Sender.PollerTimeout)
 	defer cancel()
 
 	// Inserts interactions that weren't yet bundled into bundle_items table
-	var bundleItems []model.BundleItem
+	var dataItems []model.DataItem
 	err = self.db.WithContext(ctx).
-		Raw(`UPDATE bundle_items
+		Raw(`UPDATE data_items
 	SET state = 'UPLOADING'::bundle_state, updated_at = NOW()
-	WHERE interaction_id IN (
-		SELECT interaction_id
-		FROM bundle_items
+	WHERE data_item_id IN (
+		SELECT data_item_id
+		FROM data_items
 		WHERE state = 'UPLOADING'::bundle_state AND updated_at < NOW() - ?::interval
 		ORDER BY interaction_id ASC
 		LIMIT ?
 		FOR UPDATE SKIP LOCKED)
-	RETURNING *`, fmt.Sprintf("%d seconds", int((self.Config.Bundler.PollerRetryBundleAfter.Seconds()))), self.Config.Bundler.PollerMaxBatchSize).
-		Scan(&bundleItems).
+	RETURNING *`, fmt.Sprintf("%d seconds", int((self.Config.Sender.PollerRetryBundleAfter.Seconds()))), self.Config.Sender.PollerMaxBatchSize).
+		Scan(&dataItems).
 		Error
 
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			self.Log.WithError(err).Error("Failed to get interactions for retrying")
-			self.monitor.GetReport().Bundler.Errors.PollerFetchError.Inc()
+			self.monitor.GetReport().Sender.Errors.PollerFetchError.Inc()
 		}
 		err = nil
 		return
 	}
 
-	if len(bundleItems) > 0 {
-		self.Log.WithField("count", len(bundleItems)).Trace("Polled bundle items for retrying")
+	if len(dataItems) > 0 {
+		self.Log.WithField("count", len(dataItems)).Trace("Polled data items for retrying sending to bundling service")
 	}
 
-	for i := range bundleItems {
+	for i := range dataItems {
 		select {
-		case <-self.StopChannel:
+		case <-self.Ctx.Done():
 			return
-		case self.output <- &bundleItems[i]:
+		case self.output <- &dataItems[i]:
 		}
 
 		// Update metrics
-		self.monitor.GetReport().Bundler.State.RetriedBundlesFromSelects.Inc()
+		self.monitor.GetReport().Sender.State.RetriedBundlesFromSelects.Inc()
 	}
 
 	// Start another check if there can be more items to fetch
 	// Skip this if another check is scheduled
-	if len(bundleItems) != self.Config.Bundler.PollerMaxBatchSize {
+	if len(dataItems) != self.Config.Sender.PollerMaxBatchSize {
 		return
 	}
 

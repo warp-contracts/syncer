@@ -31,10 +31,10 @@ type Controller struct {
 // Main class that orchestrates main syncer functionalities
 func NewController(config *config.Config) (self *Controller, err error) {
 	self = new(Controller)
-	self.Task = task.NewTask(config, "bundle-controller")
+	self.Task = task.NewTask(config, "sender-controller")
 
 	// SQL database
-	db, err := model.NewConnection(self.Ctx, config, "bundler")
+	db, err := model.NewConnection(self.Ctx, config, "sender")
 	if err != nil {
 		return
 	}
@@ -64,29 +64,29 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithRequiredConfirmationBlocks(0).
 		WithEnableOutput(false /*disable output channel to avoid blocking*/)
 
-	// Sends interactions to bundlr.network
-	bundler := NewBundler(config, db).
+	// Sends data items to bundle service
+	sender := NewSender(config, db).
 		WithInputChannel(collector.Output).
 		WithMonitor(monitor).
 		WithClient(bundlrClient)
 
 	// Confirmer periodically updates the state of the bundled interactions
-	confirmer := NewConfirmer(config).
+	store := NewStore(config).
 		WithDB(db).
 		WithMonitor(monitor).
 		WithNetworkMonitor(networkMonitor).
-		WithInputChannel(bundler.Output)
+		WithInputChannel(sender.Output)
 
 	// Periodically run queries. Results stored in the monitor.
 	dbPoller := monitoring.NewDbPoller(config).
 		WithDB(db).
-		WithQuery(config.Bundler.DBPollerInterval, &monitor.GetReport().Bundler.State.PendingBundleItems, "SELECT count(1) FROM bundle_items WHERE state='PENDING'")
+		WithQuery(config.Sender.DBPollerInterval, &monitor.GetReport().Sender.State.PendingBundleItems, "SELECT count(1) FROM data_items WHERE state='PENDING'")
 
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
-		WithConditionalSubtask(!config.Bundler.NotifierDisabled && config.Bundler.PollerDisabled, dbPoller.Task).
-		WithSubtask(confirmer.Task).
-		WithSubtask(bundler.Task).
+		WithConditionalSubtask(!config.Sender.NotifierDisabled && config.Sender.PollerDisabled, dbPoller.Task).
+		WithSubtask(store.Task).
+		WithSubtask(sender.Task).
 		WithSubtask(monitor.Task).
 		WithSubtask(networkMonitor.Task).
 		WithSubtask(server.Task).
