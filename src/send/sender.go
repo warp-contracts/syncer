@@ -42,7 +42,10 @@ func NewSender(config *config.Config, db *gorm.DB) (self *Sender) {
 		// It's possible to run multiple requests in parallel.
 		// We're limiting the number of parallel requests with the number of workers.
 		WithWorkerPool(config.Sender.BundlerNumBundlingWorkers, config.Sender.WorkerPoolQueueSize).
-		WithSubtaskFunc(self.run)
+		WithSubtaskFunc(self.run).
+		WithOnAfterStop(func() {
+			close(self.Output)
+		})
 
 	self.signer, err = bundlr.NewArweaveSigner(config.Bundlr.Wallet)
 	if err != nil {
