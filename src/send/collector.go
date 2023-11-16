@@ -9,21 +9,17 @@ import (
 	"gorm.io/gorm"
 )
 
-// Gets the unbundled interactions and puts them on the output channel
+// Gets data items from 2 sources
 type Collector struct {
 	*task.Task
 
 	notifier *Notifier
 	poller   *Poller
 
-	// Data about the interactions that need to be bundled
+	// Data items to be sent out
 	Output chan *model.DataItem
 }
 
-// Sets up the task of fetching interactions to be bundled
-// Collects it from two sources:
-// 1. Live source of interactions that need to be bundled
-// 2. Interactions that somehow wasn't sent through the notification channel. Probably because of a restart.
 func NewCollector(config *config.Config, db *gorm.DB) (self *Collector) {
 	self = new(Collector)
 
@@ -38,9 +34,7 @@ func NewCollector(config *config.Config, db *gorm.DB) (self *Collector) {
 		WithOutputChannel(self.Output)
 
 	self.Task = task.NewTask(config, "collector").
-		// Live source of interactions
 		WithConditionalSubtask(!config.Sender.NotifierDisabled, self.notifier.Task).
-		// Polled interactions
 		WithConditionalSubtask(!config.Sender.PollerDisabled, self.poller.Task).
 		WithOnAfterStop(func() {
 			close(self.Output)

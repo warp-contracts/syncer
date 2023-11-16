@@ -7,7 +7,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/listener"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
-	monitor_bundler "github.com/warp-contracts/syncer/src/utils/monitoring/bundler"
+	monitor_sender "github.com/warp-contracts/syncer/src/utils/monitoring/sender"
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
@@ -22,7 +22,7 @@ type Controller struct {
 // | +-----------+ |
 // | |  Poller   | |             +----------+         +-----------+                +-----------------+
 // | +-----------+ |     tx      |          |   pd    |           |  network_info  |                 |
-// |               +------------>| Bundler  +-------->| Confirmer |<-------------- | Network Monitor |
+// |               +------------>|  Sender  +-------->|   Store   |<-------------- | Network Monitor |
 // | +-----------+ |             |          |         |           |                |                 |
 // | |  Notifier | |             +----------+         +-----------+                +-----------------+
 // | +-----------+ |
@@ -48,11 +48,11 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	bundlrClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
 
 	// Monitoring
-	monitor := monitor_bundler.NewMonitor()
+	monitor := monitor_sender.NewMonitor()
 	server := monitoring.NewServer(config).
 		WithMonitor(monitor)
 
-	// Gets interactions to bundle from the database
+	// Gets data items from the database
 	collector := NewCollector(config, db).
 		WithMonitor(monitor)
 
@@ -70,7 +70,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor).
 		WithClient(bundlrClient)
 
-	// Confirmer periodically updates the state of the bundled interactions
+	// Save updated data items
 	store := NewStore(config).
 		WithDB(db).
 		WithMonitor(monitor).

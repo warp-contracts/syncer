@@ -16,19 +16,17 @@ import (
 // Gets data items that somehow didn't get sent through the notification channel.
 type Poller struct {
 	*task.Task
-	db *gorm.DB
 
+	db      *gorm.DB
 	monitor monitoring.Monitor
-
-	// Data about the interactions that need to be bundled
-	output chan *model.DataItem
+	output  chan *model.DataItem
 }
 
 func NewPoller(config *config.Config) (self *Poller) {
 	self = new(Poller)
 
 	self.Task = task.NewTask(config, "poller").
-		WithRepeatedSubtaskFunc(config.Sender.PollerInterval, self.handleNewTransactions).
+		WithRepeatedSubtaskFunc(config.Sender.PollerInterval, self.handleNew).
 		WithRepeatedSubtaskFunc(config.Sender.PollerInterval, self.handleRetrying)
 
 	return
@@ -49,11 +47,11 @@ func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
 	return self
 }
 
-func (self *Poller) handleNewTransactions() (repeat bool, err error) {
+func (self *Poller) handleNew() (repeat bool, err error) {
 	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Sender.PollerTimeout)
 	defer cancel()
 
-	// Inserts interactions that weren't yet bundled into bundle_items table
+	// Gets new data items
 	var dataItems []model.DataItem
 	err = self.db.WithContext(ctx).
 		Raw(`UPDATE data_items
@@ -69,7 +67,7 @@ func (self *Poller) handleNewTransactions() (repeat bool, err error) {
 
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
-			self.Log.WithError(err).Error("Failed to get new interactions")
+			self.Log.WithError(err).Error("Failed to get new data items")
 			self.monitor.GetReport().Sender.Errors.PollerFetchError.Inc()
 		}
 		err = nil
@@ -107,7 +105,6 @@ func (self *Poller) handleRetrying() (repeat bool, err error) {
 	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Sender.PollerTimeout)
 	defer cancel()
 
-	// Inserts interactions that weren't yet bundled into bundle_items table
 	var dataItems []model.DataItem
 	err = self.db.WithContext(ctx).
 		Raw(`UPDATE data_items
@@ -116,7 +113,7 @@ func (self *Poller) handleRetrying() (repeat bool, err error) {
 		SELECT data_item_id
 		FROM data_items
 		WHERE state = 'UPLOADING'::bundle_state AND updated_at < NOW() - ?::interval
-		ORDER BY interaction_id ASC
+		ORDER BY updated_at ASC
 		LIMIT ?
 		FOR UPDATE SKIP LOCKED)
 	RETURNING *`, fmt.Sprintf("%d seconds", int((self.Config.Sender.PollerRetryBundleAfter.Seconds()))), self.Config.Sender.PollerMaxBatchSize).
@@ -125,7 +122,7 @@ func (self *Poller) handleRetrying() (repeat bool, err error) {
 
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
-			self.Log.WithError(err).Error("Failed to get interactions for retrying")
+			self.Log.WithError(err).Error("Failed to get data items for retrying")
 			self.monitor.GetReport().Sender.Errors.PollerFetchError.Inc()
 		}
 		err = nil

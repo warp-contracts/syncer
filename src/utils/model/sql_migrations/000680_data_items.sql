@@ -78,4 +78,4 @@ CREATE TABLE IF NOT EXISTS data_items (
         response IS NULL
         OR response ? 'id' :: text
     )
-)
+);

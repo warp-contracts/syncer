@@ -19,9 +19,7 @@ type Notifier struct {
 
 	streamer *streamer.Streamer
 	monitor  monitoring.Monitor
-
-	// Data about the interactions that need to be bundled
-	output chan *model.DataItem
+	output   chan *model.DataItem
 }
 
 func NewNotifier(config *config.Config) (self *Notifier) {
@@ -37,11 +35,8 @@ func NewNotifier(config *config.Config) (self *Notifier) {
 		WithCapacity(10)
 
 	self.Task = task.NewTask(config, "notifier").
-		// Live source of interactions that need to be bundled
 		WithSubtask(self.streamer.Task).
-		// Interactions that somehow wasn't sent through the notification channel. Probably because of a restart.
 		WithSubtaskFunc(self.run).
-		// Workers unmarshal big JSON messages and optionally fetch data from the database if the messages wuldn't fit in the notification channel
 		WithWorkerPool(config.Sender.NotifierWorkerPoolSize, config.Sender.NotifierWorkerQueueSize)
 
 	return

@@ -89,6 +89,10 @@ gateway: build-race | ; $(info $(M) starting relaying with default params…)
 load: build-race | ; $(info $(M) starting loading with default params…)
 	bin/$(PACKAGE) load
 
+.PHONY: send
+send: build-race | ; $(info $(M) starting sending with default params…)
+	bin/$(PACKAGE) send
+
 .PHONY: lint
 lint: $(GOLANGCILINT) | $(BASE) ; $(info $(M) running golangci-lint) @
 	$Q $(GOLANGCILINT) run 

@@ -28,7 +28,7 @@ type Sender struct {
 	bundlrClient *bundlr.Client
 	signer       *bundlr.ArweaveSigner
 
-	// Ids of successfully bundled interactions
+	// Updated data items
 	Output chan *model.DataItem
 }
 
@@ -111,7 +111,6 @@ func (self *Sender) run() (err error) {
 				goto end
 			}
 
-			// self.Log.WithField("id", item.InteractionID).Trace("Sending interaction to Bundlr")
 			// Send the bundle item to bundlr
 			uploadResponse, resp, err = self.bundlrClient.Upload(self.Ctx, bundleItem)
 			if err != nil {
@@ -124,7 +123,7 @@ func (self *Sender) run() (err error) {
 				} else {
 					self.Log.WithError(err).
 						WithField("data_item_id", item.DataItemID).
-						Error("Failed to upload interaction to Irys, no response")
+						Error("Failed to upload data item to Irys, no response")
 				}
 
 				// Update stats
