@@ -13,7 +13,7 @@ import (
 
 // Periodically saves the state of processed data items
 type Store struct {
-	*task.SinkTask[*model.DataItem]
+	*task.Hole[*model.DataItem]
 	monitor        monitoring.Monitor
 	db             *gorm.DB
 	networkMonitor *listener.NetworkMonitor
@@ -22,7 +22,7 @@ type Store struct {
 func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
 
-	self.SinkTask = task.NewSinkTask[*model.DataItem](config, "store").
+	self.Hole = task.NewHole[*model.DataItem](config, "store").
 		WithBatchSize(config.Sender.StoreBatchSize).
 		WithOnFlush(config.Sender.StoreInterval, self.flush).
 		WithBackoff(0 /* infinite retry */, config.Sender.StoreBackoffMaxInterval)
@@ -36,7 +36,7 @@ func (self *Store) WithDB(db *gorm.DB) *Store {
 }
 
 func (self *Store) WithInputChannel(input chan *model.DataItem) *Store {
-	self.SinkTask.WithInputChannel(input)
+	self.Hole.WithInputChannel(input)
 	return self
 }
 
