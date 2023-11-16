@@ -6,6 +6,7 @@ type Report struct {
 	Syncer                *SyncerReport                `json:"syncer,omitempty"`
 	Contractor            *ContractorReport            `json:"contractor,omitempty"`
 	Bundler               *BundlerReport               `json:"bundler,omitempty"`
+	Sender                *SenderReport                `json:"sender,omitempty"`
 	Checker               *CheckerReport               `json:"checker,omitempty"`
 	Forwarder             *ForwarderReport             `json:"forwarder,omitempty"`
 	Relayer               *RelayerReport               `json:"relayer,omitempty"`
