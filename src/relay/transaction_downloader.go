@@ -9,8 +9,8 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	"github.com/warp-contracts/syncer/src/utils/smartweave"
 	"github.com/warp-contracts/syncer/src/utils/task"
-	"github.com/warp-contracts/syncer/src/utils/warp"
 
 	"github.com/cenkalti/backoff/v4"
 )
@@ -98,9 +98,10 @@ func (self *TransactionDownloader) downloadOne(txId string) (out *arweave.Transa
 				return err
 			}
 
-			// Check if transaction is an interaction
-			if !warp.IsL1Interaction(out) {
-				err = errors.New("tx is not an interaction")
+			// Check if transaction is a valid interaction
+			err = smartweave.ValidateInteraction(out)
+			if err != nil {
+				self.Log.WithField("txId", txId).WithError(err).Error("Transaction is not a valid interaction")
 				return err
 			}
 

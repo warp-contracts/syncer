@@ -27,7 +27,6 @@ type InteractionParser struct {
 }
 
 var (
-	contractIdRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{43}$")
 	txIdRegex       = regexp.MustCompile("^[a-z0-9_-]{43}$")
 )
 
@@ -147,19 +146,19 @@ func (self *InteractionParser) parseTags(tags []arweave.Tag) (out []smartweave.T
 
 func AddTagToInteraction(out *model.Interaction, name, value string) error {
 	switch string(name) {
-	case "Contract":
-		if !contractIdRegex.MatchString(value) {
+	case smartweave.TagContractTxId:
+		if !smartweave.TagContractTxIdRegex.MatchString(value) {
 			return errors.New("tag doesn't validate as a contractId")
 		}
 		out.ContractId = value
-	case "Interact-Write":
+	case TagInteractWrite:
 		out.InteractWrite = append(out.InteractWrite, value)
-	case "Warp-Testnet":
+	case TagWarpTestnet:
 		out.Testnet = sql.NullString{
 			String: value,
 			Valid:  true,
 		}
-	case "Input":
+	case smartweave.TagInput:
 		out.Input = value
 
 		// It will allow any JSON. Arrays, objects, strings, numbers, booleans, and null
