@@ -35,6 +35,7 @@ type Config struct {
 	NetworkMonitor        NetworkMonitor
 	Syncer                Syncer
 	Bundler               Bundler
+	Sender                Sender
 	Bundlr                Bundlr
 	Checker               Checker
 	Database              Database
@@ -61,6 +62,7 @@ func setDefaults() {
 	setNetworkMonitorDefaults()
 	setSyncerDefaults()
 	setBundlerDefaults()
+	setSenderDefaults()
 	setBundlrDefaults()
 	setCheckerDefaults()
 	setDatabaseDefaults()
