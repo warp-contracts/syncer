@@ -16,10 +16,10 @@ type Collector struct {
 	BundlesFromSelects          *prometheus.Desc
 	RetriedBundlesFromSelects   *prometheus.Desc
 	AllBundlesFromDb            *prometheus.Desc
-	BundlrSuccess               *prometheus.Desc
+	IrysSuccess                 *prometheus.Desc
 	ConfirmationsSavedToDb      *prometheus.Desc
-	BundrlError                 *prometheus.Desc
-	BundrlMarshalError          *prometheus.Desc
+	IrysError                   *prometheus.Desc
+	IrysMarshalError            *prometheus.Desc
 	ConfirmationsSavedToDbError *prometheus.Desc
 	AdditionalFetchError        *prometheus.Desc
 	PollerFetchError            *prometheus.Desc
@@ -34,10 +34,10 @@ func NewCollector() *Collector {
 		BundlesFromSelects:          prometheus.NewDesc("bundles_from_selects", "", nil, nil),
 		RetriedBundlesFromSelects:   prometheus.NewDesc("retried_bundles_from_selects", "", nil, nil),
 		AllBundlesFromDb:            prometheus.NewDesc("all_bundles_from_db", "", nil, nil),
-		BundlrSuccess:               prometheus.NewDesc("bundlr_success", "", nil, nil),
+		IrysSuccess:                 prometheus.NewDesc("irys_success", "", nil, nil),
 		ConfirmationsSavedToDb:      prometheus.NewDesc("confirmations_saved_to_db", "", nil, nil),
-		BundrlError:                 prometheus.NewDesc("bundrl_error", "", nil, nil),
-		BundrlMarshalError:          prometheus.NewDesc("bundrl_marshal_error", "", nil, nil),
+		IrysError:                   prometheus.NewDesc("irys_error", "", nil, nil),
+		IrysMarshalError:            prometheus.NewDesc("irys_marshal_error", "", nil, nil),
 		ConfirmationsSavedToDbError: prometheus.NewDesc("confirmations_saved_to_db_error", "", nil, nil),
 		AdditionalFetchError:        prometheus.NewDesc("additional_fetch_error", "", nil, nil),
 		PollerFetchError:            prometheus.NewDesc("poller_fetch_error", "", nil, nil),
@@ -59,11 +59,11 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.RetriedBundlesFromSelects
 	ch <- self.AdditionalFetches
 	ch <- self.AllBundlesFromDb
-	ch <- self.BundlrSuccess
+	ch <- self.IrysSuccess
 	ch <- self.ConfirmationsSavedToDb
 
 	// Errors
-	ch <- self.BundrlError
+	ch <- self.IrysError
 	ch <- self.ConfirmationsSavedToDbError
 	ch <- self.AdditionalFetchError
 	ch <- self.PollerFetchError
@@ -81,10 +81,10 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.BundlesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Sender.State.BundlesFromSelects.Load()))
 	ch <- prometheus.MustNewConstMetric(self.RetriedBundlesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Sender.State.RetriedBundlesFromSelects.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AllBundlesFromDb, prometheus.CounterValue, float64(self.monitor.Report.Sender.State.AllBundlesFromDb.Load()))
-	ch <- prometheus.MustNewConstMetric(self.BundlrSuccess, prometheus.CounterValue, float64(self.monitor.Report.Sender.State.BundlrSuccess.Load()))
+	ch <- prometheus.MustNewConstMetric(self.IrysSuccess, prometheus.CounterValue, float64(self.monitor.Report.Sender.State.IrysSuccess.Load()))
 	ch <- prometheus.MustNewConstMetric(self.ConfirmationsSavedToDb, prometheus.CounterValue, float64(self.monitor.Report.Sender.State.ConfirmationsSavedToDb.Load()))
-	ch <- prometheus.MustNewConstMetric(self.BundrlError, prometheus.CounterValue, float64(self.monitor.Report.Sender.Errors.BundrlError.Load()))
-	ch <- prometheus.MustNewConstMetric(self.BundrlMarshalError, prometheus.CounterValue, float64(self.monitor.Report.Sender.Errors.BundrlMarshalError.Load()))
+	ch <- prometheus.MustNewConstMetric(self.IrysError, prometheus.CounterValue, float64(self.monitor.Report.Sender.Errors.IrysError.Load()))
+	ch <- prometheus.MustNewConstMetric(self.IrysMarshalError, prometheus.CounterValue, float64(self.monitor.Report.Sender.Errors.IrysMarshalError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.ConfirmationsSavedToDbError, prometheus.CounterValue, float64(self.monitor.Report.Sender.Errors.ConfirmationsSavedToDbError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AdditionalFetchError, prometheus.CounterValue, float64(self.monitor.Report.Sender.Errors.AdditionalFetchError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.PollerFetchError, prometheus.CounterValue, float64(self.monitor.Report.Sender.Errors.PollerFetchError.Load()))

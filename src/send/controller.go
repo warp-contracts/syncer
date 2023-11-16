@@ -42,10 +42,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Arweave client
 	arweaveClient := arweave.NewClient(self.Ctx, config)
 
-	// TODO: tutaj musi byc fallback  na arweave.net jak gw nie odpowiada
-
 	// Bundlr client
-	bundlrClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
+	irysClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
 
 	// Monitoring
 	monitor := monitor_sender.NewMonitor()
@@ -68,7 +66,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	sender := NewSender(config, db).
 		WithInputChannel(collector.Output).
 		WithMonitor(monitor).
-		WithClient(bundlrClient)
+		WithClient(irysClient)
 
 	// Save updated data items
 	store := NewStore(config).

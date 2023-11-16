@@ -1,10 +1,7 @@
 package send
 
 import (
-	crypto_rand "crypto/rand"
-	"encoding/binary"
 	"errors"
-	"math/rand"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
@@ -19,14 +16,13 @@ import (
 
 type Sender struct {
 	*task.Task
-	rand    *rand.Rand
 	db      *gorm.DB
 	input   chan *model.DataItem
 	monitor monitoring.Monitor
 
 	// Bundling and signing
-	bundlrClient *bundlr.Client
-	signer       *bundlr.ArweaveSigner
+	irysClient *bundlr.Client
+	signer     *bundlr.ArweaveSigner
 
 	// Updated data items
 	Output chan *model.DataItem
@@ -39,18 +35,10 @@ func NewSender(config *config.Config, db *gorm.DB) (self *Sender) {
 	self = new(Sender)
 	self.db = db
 
-	// Seed random generator
-	var b [8]byte
-	_, err = crypto_rand.Read(b[:])
-	if err != nil {
-		self.Log.WithError(err).Panic("Cannot seed math/rand package with cryptographically secure random number generator")
-	}
-	self.rand = rand.New(rand.NewSource(int64(binary.LittleEndian.Uint64(b[:]))))
-
 	self.Output = make(chan *model.DataItem)
 
 	self.Task = task.NewTask(config, "sender").
-		// Pool of workers that perform requests to bundlr.
+		// Pool of workers that perform requests
 		// It's possible to run multiple requests in parallel.
 		// We're limiting the number of parallel requests with the number of workers.
 		WithWorkerPool(config.Sender.BundlerNumBundlingWorkers, config.Sender.WorkerPoolQueueSize).
@@ -65,7 +53,7 @@ func NewSender(config *config.Config, db *gorm.DB) (self *Sender) {
 }
 
 func (self *Sender) WithClient(client *bundlr.Client) *Sender {
-	self.bundlrClient = client
+	self.irysClient = client
 	return self
 }
 
@@ -102,7 +90,7 @@ func (self *Sender) run() (err error) {
 				err            error
 			)
 
-			bundleItem, err := self.parse(item)
+			dataItem, err := self.parse(item)
 			if err != nil {
 				self.Log.WithError(err).
 					WithField("data_item_id", item.DataItemID).
@@ -111,8 +99,8 @@ func (self *Sender) run() (err error) {
 				goto end
 			}
 
-			// Send the bundle item to bundlr
-			uploadResponse, resp, err = self.bundlrClient.Upload(self.Ctx, bundleItem)
+			// Send the bundle item to the bundling service
+			uploadResponse, resp, err = self.irysClient.Upload(self.Ctx, dataItem)
 			if err != nil {
 				if resp != nil {
 					self.Log.WithError(err).
@@ -127,7 +115,7 @@ func (self *Sender) run() (err error) {
 				}
 
 				// Update stats
-				self.monitor.GetReport().Sender.Errors.BundrlError.Inc()
+				self.monitor.GetReport().Sender.Errors.IrysError.Inc()
 
 				// Bad request shouldn't be retried
 				if resp != nil && resp.StatusCode() > 399 && resp.StatusCode() < 500 {
@@ -139,16 +127,16 @@ func (self *Sender) run() (err error) {
 
 			// Check if the response is valid
 			if len(uploadResponse.Id) == 0 {
-				err = errors.New("Bundlr response has empty ID")
-				self.Log.WithError(err).WithField("id", item.DataItemID).Error("Bad bundlr response")
-				self.monitor.GetReport().Sender.Errors.BundrlError.Inc()
+				err = errors.New("Irys response has empty ID")
+				self.Log.WithError(err).WithField("id", item.DataItemID).Error("Bad Irys response")
+				self.monitor.GetReport().Sender.Errors.IrysError.Inc()
 				return
 			}
 
 			// We'll store the JSON response
 			err = item.Response.Set(uploadResponse)
 			if err != nil {
-				self.monitor.GetReport().Sender.Errors.BundrlMarshalError.Inc()
+				self.monitor.GetReport().Sender.Errors.IrysMarshalError.Inc()
 				self.Log.WithError(err).Error("Failed to marshal response")
 				return
 			}
@@ -156,13 +144,11 @@ func (self *Sender) run() (err error) {
 			// Update state
 			item.State = model.BundleStateUploaded
 
-			// Update stats
-			self.monitor.GetReport().Sender.State.BundlrSuccess.Inc()
+			// Don't keep the data item in memory, let gc do its job
+			item.DataItem.Bytes = nil
 
-			if item.State == model.BundleStateUploading {
-				// Sending should be retried, no need to update the state in the database
-				return
-			}
+			// Update stats
+			self.monitor.GetReport().Sender.State.IrysSuccess.Inc()
 
 		end:
 			// Note: Don't wait for the Ctx to be done,

@@ -5,8 +5,8 @@ import (
 )
 
 type SenderErrors struct {
-	BundrlError                 atomic.Uint64 `json:"bundrl_error"`
-	BundrlMarshalError          atomic.Uint64 `json:"bundrl_marshal_error"`
+	IrysError                   atomic.Uint64 `json:"irys_error"`
+	IrysMarshalError            atomic.Uint64 `json:"irys_marshal_error"`
 	ConfirmationsSavedToDbError atomic.Uint64 `json:"confirmations_saved_to_db_error"`
 	AdditionalFetchError        atomic.Uint64 `json:"additional_fetch_error"`
 	PollerFetchError            atomic.Uint64 `json:"poller_fetch_error"`
@@ -24,13 +24,13 @@ type SenderState struct {
 	AllBundlesFromDb          atomic.Uint64 `json:"all_bundles_from_db"`
 
 	// Counting bundles sent to bundlr.network
-	BundlrSuccess atomic.Uint64 `json:"bundlr_success"`
+	IrysSuccess atomic.Uint64 `json:"irys_success"`
 
 	// Counting properly saved confirmations that bundle is sent
 	ConfirmationsSavedToDb atomic.Uint64 `json:"confirmations_saved_to_db"`
 }
 
 type SenderReport struct {
-	State  BundlerState  `json:"state"`
-	Errors BundlerErrors `json:"errors"`
+	State  SenderState  `json:"state"`
+	Errors SenderErrors `json:"errors"`
 }
