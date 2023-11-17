@@ -187,15 +187,20 @@ func (self *MsgDataItemParser) parseMessage(msg cosmostypes.Msg, payload *Payloa
 		State:          model.BundleStatePending,
 	}
 
+	contractId, ok := dataItem.DataItem.GetTag("Contract")
+	if !ok {
+		err = errors.New("failed to get contract id")
+		return
+	}
+
 	tags := dataItem.DataItem.Tags.Append([]bundlr.Tag{
 		{
 			Name:  "Sequencer",
 			Value: "RedStone",
 		},
-		// FIXME: Make sure this is correct for arweave and ethereum
 		{
-			Name:  "Sequencer-Owner",
-			Value: dataItem.DataItem.Owner.Base64(),
+			Name:  "Sequencer-Contract",
+			Value: contractId,
 		},
 		{
 			Name:  "Sequencer-Tx-Id",

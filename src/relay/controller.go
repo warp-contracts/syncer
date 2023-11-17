@@ -106,9 +106,13 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithMonitor(monitor).
 			WithInputChannel(transactionDownloader.Output)
 
+		arweaveMetaBundler := NewArweaveMetaBundler(config).
+			WithMonitor(monitor).
+			WithInputChannel(arweaveParser.Output)
+
 		// Store blocks in the database, in batches
 		store := NewStore(config).
-			WithInputChannel(arweaveParser.Output).
+			WithInputChannel(arweaveMetaBundler.Output).
 			WithMonitor(monitor).
 			WithIsReplacing(true).
 			WithDB(db)

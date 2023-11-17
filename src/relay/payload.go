@@ -5,6 +5,7 @@ import (
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/warp-contracts/sequencer/x/sequencer/types"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
+	"github.com/warp-contracts/syncer/src/utils/bundlr"
 	"github.com/warp-contracts/syncer/src/utils/model"
 )
 
@@ -20,6 +21,9 @@ type ArweaveBlock struct {
 
 	// L1 interactions parsed from Arweave txs
 	Interactions []*model.Interaction
+
+	// Nested bundle with all meta info of txs from the block
+	MetaInfoDataItem *bundlr.BundleItem
 }
 
 type Payload struct {
