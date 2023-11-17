@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
 	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
@@ -136,6 +137,11 @@ func (self *ArweaveMetaBundler) createMetaDataItem(payload *Payload, arweaveBloc
 
 func (self *ArweaveMetaBundler) fill(payload *Payload) (err error) {
 	for blockIdx, arweaveBlock := range payload.ArweaveBlocks {
+		var (
+			dataItem      *bundlr.BundleItem
+			dataItemBytes []byte
+		)
+
 		items := make([]*bundlr.BundleItem, len(arweaveBlock.Interactions))
 		for i := range arweaveBlock.Interactions {
 			items[i], err = self.createDataItem(arweaveBlock, i)
@@ -144,11 +150,23 @@ func (self *ArweaveMetaBundler) fill(payload *Payload) (err error) {
 			}
 		}
 
-		payload.ArweaveBlocks[blockIdx].MetaInfoDataItem, err = self.createMetaDataItem(payload, arweaveBlock, items)
+		// Wrapping data item
+		dataItem, err = self.createMetaDataItem(payload, arweaveBlock, items)
 		if err != nil {
 			return
 		}
 
+		dataItemBytes, err = dataItem.Marshal()
+		if err != nil {
+			return
+		}
+
+		// Create a DataItem that gets inserted to the database
+		payload.ArweaveBlocks[blockIdx].MetaInfoDataItem = &model.DataItem{
+			DataItemID: dataItem.Id.Base64(),
+			State:      model.BundleStatePending,
+			DataItem:   pgtype.Bytea{Bytes: dataItemBytes, Status: pgtype.Present},
+		}
 	}
 
 	return

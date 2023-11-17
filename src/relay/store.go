@@ -89,7 +89,7 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 	}
 
 	// Get data from payloads
-	lastArweaveBlock, arweaveInteractions, interactions, bundleItems, err := self.getData(payloads)
+	lastArweaveBlock, arweaveInteractions, interactions, bundleItems, dataItems, err := self.getData(payloads)
 	if err != nil {
 		return
 	}
@@ -126,6 +126,16 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 					Error
 				if err != nil {
 					self.Log.WithError(err).Error("Failed to insert Arweave interactions")
+					return err
+				}
+
+				// Meta info about L1 interactions
+				err = tx.WithContext(self.Ctx).
+					Table(model.TableDataItem).
+					Create(&dataItems).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to insert data items")
 					return err
 				}
 
@@ -210,12 +220,20 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 	return
 }
 
-func (self *Store) getData(payloads []*Payload) (lastArweaveBlock *ArweaveBlock, arweaveInteractions []*model.Interaction, interactions []*model.Interaction, bundleItems []*model.BundleItem, err error) {
+func (self *Store) getData(payloads []*Payload) (
+	lastArweaveBlock *ArweaveBlock,
+	arweaveInteractions []*model.Interaction,
+	interactions []*model.Interaction,
+	bundleItems []*model.BundleItem,
+	dataItems []*model.DataItem,
+	err error) {
+
 	// Concatenate data from all payloads
 	for _, payload := range payloads {
 		if len(payload.ArweaveBlocks) > 0 {
 			for _, arweaveBlock := range payload.ArweaveBlocks {
 				arweaveInteractions = append(arweaveInteractions, arweaveBlock.Interactions...)
+				dataItems = append(dataItems, arweaveBlock.MetaInfoDataItem)
 			}
 			lastArweaveBlock = payload.ArweaveBlocks[len(payload.ArweaveBlocks)-1]
 		}
