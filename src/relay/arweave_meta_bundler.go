@@ -57,7 +57,7 @@ func (self *ArweaveMetaBundler) WithInputChannel(v <-chan *Payload) *ArweaveMeta
 }
 
 // Create a data item with data assigned to L1 interaction
-func (self *ArweaveMetaBundler) createDataItem(arweaveBlock *ArweaveBlock, idx int) (out *bundlr.BundleItem, err error) {
+func (self *ArweaveMetaBundler) createDataItem(payload *Payload, arweaveBlock *ArweaveBlock, idx int) (out *bundlr.BundleItem, err error) {
 	interaction := arweaveBlock.Interactions[idx]
 	info := arweaveBlock.Message.Transactions[idx]
 
@@ -80,6 +80,12 @@ func (self *ArweaveMetaBundler) createDataItem(arweaveBlock *ArweaveBlock, idx i
 		{Name: "Sequencer-Tx-Id", Value: interaction.InteractionId.Base64()},
 		{Name: "Sequencer-Sort-Key", Value: interaction.SortKey},
 		{Name: "Sequencer-Random", Value: base64.RawURLEncoding.EncodeToString(info.Random)},
+		{Name: "Sequencer-Arweave-Height", Value: strconv.FormatUint(arweaveBlock.Message.BlockInfo.Height, 10)},
+		{Name: "Sequencer-Arweave-Timestamp", Value: strconv.FormatUint(arweaveBlock.Message.BlockInfo.Timestamp, 10)},
+		{Name: "Sequencer-Arweave-Hash", Value: arweaveBlock.Message.BlockInfo.Hash},
+		{Name: "Sequencer-Height", Value: strconv.FormatInt(payload.SequencerBlockHeight, 10)},
+		{Name: "Sequencer-Timestamp", Value: strconv.FormatInt(payload.SequencerBlockTimestamp, 10)},
+		{Name: "Sequencer-Hash", Value: base64.RawURLEncoding.EncodeToString(payload.SequencerBlockHash.Bytes())},
 	}
 
 	// Set previous sort key only if present
@@ -113,17 +119,13 @@ func (self *ArweaveMetaBundler) createMetaDataItem(payload *Payload, arweaveBloc
 	}
 
 	out.Tags = bundlr.Tags{
-		{Name: "Bundle-Format", Value: "binary"}, {Name: "Bundle-Version", Value: "2.0.0"}, {Name: "App-Name", Value: "Warp"},
+		{Name: "Bundle-Format", Value: "binary"},
+		{Name: "Bundle-Version", Value: "2.0.0"},
+		{Name: "App-Name", Value: "Warp"},
 		// FIXME: Is this Action OK?
 		{Name: "Action", Value: "WarpMetaData"},
 		// Tags common with L2
 		{Name: "Sequencer", Value: "RedStone"},
-		{Name: "Sequencer-Arweave-Height", Value: strconv.FormatUint(arweaveBlock.Message.BlockInfo.Height, 10)},
-		{Name: "Sequencer-Arweave-Timestamp", Value: strconv.FormatUint(arweaveBlock.Message.BlockInfo.Timestamp, 10)},
-		{Name: "Sequencer-Arweave-Hash", Value: arweaveBlock.Message.BlockInfo.Hash},
-		{Name: "Sequencer-Height", Value: strconv.FormatInt(payload.SequencerBlockHeight, 10)},
-		{Name: "Sequencer-Timestamp", Value: strconv.FormatInt(payload.SequencerBlockTimestamp, 10)},
-		{Name: "Sequencer-Hash", Value: base64.RawURLEncoding.EncodeToString(payload.SequencerBlockHash.Bytes())},
 	}
 
 	// Sign
@@ -144,7 +146,7 @@ func (self *ArweaveMetaBundler) fill(payload *Payload) (err error) {
 
 		items := make([]*bundlr.BundleItem, len(arweaveBlock.Interactions))
 		for i := range arweaveBlock.Interactions {
-			items[i], err = self.createDataItem(arweaveBlock, i)
+			items[i], err = self.createDataItem(payload, arweaveBlock, i)
 			if err != nil {
 				return
 			}
@@ -163,9 +165,12 @@ func (self *ArweaveMetaBundler) fill(payload *Payload) (err error) {
 
 		// Create a DataItem that gets inserted to the database
 		payload.ArweaveBlocks[blockIdx].MetaInfoDataItem = &model.DataItem{
-			DataItemID: dataItem.Id.Base64(),
-			State:      model.BundleStatePending,
-			DataItem:   pgtype.Bytea{Bytes: dataItemBytes, Status: pgtype.Present},
+			DataItemID:  dataItem.Id.Base64(),
+			State:       model.BundleStatePending,
+			DataItem:    pgtype.Bytea{Bytes: dataItemBytes, Status: pgtype.Present},
+			BlockHeight: pgtype.Int8{Status: pgtype.Null},
+			Response:    pgtype.JSONB{Status: pgtype.Null},
+			Service:     pgtype.Text{Status: pgtype.Null},
 		}
 	}
 

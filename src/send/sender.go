@@ -82,6 +82,9 @@ func (self *Sender) run() (err error) {
 		item := item
 
 		self.SubmitToWorker(func() {
+			self.Log.WithField("data_item_id", item.DataItemID).Info("-> Send")
+			defer self.Log.WithField("data_item_id", item.DataItemID).Info("<- Send")
+
 			if self.IsStopping.Load() {
 				// Don't start sending new items if we're stopping
 				return
@@ -100,6 +103,12 @@ func (self *Sender) run() (err error) {
 					Error("Failed parse and validate data item")
 				item.State = model.BundleStateMalformed
 				goto end
+			}
+
+			// Only Irys is supported
+			err = item.Service.Set("Irys")
+			if err != nil {
+				return
 			}
 
 			// Send the bundle item to the bundling service

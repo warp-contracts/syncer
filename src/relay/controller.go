@@ -127,6 +127,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithSubtask(blockDownloader.Task).
 			WithSubtask(transactionDownloader.Task).
 			WithSubtask(arweaveParser.Task).
+			WithSubtask(arweaveMetaBundler.Task).
 			WithSubtask(store.Task).
 			WithSubtask(streamer.Task).
 			WithSubtask(peerMonitor.Task)

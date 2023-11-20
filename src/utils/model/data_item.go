@@ -21,7 +21,7 @@ type DataItem struct {
 	State BundleState
 
 	// Which bundling service was used to send this data item
-	Service BundlingService
+	Service pgtype.Text
 
 	// Block height upon which interaction was bundled. Used to trigger verification later
 	BlockHeight pgtype.Int8
