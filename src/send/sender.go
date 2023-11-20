@@ -22,7 +22,6 @@ type Sender struct {
 
 	// Bundling and signing
 	irysClient *bundlr.Client
-	signer     *bundlr.ArweaveSigner
 
 	// Updated data items
 	Output chan *model.DataItem
