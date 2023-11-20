@@ -3,6 +3,7 @@ package bundlr
 import (
 	"context"
 	"io"
+	"net/http"
 
 	"github.com/warp-contracts/syncer/src/utils/bundlr/responses"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -41,6 +42,16 @@ func (self *Client) Upload(ctx context.Context, item *BundleItem) (out *response
 		SetHeader("Content-Type", "application/octet-stream").
 		SetHeader("x-proof-type", "receipt").
 		Post("/tx")
+
+	if resp.StatusCode() == http.StatusCreated {
+		err = ErrAlreadyReceived
+		return
+	}
+	if resp.StatusCode() == http.StatusPaymentRequired {
+		err = ErrPaymentRequired
+		return
+	}
+
 	if err != nil {
 		return
 	}

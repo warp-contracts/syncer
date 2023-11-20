@@ -11,6 +11,7 @@ const (
 	BundleStateChecking  BundleState = "CHECKING"
 	BundleStateOnArweave BundleState = "ON_ARWEAVE"
 	BundleStateMalformed BundleState = "MALFORMED"
+	BundleStateDuplicate BundleState = "DUPLICATE"
 )
 
 func (self *BundleState) Scan(value interface{}) error {

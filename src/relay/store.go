@@ -132,6 +132,10 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 				// Meta info about L1 interactions
 				err = tx.WithContext(self.Ctx).
 					Table(model.TableDataItem).
+					Clauses(clause.OnConflict{
+						Columns:   []clause.Column{{Name: "data_item_id"}},
+						DoNothing: true,
+					}).
 					Create(&dataItems).
 					Error
 				if err != nil {

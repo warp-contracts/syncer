@@ -37,5 +37,5 @@ type DataItem struct {
 }
 
 func (DataItem) TableName() string {
-	return "data_items"
+	return TableDataItem
 }

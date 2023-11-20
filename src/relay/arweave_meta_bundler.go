@@ -76,6 +76,7 @@ func (self *ArweaveMetaBundler) createDataItem(payload *Payload, arweaveBlock *A
 		{Name: "Action", Value: "WarpInteraction"},
 		// Tags common with L2
 		{Name: "Sequencer", Value: "RedStone"},
+		{Name: "Sequencer-Env", Value: "Dev"},
 		{Name: "Sequencer-Contract", Value: interaction.ContractId},
 		{Name: "Sequencer-Tx-Id", Value: interaction.InteractionId.Base64()},
 		{Name: "Sequencer-Sort-Key", Value: interaction.SortKey},

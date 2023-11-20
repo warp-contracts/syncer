@@ -99,9 +99,10 @@ func (self *LastArweaveBlockProvider) getLastBlockHeight(payload *Payload) (out 
 }
 
 func (self *LastArweaveBlockProvider) fill(payload *Payload) (err error) {
-	// Update cache
+
 	for _, arweaveBlock := range payload.ArweaveBlocks {
-		if self.lastArweaveBlock.Height < arweaveBlock.Message.BlockInfo.Height {
+		if self.lastArweaveBlock == nil ||
+			self.lastArweaveBlock.Height < arweaveBlock.Message.BlockInfo.Height {
 			self.lastArweaveBlock = arweaveBlock.Message.BlockInfo
 		}
 	}

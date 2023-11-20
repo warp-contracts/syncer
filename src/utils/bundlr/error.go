@@ -32,4 +32,6 @@ var (
 	ErrNotSigned                         = errors.New("bundle item not signed")
 	ErrInvalidId                         = errors.New("invalid id")
 	ErrNestedBundleInvalidLength         = errors.New("nested bundle invalid length in one of the fields")
+	ErrAlreadyReceived                   = errors.New("data item already received")
+	ErrPaymentRequired                   = errors.New("payment required")
 )
