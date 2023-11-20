@@ -22,7 +22,6 @@ type Sender struct {
 
 	// Bundling and signing
 	irysClient *bundlr.Client
-	signer     *bundlr.ArweaveSigner
 
 	// Updated data items
 	Output chan *model.DataItem
@@ -30,8 +29,6 @@ type Sender struct {
 
 // Receives bundle items from the input channel and sends them to bundlr
 func NewSender(config *config.Config, db *gorm.DB) (self *Sender) {
-	var err error
-
 	self = new(Sender)
 	self.db = db
 
@@ -46,11 +43,6 @@ func NewSender(config *config.Config, db *gorm.DB) (self *Sender) {
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})
-
-	self.signer, err = bundlr.NewArweaveSigner(config.Bundlr.Wallet)
-	if err != nil {
-		self.Log.WithError(err).Panic("Failed to create bundlr signer")
-	}
 
 	return
 }
