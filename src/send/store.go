@@ -1,6 +1,7 @@
 package send
 
 import (
+	"github.com/jackc/pgtype"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/listener"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -66,7 +67,8 @@ func (self *Store) flush(dataItems []*model.DataItem) (err error) {
 
 	// Update block height for uploaded items
 	for i := range dataItems {
-		if dataItems[i].State != model.BundleStateUploaded {
+		if dataItems[i].State != model.BundleStateUploaded && dataItems[i].State != model.BundleStateDuplicate {
+			dataItems[i].BlockHeight.Status = pgtype.Null
 			continue
 		}
 		err = dataItems[i].BlockHeight.Set(currentBlockHeight)
@@ -80,16 +82,16 @@ func (self *Store) flush(dataItems []*model.DataItem) (err error) {
 	// NOTE: It still uses many requests to the database,
 	// it should be possible to combine updates into batches, but it's not a priority for now.
 	err = self.db.WithContext(self.Ctx).
-		Table(model.TableDataItem).
 		Clauses(clause.OnConflict{
-			DoNothing: false,
-			Columns:   []clause.Column{{Name: "data_item_id"}},
+			Columns: []clause.Column{{Name: "data_item_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"state",
+				"service",
+				"block_height",
 				"response",
 			}),
 		}).
-		CreateInBatches(dataItems, self.Config.Sender.StoreBatchSize).
+		CreateInBatches(&dataItems, self.Config.Sender.StoreBatchSize).
 		Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to save bundle items, retrying...")

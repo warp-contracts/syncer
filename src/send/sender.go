@@ -106,7 +106,12 @@ func (self *Sender) run() (err error) {
 			}
 
 			// Only Irys is supported
-			err = item.Service.Set("Irys")
+			err = item.Service.Set(model.BundlingServiceIrys)
+			if err != nil {
+				return
+			}
+
+			err = item.Response.Set(nil)
 			if err != nil {
 				return
 			}
@@ -118,6 +123,7 @@ func (self *Sender) run() (err error) {
 					self.Log.WithError(err).
 						WithField("data_item_id", item.DataItemID).
 						WithField("resp", string(resp.Body())).
+						WithField("code", resp.StatusCode()).
 						WithField("url", resp.Request.URL).
 						Error("Failed to upload data item to Irys")
 				} else {
@@ -126,14 +132,16 @@ func (self *Sender) run() (err error) {
 						Error("Failed to upload data item to Irys, no response")
 				}
 
-				// Update stats
-				self.monitor.GetReport().Sender.Errors.IrysError.Inc()
+				if errors.Is(err, bundlr.ErrAlreadyReceived) {
+					item.State = model.BundleStateDuplicate
+				} else if errors.Is(err, bundlr.ErrPaymentRequired) {
+					item.State = model.BundleStatePending
+				} else {
+					// Update stats
+					self.monitor.GetReport().Sender.Errors.IrysError.Inc()
 
-				// Bad request shouldn't be retried
-				if resp != nil {
-					if resp.StatusCode() == 402 {
-						item.State = model.BundleStatePending
-					} else if resp.StatusCode() > 399 && resp.StatusCode() < 500 {
+					if resp != nil && resp.StatusCode() > 399 && resp.StatusCode() < 500 {
+						// Bad request shouldn't be retried
 						item.State = model.BundleStateMalformed
 					}
 				}
