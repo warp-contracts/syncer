@@ -135,7 +135,7 @@ func (self *Sender) run() (err error) {
 				if errors.Is(err, bundlr.ErrAlreadyReceived) {
 					item.State = model.BundleStateDuplicate
 				} else if errors.Is(err, bundlr.ErrPaymentRequired) {
-					item.State = model.BundleStatePending
+					item.State = model.BundleStateUploading
 				} else {
 					// Update stats
 					self.monitor.GetReport().Sender.Errors.IrysError.Inc()
