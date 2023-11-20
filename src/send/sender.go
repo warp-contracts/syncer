@@ -130,8 +130,12 @@ func (self *Sender) run() (err error) {
 				self.monitor.GetReport().Sender.Errors.IrysError.Inc()
 
 				// Bad request shouldn't be retried
-				if resp != nil && resp.StatusCode() > 399 && resp.StatusCode() < 500 {
-					item.State = model.BundleStateMalformed
+				if resp != nil {
+					if resp.StatusCode() == 402 {
+						item.State = model.BundleStatePending
+					} else if resp.StatusCode() > 399 && resp.StatusCode() < 500 {
+						item.State = model.BundleStateMalformed
+					}
 				}
 
 				goto end
