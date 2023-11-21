@@ -1,12 +1,15 @@
 package initsequencer
 
 import (
+	"context"
+
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/listener"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	monitor_syncer "github.com/warp-contracts/syncer/src/utils/monitoring/syncer"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"gorm.io/gorm"
 )
 
 type Controller struct {
@@ -28,31 +31,47 @@ func NewController(config *config.Config, sequencerRepoPath string) (self *Contr
 
 	client := arweave.NewClient(self.Ctx, config)
 
-	finishedBlock := NewFinishedBlock(config).
-		WithDB(db)
-
-	lastSyncedBlock, err := finishedBlock.getLastSyncedBlock()
+	lastSyncedBlock, err := getLastSyncedBlock(self.Ctx, db)
 	if err != nil {
 		panic(err)
 	}
 
+	nextBlock := NewNextBlock(config).
+		WithLastSyncedBlock(lastSyncedBlock)
+
 	blockDownloader := listener.NewBlockDownloader(config).
 		WithClient(client).
 		WithMonitor(monitor).
-		WithInputChannel(finishedBlock.Output).
+		WithInputChannel(nextBlock.Output).
 		WithBackoff(0, config.Syncer.TransactionMaxInterval).
-		WithHeightRange(lastSyncedBlock.FinishedBlockHeight, lastSyncedBlock.FinishedBlockHeight)
+		WithHeightRange(lastSyncedBlock.FinishedBlockHeight+1, lastSyncedBlock.FinishedBlockHeight+1)
+
+	transactionDownloader := listener.NewTransactionDownloader(config).
+			WithClient(client).
+			WithInputChannel(blockDownloader.Output).
+			WithMonitor(monitor).
+			WithBackoff(0, config.Syncer.TransactionMaxInterval).
+			WithFilterInteractions()
 
 	writer := NewWriter(config).
 		WithSequencerRepoPath(sequencerRepoPath).
 		WithDB(db).
-		WithInput(blockDownloader.Output)
+		WithInput(transactionDownloader.Output).
+		WithLastSyncedBlock(lastSyncedBlock)
 
 	self.Task = self.Task.
-		WithSubtask(finishedBlock.Task).
+		WithSubtask(nextBlock.Task).
 		WithSubtask(blockDownloader.Task).
+		WithSubtask(transactionDownloader.Task).
 		WithSubtask(writer.Task).
 		WithStopChannel(writer.Output)
 
 	return
+}
+
+func getLastSyncedBlock(ctx context.Context, db *gorm.DB) (state model.State, err error) {
+	err = db.WithContext(ctx).
+		First(&state, model.SyncedComponentInteractions).
+		Error
+	return state, err
 }

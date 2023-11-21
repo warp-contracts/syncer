@@ -2,15 +2,19 @@ package initsequencer
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"gorm.io/gorm"
 
-	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/listener"
 	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/smartweave"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/warp"
 
 	"github.com/warp-contracts/sequencer/x/sequencer/types"
 )
@@ -18,16 +22,17 @@ import (
 const (
 	GENESIS_PATH            = "genesis"
 	PREV_SORT_KEYS_FILE     = "prev_sort_keys.json"
-	LAST_ARWEAVE_BLOCK_FILE = "last_arweave_block.json"
+	LAST_ARWEAVE_BLOCK_FILE = "arweave_block.json"
 )
 
 type Writer struct {
 	*task.Task
 
-	sequencerRepoPath    string
-	db                   *gorm.DB
-	input                chan *arweave.Block
-	Output               chan struct{}
+	sequencerRepoPath string
+	db                *gorm.DB
+	input             chan *listener.Payload
+	Output            chan struct{}
+	lastSyncedBlock   model.State
 }
 
 func NewWriter(config *config.Config) (self *Writer) {
@@ -53,8 +58,13 @@ func (self *Writer) WithDB(db *gorm.DB) *Writer {
 	return self
 }
 
-func (self *Writer) WithInput(input chan *arweave.Block) *Writer {
+func (self *Writer) WithInput(input chan *listener.Payload) *Writer {
 	self.input = input
+	return self
+}
+
+func (self *Writer) WithLastSyncedBlock(lastSyncedBlock model.State) *Writer {
+	self.lastSyncedBlock = lastSyncedBlock
 	return self
 }
 
@@ -97,19 +107,38 @@ func (self *Writer) fetchPrevSortKeys() (err error) {
 		return
 	}
 
-	self.Log.WithField("number of keys", len(prevSortKeys)).Debug("Prev sort keys saved to files")
+	self.Log.WithField("number of keys", len(prevSortKeys)).Debug("Prev sort keys saved to file")
 	return
 }
 
 func (self *Writer) fetchLastArweaveBlock() (err error) {
-	for block := range self.input {
-		blockInfo := &types.ArweaveBlockInfo{
-			Height:    uint64(block.Height),
-			Timestamp: uint64(block.Timestamp),
-			Hash:      block.IndepHash.Base64(),
+	for payload := range self.input {
+
+		fmt.Println("GET PAYLOAD")
+
+		lastBlockInfo := &types.ArweaveBlockInfo{
+			Height:    uint64(self.lastSyncedBlock.FinishedBlockHeight),
+			Timestamp: uint64(self.lastSyncedBlock.FinishedBlockTimestamp),
+			Hash:      self.lastSyncedBlock.FinishedBlockHash.Base64(),
 		}
 
-		blockJson, err := json.Marshal(blockInfo)
+		nextBlockInfo := &types.ArweaveBlockInfo{
+			Height:    uint64(payload.BlockHeight),
+			Timestamp: uint64(payload.BlockTimestamp),
+			Hash:      payload.BlockHash.Base64(),
+		}
+
+		nextBlock := &types.NextArweaveBlock{
+			BlockInfo:    nextBlockInfo,
+			Transactions: transactions(payload),
+		}
+
+		block := types.GenesisArweaveBlock{
+			LastArweaveBlock: lastBlockInfo,
+			NextArweaveBlock: nextBlock,
+		}
+
+		blockJson, err := json.Marshal(block)
 		if err != nil {
 			return err
 		}
@@ -119,11 +148,36 @@ func (self *Writer) fetchLastArweaveBlock() (err error) {
 			return err
 		}
 
-		self.Log.WithField("height", blockInfo.Height).Debug("Last Arweave block saved to files")
+		self.Log.
+			WithField("last synced block height", lastBlockInfo.Height).
+			WithField("next block height", nextBlockInfo.Height).
+			Debug("Arweave block saved to file")
 		self.Output <- struct{}{}
 	}
 
 	return
+}
+
+func transactions(payload *listener.Payload) []*types.ArweaveTransaction {
+	txs := make([]*types.ArweaveTransaction, 0, len(payload.Transactions))
+	for _, tx := range payload.Transactions {
+		contract, found := tx.GetTag(smartweave.TagContractTxId)
+		if !found {
+			continue
+		}
+
+		txs = append(txs, &types.ArweaveTransaction{
+			Id:       tx.ID.Base64(),
+			Contract: contract,
+			SortKey:  warp.CreateSortKey(tx.ID, payload.BlockHeight, payload.BlockHash),
+		})
+	}
+
+	// sort transactions by sort key
+	sort.Slice(txs, func(i, j int) bool {
+		return txs[i].SortKey < txs[j].SortKey
+	})
+	return txs
 }
 
 func (self *Writer) writeToConfigFile(filePath string, jsonData []byte) error {
