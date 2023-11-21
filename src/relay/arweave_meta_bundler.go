@@ -57,7 +57,7 @@ func (self *ArweaveMetaBundler) WithInputChannel(v <-chan *Payload) *ArweaveMeta
 }
 
 // Create a data item with data assigned to L1 interaction
-func (self *ArweaveMetaBundler) createDataItem(payload *Payload, arweaveBlock *ArweaveBlock, idx int) (out *bundlr.BundleItem, err error) {
+func (self *ArweaveMetaBundler) createDataItem(arweaveBlock *ArweaveBlock, idx int) (out *bundlr.BundleItem, err error) {
 	interaction := arweaveBlock.Interactions[idx]
 	info := arweaveBlock.Message.Transactions[idx]
 
@@ -70,29 +70,20 @@ func (self *ArweaveMetaBundler) createDataItem(payload *Payload, arweaveBlock *A
 
 	// Tags
 	out.Tags = bundlr.Tags{
+		// https://github.com/Irys-xyz/js-sdk/blob/cdf73fa6bf537c57e6c9050ff0cd7d18ebc2f0ac/src/common/upload.ts#L237
 		{Name: "Bundle-Format", Value: "binary"},
 		{Name: "Bundle-Version", Value: "2.0.0"},
-		{Name: "App-Name", Value: "Warp"},
-		{Name: "Action", Value: "WarpInteraction"},
-		// Tags common with L2
-		{Name: "Sequencer", Value: "RedStone"},
-		{Name: "Sequencer-Env", Value: "Dev"},
-		{Name: "Sequencer-Contract", Value: interaction.ContractId},
-		{Name: "Sequencer-Tx-Id", Value: interaction.InteractionId.Base64()},
-		{Name: "Sequencer-Sort-Key", Value: interaction.SortKey},
-		{Name: "Sequencer-Random", Value: base64.RawURLEncoding.EncodeToString(info.Random)},
-		{Name: "Sequencer-Arweave-Height", Value: strconv.FormatUint(arweaveBlock.Message.BlockInfo.Height, 10)},
-		{Name: "Sequencer-Arweave-Timestamp", Value: strconv.FormatUint(arweaveBlock.Message.BlockInfo.Timestamp, 10)},
-		{Name: "Sequencer-Arweave-Hash", Value: arweaveBlock.Message.BlockInfo.Hash},
-		{Name: "Sequencer-Height", Value: strconv.FormatInt(payload.SequencerBlockHeight, 10)},
-		{Name: "Sequencer-Timestamp", Value: strconv.FormatInt(payload.SequencerBlockTimestamp, 10)},
-		{Name: "Sequencer-Hash", Value: base64.RawURLEncoding.EncodeToString(payload.SequencerBlockHash.Bytes())},
+		// Interaction specific
+		{Name: "Contract", Value: interaction.ContractId},
+		{Name: "Tx-Id", Value: interaction.InteractionId.Base64()},
+		{Name: "Sort-Key", Value: interaction.SortKey},
+		{Name: "Random", Value: base64.RawURLEncoding.EncodeToString(info.Random)},
 	}
 
 	// Set previous sort key only if present
 	if interaction.LastSortKey.Status == pgtype.Present {
 		out.Tags = append(out.Tags, bundlr.Tag{
-			Name:  "Sequencer-Prev-Sort-Key",
+			Name:  "Prev-Sort-Key",
 			Value: interaction.LastSortKey.String,
 		})
 	}
@@ -120,13 +111,19 @@ func (self *ArweaveMetaBundler) createMetaDataItem(payload *Payload, arweaveBloc
 	}
 
 	out.Tags = bundlr.Tags{
+		// https://github.com/Irys-xyz/js-sdk/blob/cdf73fa6bf537c57e6c9050ff0cd7d18ebc2f0ac/src/common/upload.ts#L237
 		{Name: "Bundle-Format", Value: "binary"},
 		{Name: "Bundle-Version", Value: "2.0.0"},
-		{Name: "App-Name", Value: "Warp"},
-		// FIXME: Is this Action OK?
-		{Name: "Action", Value: "WarpMetaData"},
-		// Tags common with L2
-		{Name: "Sequencer", Value: "RedStone"},
+		// Global
+		{Name: "Source", Value: "Warp"},
+		{Name: "Sequencer", Value: "Warp"},
+		{Name: "Env", Value: self.Config.Relayer.Environment},
+		// Block specific
+		{Name: "Arweave-Block-Height", Value: strconv.FormatUint(arweaveBlock.Message.BlockInfo.Height, 10)},
+		{Name: "Arweave-Block-Timestamp", Value: strconv.FormatUint(arweaveBlock.Message.BlockInfo.Timestamp, 10)},
+		{Name: "Arweave-Block-Hash", Value: arweaveBlock.Message.BlockInfo.Hash},
+		{Name: "Sequencer-Height", Value: strconv.FormatInt(payload.SequencerBlockHeight, 10)},
+		{Name: "Sequencer-Timestamp", Value: strconv.FormatInt(payload.SequencerBlockTimestamp, 10)},
 	}
 
 	// Sign
@@ -147,7 +144,7 @@ func (self *ArweaveMetaBundler) fill(payload *Payload) (err error) {
 
 		items := make([]*bundlr.BundleItem, len(arweaveBlock.Interactions))
 		for i := range arweaveBlock.Interactions {
-			items[i], err = self.createDataItem(payload, arweaveBlock, i)
+			items[i], err = self.createDataItem(arweaveBlock, i)
 			if err != nil {
 				return
 			}
