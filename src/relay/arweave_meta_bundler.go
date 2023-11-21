@@ -117,7 +117,6 @@ func (self *ArweaveMetaBundler) createMetaDataItem(payload *Payload, arweaveBloc
 		// Global
 		{Name: "Source", Value: "Warp"},
 		{Name: "Sequencer", Value: "Warp"},
-		{Name: "App-Name", Value: "WarpMeta"},
 		{Name: "Env", Value: self.Config.Relayer.Environment},
 		// Block specific
 		{Name: "Arweave-Block-Height", Value: strconv.FormatUint(arweaveBlock.Message.BlockInfo.Height, 10)},
@@ -125,7 +124,6 @@ func (self *ArweaveMetaBundler) createMetaDataItem(payload *Payload, arweaveBloc
 		{Name: "Arweave-Block-Hash", Value: arweaveBlock.Message.BlockInfo.Hash},
 		{Name: "Sequencer-Height", Value: strconv.FormatInt(payload.SequencerBlockHeight, 10)},
 		{Name: "Sequencer-Timestamp", Value: strconv.FormatInt(payload.SequencerBlockTimestamp, 10)},
-		// {Name: "Sequencer-Hash", Value: base64.RawURLEncoding.EncodeToString(payload.SequencerBlockHash.Bytes())},
 	}
 
 	// Sign
