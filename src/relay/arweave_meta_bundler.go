@@ -115,7 +115,7 @@ func (self *ArweaveMetaBundler) createMetaDataItem(payload *Payload, arweaveBloc
 		{Name: "Bundle-Format", Value: "binary"},
 		{Name: "Bundle-Version", Value: "2.0.0"},
 		// Global
-		{Name: "Source", Value: "Warp"},
+		{Name: "Source", Value: "Arweave"},
 		{Name: "Sequencer", Value: "Warp"},
 		{Name: "Env", Value: self.Config.Relayer.Environment},
 		// Block specific
