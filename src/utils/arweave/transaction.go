@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"slices"
 )
 
 type Transaction struct {
@@ -42,17 +41,6 @@ func (tx *Transaction) GetTag(name string) (value string, ok bool) {
 		}
 	}
 	return
-}
-
-func (tx *Transaction) GetTagMap(names ...string) map[string][]byte {
-	tags := make(map[string][]byte)
-	for _, tag := range tx.Tags {
-		tagName := string(tag.Name)
-		if slices.Contains(names, tagName) {
-			tags[tagName] = tag.Value
-		}
-	}
-	return tags
 }
 
 // https://docs.arweave.org/developers/server/http-api#transaction-signing

@@ -98,13 +98,12 @@ func (self *TransactionDownloader) WithFilterContracts() *TransactionDownloader 
 
 func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownloader {
 	self.filter = func(tx *arweave.Transaction) bool {
-		err := smartweave.ValidateInteraction(tx)
-		if err == nil {
-			return true
+		isInteraction, err := smartweave.ValidateInteraction(tx)
+		if err != nil {
+			self.Log.WithField("txId", tx.ID.Base64()).WithError(err).Warn("neglecting invalid interaction")
+			return false
 		}
-
-		self.Log.WithField("txId", tx.ID.Base64()).WithError(err).Warn("neglecting invalid interaction")
-		return false
+		return isInteraction
 	}
 	return self
 }

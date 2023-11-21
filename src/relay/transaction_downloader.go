@@ -99,7 +99,10 @@ func (self *TransactionDownloader) downloadOne(txId string) (out *arweave.Transa
 			}
 
 			// Check if transaction is a valid interaction
-			err = smartweave.ValidateInteraction(out)
+			isInteraction, err := smartweave.ValidateInteraction(out)
+			if !isInteraction {
+				err = errors.New("tx is not an interaction")
+			}
 			if err != nil {
 				self.Log.WithField("txId", txId).WithError(err).Error("Transaction is not a valid interaction")
 				return err

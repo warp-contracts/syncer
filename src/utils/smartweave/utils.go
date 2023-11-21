@@ -8,24 +8,44 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/tool"
 )
 
-func ValidateInteraction(tx *arweave.Transaction) error {
-	if tx.Format < 2 {
-		return errors.New("interaction should not have a format smaller than 2")
+func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error) {
+	if tx == nil || tx.Format < 2 {
+		return false, nil
 	}
 
-	tags := tx.GetTagMap(TagAppName, TagContractTxId, TagInput)
-
-	if string(tags[TagAppName]) != TagAppNameValue {
-		return fmt.Errorf("interaction should have a tag '%s' with a value '%s'", TagAppName, TagAppNameValue)
+	hasContractTag := false
+	for _, tag := range tx.Tags {
+		switch string(tag.Name) {
+		case TagAppName:
+			if string(tag.Value) == TagAppNameValue {
+				isInteraction = true
+			}
+		case TagInput:
+			// Input tag must be a valid JSON
+			if tool.CheckJSON(tag.Value) != nil {
+				err = fmt.Errorf("value of the tag '%s' is not a valid JSON", TagInput)
+				break
+			}
+		case TagContractTxId:
+			hasContractTag = true
+			if !TagContractTxIdRegex.Match(tag.Value) {
+				err = errors.New("interaction contract id is not in the correct format")
+				break
+			}
+		}
 	}
 
-	if !TagContractTxIdRegex.Match(tags[TagContractTxId]) {
-		return errors.New("interaction contract id is not in the correct format")
+	if !isInteraction {
+		return false, nil
 	}
 
-	if tool.CheckJSON(tags[TagInput]) != nil {
-		return fmt.Errorf("value of the tag '%s' is not a valid JSON", TagInput)
+	if err != nil {
+		return true, err
 	}
 
-	return nil
+	if !hasContractTag {
+		return true, fmt.Errorf("interaction should have a tag '%s'", TagContractTxId)
+	}
+
+	return true, nil
 }
