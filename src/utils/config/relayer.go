@@ -7,6 +7,9 @@ import (
 )
 
 type Relayer struct {
+	// Where is the relayer started (dev, main, test)
+	Environment string
+
 	// Websocket url of the Warp's sequencer
 	SequencerUrl string
 
@@ -50,6 +53,7 @@ type Relayer struct {
 }
 
 func setRelayerDefaults() {
+	viper.SetDefault("Relayer.Environment", "dev")
 	viper.SetDefault("Relayer.SequencerUrl", "tcp://127.0.0.1:26657")
 	viper.SetDefault("Relayer.ArweaveBlockDownloadTimeout", "45s")
 	viper.SetDefault("Relayer.ArweaveBlockDownloadMaxElapsedTime", "0s")

@@ -195,7 +195,7 @@ func (self *MsgDataItemParser) parseMessage(msg cosmostypes.Msg, payload *Payloa
 		// Global
 		{Name: "Source", Value: "Warp"},
 		{Name: "Sequencer", Value: "Warp"},
-		{Name: "Env", Value: "dev"},
+		{Name: "Env", Value: self.Config.Relayer.Environment},
 		// Block specific
 		{Name: "Arweave-Block-Height", Value: strconv.FormatUint(payload.LastArweaveBlock.Height, 10)},
 		{Name: "Arweave-Block-Timestamp", Value: strconv.FormatUint(payload.LastArweaveBlock.Timestamp, 10)},
