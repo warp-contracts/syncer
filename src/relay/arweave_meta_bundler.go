@@ -69,12 +69,6 @@ func (self *ArweaveMetaBundler) createDataItem(payload *Payload, arweaveBlock *A
 	// Tags
 	out.Tags = getTags(payload, "Arweave", self.Config.Relayer.Environment, interaction, info.Random)
 
-	// Arweave specific
-	out.Tags = append(out.Tags,
-		bundlr.Tag{Name: "Contract", Value: interaction.ContractId},
-		bundlr.Tag{Name: "Tx-Id", Value: interaction.InteractionId.Base64()},
-	)
-
 	// Sign
 	err = out.Sign(self.signer)
 	if err != nil {
