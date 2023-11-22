@@ -22,7 +22,7 @@ type ArweaveBlock struct {
 	Interactions []*model.Interaction
 
 	// Nested bundle with all meta info of txs from the block
-	MetaInfoDataItem *model.DataItem
+	MetaInfoDataItems []*model.DataItem
 }
 
 type Payload struct {
