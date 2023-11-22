@@ -28,6 +28,8 @@ func getTags(payload *Payload, source, env string, interaction *model.Interactio
 		// Note: Contract is already in the nested dataItem
 		{Name: "Sort-Key", Value: interaction.SortKey},
 		{Name: "Random", Value: base64.RawURLEncoding.EncodeToString(random)},
+		{Name: "Contract-Tx-Id", Value: interaction.ContractId},
+		{Name: "Tx-Id", Value: interaction.InteractionId.Base64()},
 	}
 	// Set previous sort key only if present
 	if interaction.LastSortKey.Status == pgtype.Present {

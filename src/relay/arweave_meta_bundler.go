@@ -86,15 +86,15 @@ func (self *ArweaveMetaBundler) createDataItem(payload *Payload, arweaveBlock *A
 
 func (self *ArweaveMetaBundler) fill(payload *Payload) (err error) {
 	for blockIdx, arweaveBlock := range payload.ArweaveBlocks {
-		items := make([]*bundlr.BundleItem, len(arweaveBlock.Interactions))
 		for i := range arweaveBlock.Interactions {
-			items[i], err = self.createDataItem(payload, arweaveBlock, i)
+			var item *bundlr.BundleItem
+			item, err = self.createDataItem(payload, arweaveBlock, i)
 			if err != nil {
 				return
 			}
 
 			var dataItemBytes []byte
-			dataItemBytes, err = items[i].Marshal()
+			dataItemBytes, err = item.Marshal()
 			if err != nil {
 				return
 			}
@@ -102,7 +102,7 @@ func (self *ArweaveMetaBundler) fill(payload *Payload) (err error) {
 			// Create a DataItems that get inserted to the database
 			payload.ArweaveBlocks[blockIdx].MetaInfoDataItems = append(payload.ArweaveBlocks[blockIdx].MetaInfoDataItems,
 				&model.DataItem{
-					DataItemID:  items[i].Id.Base64(),
+					DataItemID:  item.Id.Base64(),
 					State:       model.BundleStatePending,
 					DataItem:    pgtype.Bytea{Bytes: dataItemBytes, Status: pgtype.Present},
 					BlockHeight: pgtype.Int8{Status: pgtype.Null},
