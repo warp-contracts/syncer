@@ -25,7 +25,6 @@ func getTags(payload *Payload, source, env string, interaction *model.Interactio
 		{Name: "Sequencer-Height", Value: strconv.FormatInt(payload.SequencerBlockHeight, 10)},
 		{Name: "Sequencer-Timestamp", Value: strconv.FormatInt(payload.SequencerBlockTimestamp, 10)},
 		// Interaction specific
-		// Note: Contract is already in the nested dataItem
 		{Name: "Sort-Key", Value: interaction.SortKey},
 		{Name: "Random", Value: base64.RawURLEncoding.EncodeToString(random)},
 		{Name: "Contract-Tx-Id", Value: interaction.ContractId},
