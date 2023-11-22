@@ -237,7 +237,7 @@ func (self *Store) getData(payloads []*Payload) (
 		if len(payload.ArweaveBlocks) > 0 {
 			for _, arweaveBlock := range payload.ArweaveBlocks {
 				arweaveInteractions = append(arweaveInteractions, arweaveBlock.Interactions...)
-				dataItems = append(dataItems, arweaveBlock.MetaInfoDataItem)
+				dataItems = append(dataItems, arweaveBlock.MetaInfoDataItems...)
 			}
 			lastArweaveBlock = payload.ArweaveBlocks[len(payload.ArweaveBlocks)-1]
 		}

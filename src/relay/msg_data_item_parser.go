@@ -2,12 +2,10 @@ package relay
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"regexp"
 	"runtime"
-	"strconv"
 	"sync"
 
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
@@ -17,7 +15,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/warp-contracts/syncer/src/utils/arweave"
-	"github.com/warp-contracts/syncer/src/utils/bundlr"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
@@ -188,33 +185,7 @@ func (self *MsgDataItemParser) parseMessage(msg cosmostypes.Msg, payload *Payloa
 		State:          model.BundleStatePending,
 	}
 
-	tags := []bundlr.Tag{
-		// https://github.com/Irys-xyz/js-sdk/blob/cdf73fa6bf537c57e6c9050ff0cd7d18ebc2f0ac/src/common/upload.ts#L237
-		{Name: "Bundle-Format", Value: "binary"},
-		{Name: "Bundle-Version", Value: "2.0.0"},
-		// Global
-		{Name: "Source", Value: "Warp"},
-		{Name: "Sequencer", Value: "Warp"},
-		{Name: "Env", Value: self.Config.Relayer.Environment},
-		// Block specific
-		{Name: "Arweave-Block-Height", Value: strconv.FormatUint(payload.LastArweaveBlock.Height, 10)},
-		{Name: "Arweave-Block-Timestamp", Value: strconv.FormatUint(payload.LastArweaveBlock.Timestamp, 10)},
-		{Name: "Arweave-Block-Hash", Value: payload.LastArweaveBlock.Hash},
-		{Name: "Sequencer-Height", Value: strconv.FormatInt(payload.SequencerBlockHeight, 10)},
-		{Name: "Sequencer-Timestamp", Value: strconv.FormatInt(payload.SequencerBlockTimestamp, 10)},
-		// Interaction specific
-		// Note: Contract is already in the nested dataItem
-		{Name: "Sort-Key", Value: dataItem.SortKey},
-		{Name: "Random", Value: base64.RawURLEncoding.EncodeToString(dataItem.Random)},
-	}
-
-	// Set previous sort key only if present
-	if interaction.LastSortKey.Status == pgtype.Present {
-		tags = append(tags, bundlr.Tag{
-			Name:  "Prev-Sort-Key",
-			Value: interaction.LastSortKey.String,
-		})
-	}
+	tags := getTags(payload, "Warp", self.Config.Relayer.Environment, interaction, dataItem.Random)
 
 	err = bundleItem.Tags.Set(tags)
 	if err != nil {
