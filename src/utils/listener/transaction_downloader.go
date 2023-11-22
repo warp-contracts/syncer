@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"regexp"
 	"sync"
 	"time"
 
@@ -13,13 +12,8 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/smartweave"
 	"github.com/warp-contracts/syncer/src/utils/task"
-	"github.com/warp-contracts/syncer/src/utils/tool"
 
 	"github.com/cenkalti/backoff/v4"
-)
-
-var (
-	contractIdRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{43}$")
 )
 
 // Fills in transactions for a given block
@@ -104,42 +98,12 @@ func (self *TransactionDownloader) WithFilterContracts() *TransactionDownloader 
 
 func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownloader {
 	self.filter = func(tx *arweave.Transaction) bool {
-		if tx == nil || tx.Format < 2 {
+		isInteraction, err := smartweave.ValidateInteraction(tx)
+		if err != nil {
+			self.Log.WithField("txId", tx.ID.Base64()).WithError(err).Warn("neglecting invalid interaction")
 			return false
 		}
-
-		var (
-			isInteraction bool
-			isContractId  bool
-		)
-
-		for _, tag := range tx.Tags {
-			switch string(tag.Name) {
-			case smartweave.TagAppName:
-				if string(tag.Value) == "SmartWeaveAction" {
-					// Valid interaction
-					isInteraction = true
-				}
-			case smartweave.TagInput:
-				// Input tag must be a valid JSON
-				if tool.CheckJSON(tag.Value) != nil {
-					self.Log.WithField("txId", tx.ID.Base64()).Warn("Invalid JSON in Input tag, neglecting interaction")
-					return false
-				}
-			case smartweave.TagContractTxId:
-				if !contractIdRegex.Match(tag.Value) {
-					self.Log.WithField("txId", tx.ID.Base64()).Warn("ContractTxId tag doesn't validate as a contractId, neglecting interaction")
-					return false
-				}
-				isContractId = true
-			}
-		}
-
-		if isInteraction && !isContractId {
-			self.Log.WithField("txId", tx.ID.Base64()).Warn("Missing ContractTxId in interaction")
-		}
-
-		return isInteraction && isContractId
+		return isInteraction
 	}
 	return self
 }
