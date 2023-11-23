@@ -35,7 +35,7 @@ type MsgDataItemParser struct {
 }
 
 var (
-	sortKeyRegExp = regexp.MustCompile(`^\d{12},\d{13},\d{8}$`)
+	sortKeyRegExp = regexp.MustCompile(`^\d{12},\d{13},(\d{8}|[0-9a-fA-F]{64})$`)
 )
 
 // Converts Arweave transactions into Warp's contracts
