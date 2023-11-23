@@ -119,6 +119,8 @@ func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB, component model.Sy
 }
 
 func (self *BlockDownloader) WithStopHeight(db *gorm.DB, stop uint64, component model.SyncedComponent) *BlockDownloader {
+	self.Log.WithField("stop", stop).Info("Will stop at a given height")
+
 	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
 		// Get the last storeserverd block height from the database
 		var state model.State
