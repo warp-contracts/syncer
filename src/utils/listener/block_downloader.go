@@ -90,9 +90,9 @@ func (self *BlockDownloader) WithHeightRange(start, stop uint64) *BlockDownloade
 		}
 
 		// This will never block
-		self.startHeightChannel <- uint64(block.Height)
 		self.previousBlockIndepHash = block.IndepHash
 		self.stopBlockHeight = stop
+		self.startHeightChannel <- uint64(block.Height)
 
 		return nil
 	})
@@ -110,8 +110,8 @@ func (self *BlockDownloader) WithInitStartHeight(db *gorm.DB, component model.Sy
 		}
 
 		// This will never block
-		self.startHeightChannel <- state.FinishedBlockHeight
 		self.previousBlockIndepHash = state.FinishedBlockHash
+		self.startHeightChannel <- state.FinishedBlockHeight
 
 		return nil
 	})
@@ -129,9 +129,9 @@ func (self *BlockDownloader) WithStopHeight(db *gorm.DB, stop uint64, component 
 		}
 
 		// This will never block
-		self.startHeightChannel <- state.FinishedBlockHeight
 		self.previousBlockIndepHash = state.FinishedBlockHash
 		self.stopBlockHeight = stop
+		self.startHeightChannel <- state.FinishedBlockHeight
 
 		return nil
 	})
