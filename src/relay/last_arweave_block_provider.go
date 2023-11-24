@@ -116,6 +116,10 @@ func (self *LastArweaveBlockProvider) fill(payload *Payload) (err error) {
 
 	// Request last arweave block for the given sequencer height
 	self.lastArweaveBlock, err = self.getLastBlockHeight(payload)
+
+	// Fill in the payload
+	payload.LastArweaveBlock = self.lastArweaveBlock
+
 	return
 }
 
