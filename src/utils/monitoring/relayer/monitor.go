@@ -96,7 +96,7 @@ func (self *Monitor) IsOK() bool {
 	}
 
 	now := time.Now().Unix()
-	if now-self.Report.Run.State.StartTimestamp.Load() < 300 {
+	if now-self.Report.Run.State.StartTimestamp.Load() < 1800 {
 		// Give it 5 minutes to start
 		return true
 	}
