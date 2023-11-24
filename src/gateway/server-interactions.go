@@ -86,6 +86,8 @@ func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
 				// Get interactions
 				query := tx.WithContext(c).
 					Table(model.TableInteraction).
+					Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id").
+					Where("contracts.type <> 'error'").
 					Where("interactions.sync_timestamp >= ?", in.Start).
 					Where("interactions.sync_timestamp < ?", in.End).
 					Where("interactions.block_height <= ?", forwarderState.FinishedBlockHeight).
@@ -98,8 +100,7 @@ func (self *Server) onGetInteractions(db *gorm.DB) gin.HandlerFunc {
 				}
 
 				if len(in.SrcIds) > 0 {
-					query = query.Where("contracts.src_tx_id IN ?", in.SrcIds).
-						Joins("JOIN contracts ON interactions.contract_id = contracts.contract_id")
+					query = query.Where("contracts.src_tx_id IN ?", in.SrcIds)
 				}
 
 				err = query.Find(&interactions).Error
