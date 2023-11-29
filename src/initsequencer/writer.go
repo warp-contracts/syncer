@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	GENESIS_PATH            = "genesis"
+	NETWORK_FOLDER          = "network"
+	GENESIS_FOLDER          = "genesis"
 	PREV_SORT_KEYS_FILE     = "prev_sort_keys.json"
 	LAST_ARWEAVE_BLOCK_FILE = "arweave_block.json"
 )
@@ -29,6 +30,7 @@ type Writer struct {
 	*task.Task
 
 	sequencerRepoPath string
+	env               string
 	db                *gorm.DB
 	input             chan *listener.Payload
 	Output            chan struct{}
@@ -50,6 +52,11 @@ func NewWriter(config *config.Config) (self *Writer) {
 
 func (self *Writer) WithSequencerRepoPath(sequencerRepoPath string) *Writer {
 	self.sequencerRepoPath = sequencerRepoPath
+	return self
+}
+
+func (self *Writer) WithEnv(env string) *Writer {
+	self.env = env
 	return self
 }
 
@@ -181,7 +188,7 @@ func transactions(payload *listener.Payload) []*types.ArweaveTransaction {
 }
 
 func (self *Writer) writeToConfigFile(filePath string, jsonData []byte) error {
-	fileFullPath := filepath.Join(self.sequencerRepoPath, GENESIS_PATH, filePath)
+	fileFullPath := filepath.Join(self.sequencerRepoPath, NETWORK_FOLDER, self.env, GENESIS_FOLDER, filePath)
 	err := os.WriteFile(fileFullPath, jsonData, 0644)
 	if err != nil {
 		return err

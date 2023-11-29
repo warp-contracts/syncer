@@ -16,7 +16,7 @@ type Controller struct {
 	*task.Task
 }
 
-func NewController(config *config.Config, sequencerRepoPath string) (self *Controller, err error) {
+func NewController(config *config.Config, sequencerRepoPath string, env string) (self *Controller, err error) {
 	self = new(Controller)
 
 	self.Task = task.NewTask(config, "init-sequencer-controller")
@@ -55,6 +55,7 @@ func NewController(config *config.Config, sequencerRepoPath string) (self *Contr
 
 	writer := NewWriter(config).
 		WithSequencerRepoPath(sequencerRepoPath).
+		WithEnv(env).
 		WithDB(db).
 		WithInput(transactionDownloader.Output).
 		WithLastSyncedBlock(lastSyncedBlock)

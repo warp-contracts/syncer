@@ -10,10 +10,12 @@ import (
 
 func init() {
 	initSequencerCmd.PersistentFlags().StringVar(&sequencerRepoPath, "sequencer-repo-path", "", "The path to the sequencer repository")
+	initSequencerCmd.PersistentFlags().StringVar(&env, "env", "", "Environment name")
 	RootCmd.AddCommand(initSequencerCmd)
 }
 
 var sequencerRepoPath string
+var env string
 
 var initSequencerCmd = &cobra.Command{
 	Use:   "init_sequencer",
@@ -24,7 +26,11 @@ var initSequencerCmd = &cobra.Command{
 			return errors.New("No path to the sequencer repository provided")
 		}
 
-		controller, err := initsequencer.NewController(conf, sequencerRepoPath)
+		if len(env) == 0 {
+			return errors.New("No environment name provided")
+		}
+
+		controller, err := initsequencer.NewController(conf, sequencerRepoPath, env)
 		if err != nil {
 			return
 		}
