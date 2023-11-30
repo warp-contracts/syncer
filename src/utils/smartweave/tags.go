@@ -3,15 +3,18 @@ package smartweave
 import "regexp"
 
 const (
-	TagAppName         = "App-Name"
-	TagAppNameValue    = "SmartWeaveAction"
-	TagAppVersion      = "App-Version"
-	TagContractTxId    = "Contract"
-	TagInput           = "Input"
-	TagContentType     = "Content-Type"
-	TagContractSrcTxId = "Contract-Src"
-	TagSDK             = "SDK"
-	TagMinFee          = "Min-Fee"
+	TagAppName              = "App-Name"
+	TagAppNameValue         = "SmartWeaveAction"
+	TagAppVersion           = "App-Version"
+	TagContractTxId         = "Contract"
+	TagInput                = "Input"
+	TagInputFormat          = "Input-Format"
+	TagInputFormatTagValue  = "tag"
+	TagInputFormatDataValue = "data"
+	TagContentType          = "Content-Type"
+	TagContractSrcTxId      = "Contract-Src"
+	TagSDK                  = "SDK"
+	TagMinFee               = "Min-Fee"
 )
 
 var (

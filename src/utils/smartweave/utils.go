@@ -14,6 +14,9 @@ func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error
 	}
 
 	hasContractTag := false
+	var input arweave.Base64String
+	inputFromTag := true
+
 	for _, tag := range tx.Tags {
 		switch string(tag.Name) {
 		case TagAppName:
@@ -21,9 +24,15 @@ func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error
 				isInteraction = true
 			}
 		case TagInput:
-			// Input tag must be a valid JSON
-			if tool.CheckJSON(tag.Value) != nil {
-				err = fmt.Errorf("value of the tag '%s' is not a valid JSON", TagInput)
+			input = tag.Value
+		case TagInputFormat:
+			if string(tag.Value) == TagInputFormatTagValue {
+				inputFromTag = true
+			} else if string(tag.Value) == TagInputFormatDataValue {
+				inputFromTag = false
+			} else {
+				err = fmt.Errorf("%s' tag value can only be '%s' or '%s'",
+					TagInputFormat, TagInputFormatTagValue, TagInputFormatDataValue)
 				break
 			}
 		case TagContractTxId:
@@ -37,6 +46,14 @@ func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error
 
 	if !isInteraction {
 		return false, nil
+	}
+
+	if !inputFromTag {
+		input = tx.Data
+	}
+	// Input must be a valid JSON
+	if jsonError := tool.CheckJSON(input); jsonError != nil {
+		err = fmt.Errorf("value of the input is not a valid JSON: %s", jsonError.Error())
 	}
 
 	if err != nil {
