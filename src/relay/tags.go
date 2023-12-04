@@ -11,9 +11,6 @@ import (
 
 func getTags(payload *Payload, source, env string, interaction *model.Interaction, random []byte) (out []bundlr.Tag) {
 	out = []bundlr.Tag{
-		// https://github.com/Irys-xyz/js-sdk/blob/cdf73fa6bf537c57e6c9050ff0cd7d18ebc2f0ac/src/common/upload.ts#L237
-		{Name: "Bundle-Format", Value: "binary"},
-		{Name: "Bundle-Version", Value: "2.0.0"},
 		// Global
 		{Name: "Sequencer", Value: "Warp"},
 		{Name: "Source", Value: source},
