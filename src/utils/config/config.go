@@ -49,6 +49,7 @@ type Config struct {
 	Gateway               Gateway
 	Profiler              Profiler
 	Interactor            Interactor
+	Evolve                Evolve
 }
 
 func setDefaults() {
@@ -77,6 +78,7 @@ func setDefaults() {
 	setProfilerDefaults()
 	setInteractorDefaults()
 	setSequencerDefaults()
+	setEvolveDefaults()
 }
 
 func Default() (config *Config) {
