@@ -2,19 +2,24 @@ package smartweave
 
 import "regexp"
 
+// SmartWeave protocol tag names
 const (
-	TagAppName              = "App-Name"
+	TagAppName         = "App-Name"
+	TagAppVersion      = "App-Version"
+	TagContractTxId    = "Contract"
+	TagInput           = "Input"
+	TagInputFormat     = "Input-Format"
+	TagContentType     = "Content-Type"
+	TagContractSrcTxId = "Contract-Src"
+	TagSDK             = "SDK"
+	TagMinFee          = "Min-Fee"
+)
+
+// SmartWeave protocol tag values
+const (
 	TagAppNameValue         = "SmartWeaveAction"
-	TagAppVersion           = "App-Version"
-	TagContractTxId         = "Contract"
-	TagInput                = "Input"
-	TagInputFormat          = "Input-Format"
 	TagInputFormatTagValue  = "tag"
 	TagInputFormatDataValue = "data"
-	TagContentType          = "Content-Type"
-	TagContractSrcTxId      = "Contract-Src"
-	TagSDK                  = "SDK"
-	TagMinFee               = "Min-Fee"
 )
 
 var (

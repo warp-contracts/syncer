@@ -17,6 +17,7 @@ func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error
 	var input arweave.Base64String
 	inputFromTag := true
 
+tagsLoop:
 	for _, tag := range tx.Tags {
 		switch string(tag.Name) {
 		case TagAppName:
@@ -26,20 +27,21 @@ func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error
 		case TagInput:
 			input = tag.Value
 		case TagInputFormat:
-			if string(tag.Value) == TagInputFormatTagValue {
+			switch string(tag.Value) {
+			case TagInputFormatTagValue:
 				inputFromTag = true
-			} else if string(tag.Value) == TagInputFormatDataValue {
+			case TagInputFormatDataValue:
 				inputFromTag = false
-			} else {
+			default:
 				err = fmt.Errorf("%s' tag value can only be '%s' or '%s'",
 					TagInputFormat, TagInputFormatTagValue, TagInputFormatDataValue)
-				break
+				break tagsLoop
 			}
 		case TagContractTxId:
 			hasContractTag = true
 			if !TagContractTxIdRegex.Match(tag.Value) {
 				err = errors.New("interaction contract id is not in the correct format")
-				break
+				break tagsLoop
 			}
 		}
 	}
@@ -65,4 +67,19 @@ func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error
 	}
 
 	return true, nil
+}
+
+// whether the interaction should have a non-empty data field
+func InteractionWithData(tx *arweave.Transaction) bool {
+	if tx == nil || tx.Format < 2 {
+		return false
+	}
+
+	for _, tag := range tx.Tags {
+		if string(tag.Name) == TagInputFormat && string(tag.Value) == TagInputFormatDataValue {
+			return true
+		}
+	}
+
+	return false
 }

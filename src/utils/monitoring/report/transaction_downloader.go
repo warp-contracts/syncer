@@ -4,6 +4,7 @@ import "go.uber.org/atomic"
 
 type TransactionDownloaderErrors struct {
 	Download                 atomic.Uint64 `json:"download"`
+	DataDownload             atomic.Uint64 `json:"data_download"`
 	PermanentDownloadFailure atomic.Uint64 `json:"permanent_download_failure"`
 	Validation               atomic.Uint64 `json:"validation"`
 }
