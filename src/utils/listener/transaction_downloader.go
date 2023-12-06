@@ -264,14 +264,10 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 	return
 }
 
-func (self *TransactionDownloader) downloadTransactionData(tx *arweave.Transaction) (data arweave.Base64String, err error) {
+func (self *TransactionDownloader) downloadTransactionData(tx *arweave.Transaction) (arweave.Base64String, error) {
 	buf, err := self.client.GetTransactionDataById(self.Ctx, tx)
 	if err != nil {
-		var err2 error
-		buf, err2 = self.client.GetCachedTransactionDataById(self.Ctx, tx)
-		if err2 != nil {
-			return nil, errors.Join(err, err2)
-		}
+		return nil, err
 	}
 	return arweave.Base64String(buf.Bytes()), nil
 }
