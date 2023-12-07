@@ -293,7 +293,7 @@ func (self *Store) updateFinishedArweaveBlock(tx *gorm.DB, arweaveBlock *Arweave
 			Updates(model.State{
 				FinishedBlockTimestamp: uint64(arweaveBlock.Block.Timestamp),
 				FinishedBlockHeight:    uint64(arweaveBlock.Block.Height),
-				FinishedBlockHash:      arweaveBlock.Block.Hash,
+				FinishedBlockHash:      arweaveBlock.Block.IndepHash,
 			}).
 			Error
 		if err != nil {
