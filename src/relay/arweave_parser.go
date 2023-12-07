@@ -116,7 +116,7 @@ func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.In
 			// Parse transactions into interaction
 			interaction, errParse := self.interactionParser.Parse(tx,
 				arweaveBlock.Block.Height,
-				arweaveBlock.Block.Hash,
+				arweaveBlock.Block.IndepHash,
 				arweaveBlock.Block.Timestamp,
 				info.Random,
 				info.Transaction.SortKey,
