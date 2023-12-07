@@ -22,7 +22,7 @@ type Poller struct {
 func NewPoller(config *config.Config) (self *Poller) {
 	self = new(Poller)
  
-	self.Output = make(chan string, config.Evolve.ChannelBufferLength)
+	self.Output = make(chan string, config.Evolve.PollerChannelBufferLength)
 
 	self.Task = task.NewTask(config, "poller").
 		WithRepeatedSubtaskFunc(config.Evolve.PollerInterval, self.handleNew).
