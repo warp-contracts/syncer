@@ -20,12 +20,12 @@ import (
 type TransactionDownloader struct {
 	*task.Task
 
-	client             *arweave.Client
-	monitor            monitoring.Monitor
-	filter             func(*arweave.Transaction) bool
-	getTransactionData func(*arweave.Transaction) bool
-	input              chan *arweave.Block
-	Output             chan *Payload
+	client               *arweave.Client
+	monitor              monitoring.Monitor
+	filter               func(*arweave.Transaction) bool
+	isGetTransactionData func(*arweave.Transaction) bool
+	input                chan *arweave.Block
+	Output               chan *Payload
 
 	// Parameters
 	maxElapsedTime time.Duration
@@ -39,7 +39,7 @@ func NewTransactionDownloader(config *config.Config) (self *TransactionDownloade
 	// No time limit by default
 	self.filter = func(tx *arweave.Transaction) bool { return true }
 
-	self.getTransactionData = func(tx *arweave.Transaction) bool { return false }
+	self.isGetTransactionData = func(tx *arweave.Transaction) bool { return false }
 
 	self.Output = make(chan *Payload)
 
@@ -108,7 +108,7 @@ func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownload
 		}
 		return isInteraction
 	}
-	self.getTransactionData = smartweave.InteractionWithData
+	self.isGetTransactionData = smartweave.IsInteractionWithData
 	return self
 }
 
@@ -222,7 +222,7 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 						self.monitor.GetReport().TransactionDownloader.Errors.Validation.Inc()
 					}
 
-					if self.getTransactionData(tx) {
+					if self.isGetTransactionData(tx) {
 						tx.Data, err = self.downloadTransactionData(tx)
 						if err != nil {
 							self.monitor.GetReport().TransactionDownloader.Errors.DataDownload.Inc()

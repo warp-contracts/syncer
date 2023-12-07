@@ -98,7 +98,7 @@ func (self *TransactionDownloader) downloadOne(txId string) (out *arweave.Transa
 				return err
 			}
 
-			if len(out.Data) == 0 && smartweave.InteractionWithData(out) {
+			if smartweave.IsInteractionWithData(out) {
 				buf, err := self.client.GetTransactionDataById(self.Ctx, out)
 				if err != nil {
 					self.Log.WithField("txId", txId).Error("Failed to download transaction data")

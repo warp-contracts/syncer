@@ -8,6 +8,8 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/tool"
 )
 
+const MaxInteractionDataItemSizeBytes = 20000
+
 func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error) {
 	if tx == nil || tx.Format < 2 {
 		return false, nil
@@ -17,7 +19,6 @@ func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error
 	var input arweave.Base64String
 	inputFromTag := true
 
-tagsLoop:
 	for _, tag := range tx.Tags {
 		switch string(tag.Name) {
 		case TagAppName:
@@ -35,13 +36,11 @@ tagsLoop:
 			default:
 				err = fmt.Errorf("%s' tag value can only be '%s' or '%s'",
 					TagInputFormat, TagInputFormatTagValue, TagInputFormatDataValue)
-				break tagsLoop
 			}
 		case TagContractTxId:
 			hasContractTag = true
 			if !TagContractTxIdRegex.Match(tag.Value) {
 				err = errors.New("interaction contract id is not in the correct format")
-				break tagsLoop
 			}
 		}
 	}
@@ -58,6 +57,10 @@ tagsLoop:
 		err = fmt.Errorf("value of the input is not a valid JSON: %s", jsonError.Error())
 	}
 
+	if tx.Size() > MaxInteractionDataItemSizeBytes {
+		err = fmt.Errorf("the size of the interaction exceeds the limit: %d bytes", MaxInteractionDataItemSizeBytes)
+	}
+
 	if err != nil {
 		return true, err
 	}
@@ -70,16 +73,16 @@ tagsLoop:
 }
 
 // whether the interaction should have a non-empty data field
-func InteractionWithData(tx *arweave.Transaction) bool {
+func IsInteractionWithData(tx *arweave.Transaction) bool {
 	if tx == nil || tx.Format < 2 {
 		return false
 	}
 
-	for _, tag := range tx.Tags {
-		if string(tag.Name) == TagInputFormat && string(tag.Value) == TagInputFormatDataValue {
-			return true
-		}
+	dataSize := tx.DataSize.Int64()
+	if dataSize <= 0 || dataSize > MaxInteractionDataItemSizeBytes {
+		return false
 	}
 
-	return false
+	inputFormat, ok := tx.GetTag(TagInputFormat)
+	return ok && inputFormat == TagInputFormatDataValue
 }

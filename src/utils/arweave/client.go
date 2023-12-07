@@ -210,7 +210,7 @@ func (self *Client) GetTransactionById(ctx context.Context, id string) (out *Tra
 }
 
 // https://docs.arweave.org/developers/server/http-api#get-transaction-offset-and-size
-func (self *Client) getTransactionOffsetInfo(ctx context.Context, id string) (out *OffsetInfo, err error) {
+func (self *Client) GetTransactionOffsetInfo(ctx context.Context, id string) (out *OffsetInfo, err error) {
 	req, cancel := self.Request(ctx)
 	defer cancel()
 
@@ -259,9 +259,9 @@ func (self *Client) getChunk(ctx context.Context, offset big.Int) (out *ChunkDat
 	return
 }
 
-func (self *Client) getChunks(ctx context.Context, tx *Transaction) (out bytes.Buffer, err error) {
+func (self *Client) GetChunks(ctx context.Context, tx *Transaction) (out bytes.Buffer, err error) {
 	// Download chunks
-	info, err := self.getTransactionOffsetInfo(ctx, tx.ID.Base64())
+	info, err := self.GetTransactionOffsetInfo(ctx, tx.ID.Base64())
 	if err != nil {
 		return
 	}
@@ -321,7 +321,7 @@ func (self *Client) GetTransactionDataById(ctx context.Context, tx *Transaction)
 	out.Write(data)
 	if out.Len() > 0 {
 		// Do the checks and return
-		if len(data) != int(tx.DataSize.Int64()) {
+		if out.Len() != int(tx.DataSize.Int64()) {
 			err = ErrDataSizeMismatch
 			return
 		}
@@ -329,13 +329,13 @@ func (self *Client) GetTransactionDataById(ctx context.Context, tx *Transaction)
 		return
 	}
 
-	out, err = self.getChunks(ctx, tx)
+	out, err = self.GetChunks(ctx, tx)
 	if err == nil {
 		return
 	}
 
 	var err2 error
-	out, err2 = self.getCachedTransactionDataById(ctx, tx)
+	out, err2 = self.GetCachedTransactionDataById(ctx, tx)
 	if err2 == nil {
 		return
 	}
@@ -343,7 +343,7 @@ func (self *Client) GetTransactionDataById(ctx context.Context, tx *Transaction)
 	return out, errors.Join(err, err2)
 }
 
-func (self *Client) getCachedTransactionDataById(ctx context.Context, tx *Transaction) (out bytes.Buffer, err error) {
+func (self *Client) GetCachedTransactionDataById(ctx context.Context, tx *Transaction) (out bytes.Buffer, err error) {
 	ctx = context.WithValue(ctx, ContextDisablePeers, true)
 
 	req, cancel := self.Request(ctx)
