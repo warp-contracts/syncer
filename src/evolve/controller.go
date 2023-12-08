@@ -34,9 +34,15 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithInputChannel(poller.Output).
 			WithClient(client)
 
+	// Inserts loaded contract sources into database
+	store := NewStore(config).	
+			WithInputChannel(downloader.Output).
+			WithDB(db)
+
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.
 		WithSubtask(poller.Task).
-		WithSubtask(downloader.Task)
+		WithSubtask(downloader.Task).
+		WithSubtask(store.Task)
 	return
 }

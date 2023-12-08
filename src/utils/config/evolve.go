@@ -28,6 +28,20 @@ type Evolve struct {
 	
 	// Max number of transactions that wait in the worker queue
 	DownloaderWorkerQueueSize int
+
+	// How many contract sources are saved in one transaction
+	StoreBatchSize int
+
+	// How often is an insert triggered
+	StoreInterval time.Duration
+
+	// Max time store will try to insert a batch of data to the database
+	// 0 means no limit
+	// This should be 0,
+	StoreBackoffMaxElapsedTime time.Duration
+
+	// Max time between retries to insert a batch of confirmations to  the database
+	StoreBackoffMaxInterval time.Duration
 }
 
 func setEvolveDefaults() {
@@ -38,4 +52,7 @@ func setEvolveDefaults() {
 	viper.SetDefault("Evolve.DownloaderSourceTransactiondMaxInterval", "5s")
 	viper.SetDefault("Evolve.DownloaderNumWorkers", "50")
 	viper.SetDefault("Evolve.DownloaderWorkerQueueSize", "10")
+	viper.SetDefault("Evolve.StoreBatchSize", "10")
+	viper.SetDefault("Evolve.StoreInterval", "10s")
+	viper.SetDefault("Evolve.StoreBackoffMaxElapsedTime", "0")
 }
