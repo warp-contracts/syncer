@@ -9,11 +9,8 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
-	"github.com/warp-contracts/syncer/src/utils/smartweave"
 	"github.com/warp-contracts/syncer/src/utils/task"
 	"github.com/warp-contracts/syncer/src/utils/warp"
-
-	"golang.org/x/exp/slices"
 )
 
 type Downloader struct {
@@ -53,23 +50,9 @@ func (self *Downloader) run() (err error) {
 	
 	for srcId := range self.input {
 		srcId := srcId
-		var contractSrc *model.ContractSource
 		self.SubmitToWorker(func() {
-			tx, errSrc := self.downloadContractSrcTx(srcId)
-			if errSrc != nil {
-				self.Log.WithError(errSrc).
-					WithField("srcId", srcId).
-					Error("Failed to download contract source transaction")
-				contractSrc.SrcTxId = srcId
-				err = contractSrc.Src.Set("error")
-				if err != nil {
-					err = errors.New("could not set contract source error")
-					return
-				}
-				goto end
-			} 
 
-			contractSrc, errSrc = self.loadContractSrcMetadata(tx)
+			contractSrc, errSrc := self.download(srcId)
 			if errSrc != nil {
 				self.Log.WithError(errSrc).
 					WithField("srcId", srcId).
@@ -82,8 +65,7 @@ func (self *Downloader) run() (err error) {
 				}
 			}
 
-			end:
-				self.Output <- contractSrc
+			self.Output <- contractSrc
 		})
 	}
 
@@ -91,7 +73,7 @@ func (self *Downloader) run() (err error) {
 }
 
 
-func (self *Downloader) downloadContractSrcTx(srcId string) (out *arweave.Transaction, err error) {
+func (self *Downloader) download(srcId string) (out *model.ContractSource, err error) {
 	err = task.NewRetry().
 		WithContext(self.Ctx).
 		WithMaxElapsedTime(0).
@@ -119,7 +101,7 @@ func (self *Downloader) downloadContractSrcTx(srcId string) (out *arweave.Transa
 			return err
 		}).
 		Run(func() error {
-			out, err = self.client.GetTransactionById(self.Ctx, srcId)
+			out, err = self.getContractSrc(srcId)
 			if err != nil {
 				self.Log.WithField("txId", srcId).Error("Failed to download contract source transaction")
 				return err
@@ -134,49 +116,14 @@ func (self *Downloader) downloadContractSrcTx(srcId string) (out *arweave.Transa
 	return
 }
 
-func (self *Downloader) loadContractSrcMetadata(srcTx *arweave.Transaction) (out *model.ContractSource, err error) {
+func (self *Downloader) getContractSrc(srcId string) (out *model.ContractSource, err error) {
 			out = model.NewContractSource()
 
-			out.SrcTxId = srcTx.ID.Base64()
+			srcTx, err := self.client.GetTransactionById(self.Ctx, srcId)
 
-			srcContentType, ok := srcTx.GetTag(smartweave.TagContentType)
-			if !ok {
-				err = errors.New("contract source content type is not set")
-				return
-			}
-		
-			if !slices.Contains(self.Config.Contract.LoaderSupportedContentTypes, srcContentType) {
-				err = errors.New("unsupported contract source content type")
-				return
-			}
-		
-			err = out.SrcContentType.Set(srcContentType)
+			err = warp.SetContractSourceMetadata(srcTx, out)
 			if err != nil {
-				err = errors.New("could not set contract source type")
-				return
-			}
-
-			owner, err := warp.GetWalletAddress(srcTx)
-			if err != nil {
-				self.Log.WithError(err).Error("could not get wallet address")
-				return
-			}
-		
-			err = out.Owner.Set(owner)
-			if err != nil {
-				err = errors.New("could not set owner")
-				return
-			}
-
-			err = out.SrcTx.Set(srcTx)
-			if err != nil {
-				err = errors.New("could not set contract source transaction")
-				return
-			}
-
-			err = srcTx.Verify()
-			if err != nil {
-				err = errors.New("could not verify contract source transaction")
+				self.Log.WithError(err).Error("Failed to set contract source metadata")
 				return
 			}
 
@@ -186,29 +133,10 @@ func (self *Downloader) loadContractSrcMetadata(srcTx *arweave.Transaction) (out
 				return
 			}
 		
-			if out.IsJS() {
-				err = out.Src.Set(src.String())
-				if err != nil {
-					err = errors.New("could not set contract source data")
-					return
-				}
-			} else {
-				srcWasmLang, ok := srcTx.GetTag(warp.TagWasmLang)
-				if !ok {
-					err = errors.New("WASM contract source language is not set")
-					return
-				}
-				err = out.SrcWasmLang.Set(srcWasmLang)
-				if err != nil {
-					err = errors.New("could not set WASM contract source language")
-					return
-				}
-			
-				err = out.SrcBinary.Set(src.Bytes())
-				if err != nil {
-					err = errors.New("could not set contract source binary")
-					return
-				}
+			err = warp.SetContractSource(src, srcTx, out)
+			if err != nil {
+				self.Log.WithError(err).Error("Failed to set contract source data")
+				return
 			}
 
 		return

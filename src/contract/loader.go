@@ -17,7 +17,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/warp"
 
 	"github.com/cenkalti/backoff/v4"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -327,13 +326,7 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 	self.Log.WithField("src_tx_id", srcId).Debug("-> getSource")
 	defer self.Log.WithField("src_tx_id", srcId).Debug("<- getSource")
 
-	var ok bool
 	out = model.NewContractSource()
-	out.SrcTxId = srcId
-	err = out.DeploymentType.Set("arweave")
-	if err != nil {
-		return
-	}
 
 	srcTx, err := self.client.GetTransactionById(self.Ctx, srcId)
 	if err != nil {
@@ -362,37 +355,9 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 		return
 	}
 
-	// Verify tags
-	srcContentType, ok := srcTx.GetTag(smartweave.TagContentType)
-	if !ok {
-		err = errors.New("contract source content type is not set")
-		return
-	}
-
-	if !slices.Contains(self.Config.Contract.LoaderSupportedContentTypes, srcContentType) {
-		err = errors.New("unsupported contract source content type")
-		return
-	}
-
-	err = out.SrcContentType.Set(srcContentType)
+	err = warp.SetContractSourceMetadata(srcTx, out)
 	if err != nil {
-		return
-	}
-
-	// Check signature
-	err = srcTx.Verify()
-	if err != nil {
-		return
-	}
-
-	// Set owner
-	owner, err := warp.GetWalletAddress(srcTx)
-	if err != nil {
-		return
-	}
-
-	err = out.Owner.Set(owner)
-	if err != nil {
+		self.Log.WithError(err).Error("Failed to set contract source metadata")
 		return
 	}
 
@@ -403,27 +368,12 @@ func (self *Loader) getSource(srcId string) (out *model.ContractSource, err erro
 		return
 	}
 
-	if out.IsJS() {
-		err = out.Src.Set(src.String())
-		if err != nil {
-			return
-		}
-	} else {
-		srcWasmLang, ok := srcTx.GetTag(warp.TagWasmLang)
-		if !ok {
-			err = errors.New("WASM contract language is not set")
-			return
-		}
-		err = out.SrcWasmLang.Set(srcWasmLang)
-		if err != nil {
-			return
-		}
-
-		err = out.SrcBinary.Set(src.Bytes())
-		if err != nil {
-			return
-		}
+	err = warp.SetContractSource(src, srcTx, out)
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to set contract source data")
+		return
 	}
+
 	return
 }
 
