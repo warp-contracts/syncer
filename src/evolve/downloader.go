@@ -14,7 +14,7 @@ import (
 )
 
 type Downloader struct {
-	*task.Task
+	*task.Task 
 
 	client  *arweave.Client
 	input   <- chan string
@@ -56,13 +56,7 @@ func (self *Downloader) run() (err error) {
 			if errSrc != nil {
 				self.Log.WithError(errSrc).
 					WithField("srcId", srcId).
-					Error("Failed to load contract source metadata")
-				contractSrc.SrcTxId = srcId
-				err = contractSrc.Src.Set("error")
-				if err != nil {
-					err = errors.New("could not set contract source error")
-					return
-				}
+					Error("Failed to download contract source")
 			}
 
 			self.Output <- contractSrc
@@ -105,7 +99,7 @@ func (self *Downloader) download(srcId string) (out *model.ContractSource, err e
 			if err != nil {
 				self.Log.WithField("txId", srcId).Error("Failed to download contract source transaction")
 				return err
-			}
+			} 
 			return err
 		})
 	if err != nil {
@@ -120,6 +114,9 @@ func (self *Downloader) getContractSrc(srcId string) (out *model.ContractSource,
 			out = model.NewContractSource()
 
 			srcTx, err := self.client.GetTransactionById(self.Ctx, srcId)
+			if err != nil {
+				return
+			}
 
 			err = warp.SetContractSourceMetadata(srcTx, out)
 			if err != nil {

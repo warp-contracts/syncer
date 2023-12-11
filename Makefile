@@ -95,7 +95,7 @@ send: build-race | ; $(info $(M) starting sending with default params…)
 
 .PHONY: evolve
 evolve: build-race | ; $(info $(M) starting evolve with default params…)
-	bin/$(PACKAGE) evolve --config dbconfig.json
+	bin/$(PACKAGE) evolve
 
 .PHONY: lint
 lint: $(GOLANGCILINT) | $(BASE) ; $(info $(M) running golangci-lint) @
