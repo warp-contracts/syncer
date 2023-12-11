@@ -1,7 +1,5 @@
 package smartweave
 
-import "regexp"
-
 // SmartWeave protocol tag names
 const (
 	TagAppName         = "App-Name"
@@ -20,8 +18,4 @@ const (
 	TagAppNameValue         = "SmartWeaveAction"
 	TagInputFormatTagValue  = "tag"
 	TagInputFormatDataValue = "data"
-)
-
-var (
-	TagContractTxIdRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{43}$")
 )

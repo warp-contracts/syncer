@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"regexp"
 )
 
 type Transaction struct {
@@ -33,6 +34,10 @@ type Tag struct {
 	Name  Base64String `json:"name"`
 	Value Base64String `json:"value"`
 }
+
+var (
+	TxIdRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{43}$")
+)
 
 func (tx *Transaction) GetTag(name string) (value string, ok bool) {
 	for _, tag := range tx.Tags {
