@@ -39,7 +39,7 @@ func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error
 			}
 		case TagContractTxId:
 			hasContractTag = true
-			if !TagContractTxIdRegex.Match(tag.Value) {
+			if !arweave.TxIdRegex.Match(tag.Value) {
 				err = errors.New("interaction contract id is not in the correct format")
 			}
 		}

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/jackc/pgtype"
@@ -25,10 +24,6 @@ import (
 type InteractionParser struct {
 	log *logrus.Entry
 }
-
-var (
-	txIdRegex       = regexp.MustCompile("^[a-z0-9_-]{43}$")
-)
 
 func NewInteractionParser(config *config.Config) (self *InteractionParser, err error) {
 	self = new(InteractionParser)
@@ -147,7 +142,7 @@ func (self *InteractionParser) parseTags(tags []arweave.Tag) (out []smartweave.T
 func AddTagToInteraction(out *model.Interaction, name, value string) error {
 	switch string(name) {
 	case smartweave.TagContractTxId:
-		if !smartweave.TagContractTxIdRegex.MatchString(value) {
+		if !arweave.TxIdRegex.MatchString(value) {
 			return errors.New("tag doesn't validate as a contractId")
 		}
 		out.ContractId = value
@@ -190,7 +185,7 @@ func AddTagToInteraction(out *model.Interaction, name, value string) error {
 		// Is this a call to evolve
 		if strings.EqualFold(out.Function, "evolve") &&
 			input.Value != nil &&
-			txIdRegex.MatchString(*input.Value) {
+			arweave.TxIdRegex.MatchString(*input.Value) {
 			out.Evolve = sql.NullString{
 				String: *input.Value,
 				Valid:  true,
