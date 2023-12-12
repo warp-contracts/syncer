@@ -13,10 +13,10 @@ type Controller struct {
 
 func NewController(config *config.Config) (self *Controller, err error) {
 	self = new(Controller)
-	self.Task = task.NewTask(config, "evolve-controller")
+	self.Task = task.NewTask(config, "evolver")
 
 	// SQL database
-	db, err := model.NewConnection(self.Ctx, config, "evolve")
+	db, err := model.NewConnection(self.Ctx, config, "evolver")
 	if err != nil {
 		return
 	}
@@ -24,20 +24,19 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Arweave client
 	client := arweave.NewClient(self.Ctx, config)
 
-
 	// Gets new contract sources from the database
 	poller := NewPoller(config).
-			WithDB(db)
+		WithDB(db)
 
 	// Downloads source transaction and loads its metadata
 	downloader := NewDownloader(config).
-			WithInputChannel(poller.Output).
-			WithClient(client)
+		WithInputChannel(poller.Output).
+		WithClient(client)
 
 	// Inserts loaded contract sources into database
-	store := NewStore(config).	
-			WithInputChannel(downloader.Output).
-			WithDB(db)
+	store := NewStore(config).
+		WithInputChannel(downloader.Output).
+		WithDB(db)
 
 	// Setup everything, will start upon calling Controller.Start()
 	self.Task.

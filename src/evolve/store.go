@@ -8,21 +8,20 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
- 
+
 type Store struct {
 	*task.Hole[*model.ContractSource]
 
-	db      *gorm.DB
-	input   chan *model.ContractSource
+	db    *gorm.DB
 }
 
 func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
- 
-	self.Hole = task.NewHole[*model.ContractSource](config, "evolve-store").
-		WithBatchSize(config.Evolve.StoreBatchSize).
-		WithOnFlush(config.Evolve.StoreInterval, self.flush).
-		WithBackoff(config.Evolve.StoreBackoffMaxElapsedTime, config.Evolve.StoreBackoffMaxInterval)
+
+	self.Hole = task.NewHole[*model.ContractSource](config, "store").
+		WithBatchSize(config.Evolver.StoreBatchSize).
+		WithOnFlush(config.Evolver.StoreInterval, self.flush).
+		WithBackoff(config.Evolver.StoreBackoffMaxElapsedTime, config.Evolver.StoreBackoffMaxInterval)
 
 	return
 }
@@ -46,12 +45,12 @@ func (self *Store) flush(contractSources []*model.ContractSource) (err error) {
 	defer self.Log.WithField("len", len(contractSources)).Debug("<- Saving evolved contract sources to DB")
 
 	err = self.db.WithContext(self.Ctx).
-			Table(model.TableContractSource).
-			Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "src_tx_id"}},
-				DoNothing: true,
-			}).
-			CreateInBatches(&contractSources, self.Config.Sender.StoreBatchSize).
+		Table(model.TableContractSource).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "src_tx_id"}},
+			DoNothing: true,
+		}).
+		CreateInBatches(&contractSources, self.Config.Evolver.StoreBatchSize).
 		Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to insert contract sources, retrying...")

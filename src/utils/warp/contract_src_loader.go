@@ -13,7 +13,7 @@ import (
 
 var supportedContentType = []string{"application/javascript", "application/wasm"}
 
-func SetContractSourceMetadata (sourceTx *arweave.Transaction, out *model.ContractSource) (err error) {
+func SetContractSourceMetadata(sourceTx *arweave.Transaction, out *model.ContractSource) (err error) {
 	out.SrcTxId = sourceTx.ID.Base64()
 
 	err = out.DeploymentType.Set("arweave")
@@ -62,7 +62,7 @@ func SetContractSourceMetadata (sourceTx *arweave.Transaction, out *model.Contra
 	return
 }
 
-func SetContractSource (src bytes.Buffer, srcTx *arweave.Transaction, out *model.ContractSource) (err error) {
+func SetContractSource(src bytes.Buffer, srcTx *arweave.Transaction, out *model.ContractSource) (err error) {
 	if out.IsJS() {
 		err = out.Src.Set(src.String())
 		if err != nil {

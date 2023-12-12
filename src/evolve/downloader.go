@@ -14,11 +14,11 @@ import (
 )
 
 type Downloader struct {
-	*task.Task 
+	*task.Task
 
-	client  *arweave.Client
-	input   <- chan string
-	Output  chan *model.ContractSource
+	client *arweave.Client
+	input  <-chan string
+	Output chan *model.ContractSource
 }
 
 func NewDownloader(config *config.Config) (self *Downloader) {
@@ -26,9 +26,9 @@ func NewDownloader(config *config.Config) (self *Downloader) {
 
 	self.Output = make(chan *model.ContractSource)
 
-	self.Task = task.NewTask(config, "evolve-downloader").
+	self.Task = task.NewTask(config, "downloader").
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(config.Evolve.DownloaderNumWorkers, config.Evolve.DownloaderWorkerQueueSize).
+		WithWorkerPool(config.Evolver.DownloaderNumWorkers, config.Evolver.DownloaderWorkerQueueSize).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})
@@ -47,16 +47,28 @@ func (self *Downloader) WithInputChannel(v chan string) *Downloader {
 }
 
 func (self *Downloader) run() (err error) {
-	
+
 	for srcId := range self.input {
 		srcId := srcId
 		self.SubmitToWorker(func() {
 
 			contractSrc, errSrc := self.download(srcId)
 			if errSrc != nil {
+				if self.IsStopping.Load() {
+					// Task is stopping, no further actions needed
+					return
+				}
+
 				self.Log.WithError(errSrc).
 					WithField("srcId", srcId).
-					Error("Failed to download contract source")
+					Error("Failed to download contract source, setting contract source as error")
+
+				contractSrc.SrcTxId = srcId
+				err = contractSrc.Src.Set("error")
+				if err != nil {
+					err = errors.New("could not set contract source error")
+					return
+				}
 			}
 
 			self.Output <- contractSrc
@@ -66,23 +78,22 @@ func (self *Downloader) run() (err error) {
 	return nil
 }
 
-
 func (self *Downloader) download(srcId string) (out *model.ContractSource, err error) {
 	err = task.NewRetry().
 		WithContext(self.Ctx).
 		WithMaxElapsedTime(0).
-		WithMaxInterval(self.Config.Evolve.DownloaderSourceTransactiondMaxInterval).
-		WithAcceptableDuration(self.Config.Evolve.DownloaderSourceTransactiondMaxInterval * 3).
+		WithMaxInterval(self.Config.Evolver.DownloaderSourceTransactiondMaxInterval).
+		WithAcceptableDuration(self.Config.Evolver.DownloaderSourceTransactiondMaxInterval * 3).
 		WithOnError(func(err error, isDurationAcceptable bool) error {
 			// Permanent errors
-			if (errors.Is(err, context.Canceled) && self.IsStopping.Load()) || errors.Is(err, arweave.ErrNotFound) || 
-			errors.Is(err, arweave.ErrOverspend) {
+			if (errors.Is(err, context.Canceled) && self.IsStopping.Load()) || errors.Is(err, arweave.ErrNotFound) ||
+				errors.Is(err, arweave.ErrOverspend) {
 				return backoff.Permanent(err)
 			}
 
 			// Errors fo retry
 			self.Log.WithError(err).WithField("srcId", srcId).Warn("Failed to download contract source transaction, retrying after timeout")
-			
+
 			if errors.Is(err, arweave.ErrPending) {
 				time.Sleep(time.Second)
 				return err
@@ -97,44 +108,50 @@ func (self *Downloader) download(srcId string) (out *model.ContractSource, err e
 		Run(func() error {
 			out, err = self.getContractSrc(srcId)
 			if err != nil {
-				self.Log.WithField("txId", srcId).Error("Failed to download contract source transaction")
+				self.Log.WithError(err).WithField("txId", srcId).Error("Failed to download contract source transaction")
 				return err
-			} 
+			}
 			return err
 		})
 	if err != nil {
 		self.Log.WithError(err).WithField("txId", srcId).Error("Failed to download contract source transaction, giving up")
 		return
 	}
-	
+
 	return
 }
 
 func (self *Downloader) getContractSrc(srcId string) (out *model.ContractSource, err error) {
-			out = model.NewContractSource()
+	out = model.NewContractSource()
 
-			srcTx, err := self.client.GetTransactionById(self.Ctx, srcId)
-			if err != nil {
-				return
-			}
-
-			err = warp.SetContractSourceMetadata(srcTx, out)
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to set contract source metadata")
-				return
-			}
-
-			src, err := self.client.GetTransactionDataById(self.Ctx, srcTx)
-			if err != nil {
-				self.Log.WithError(err).Error("could not get contract source data")
-				return
-			}
-		
-			err = warp.SetContractSource(src, srcTx, out)
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to set contract source data")
-				return
-			}
-
+	srcTx, err := self.client.GetTransactionById(self.Ctx, srcId)
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to get source transaction")
 		return
+	}
+
+	if int(srcTx.DataSize.Int64()) > warp.MAX_TRANSACTION_DATA_SIZE {
+		err = errors.New("Data size exceeds maximum transaction data size")
+		return
+	}
+
+	err = warp.SetContractSourceMetadata(srcTx, out)
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to set contract source metadata")
+		return
+	}
+
+	src, err := self.client.GetTransactionDataById(self.Ctx, srcTx)
+	if err != nil {
+		self.Log.WithError(err).Error("could not get contract source data")
+		return
+	}
+
+	err = warp.SetContractSource(src, srcTx, out)
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to set contract source data")
+		return
+	}
+
+	return
 }

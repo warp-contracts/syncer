@@ -13,7 +13,7 @@ import (
 type Poller struct {
 	*task.Task
 
-	db      *gorm.DB
+	db *gorm.DB
 
 	// Evolve to be sent out
 	Output chan string
@@ -21,11 +21,11 @@ type Poller struct {
 
 func NewPoller(config *config.Config) (self *Poller) {
 	self = new(Poller)
- 
-	self.Output = make(chan string, config.Evolve.PollerChannelBufferLength)
+
+	self.Output = make(chan string, config.Evolver.PollerChannelBufferLength)
 
 	self.Task = task.NewTask(config, "poller").
-		WithRepeatedSubtaskFunc(config.Evolve.PollerInterval, self.handleNew).
+		WithRepeatedSubtaskFunc(config.Evolver.PollerInterval, self.handleNew).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})
@@ -40,7 +40,7 @@ func (self *Poller) WithDB(db *gorm.DB) *Poller {
 
 func (self *Poller) handleNew() (repeat bool, err error) {
 	self.Log.Debug("Checking for new evolved sources...")
-	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Evolve.PollerTimeout)
+	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Evolver.PollerTimeout)
 	defer cancel()
 
 	// Gets new evolved contract sources
@@ -52,7 +52,7 @@ func (self *Poller) handleNew() (repeat bool, err error) {
 		ON cs.src_tx_id = i.evolve
 		WHERE evolve IS NOT NULL AND cs.src_tx_id IS NULL
 		ORDER BY i.sort_key
-		LIMIT ?;`, self.Config.Evolve.PollerMaxBatchSize).
+		LIMIT ?;`, self.Config.Evolver.PollerMaxBatchSize).
 		Scan(&evolvedContractSources).Error
 
 	if err != nil {
@@ -66,6 +66,8 @@ func (self *Poller) handleNew() (repeat bool, err error) {
 		self.Log.
 			WithField("count", len(evolvedContractSources)).
 			Debug("Polled new evolved contract sources")
+	} else {
+		self.Log.Debug("No new evolved contract sources found")
 	}
 
 	for _, src := range evolvedContractSources {
@@ -76,7 +78,7 @@ func (self *Poller) handleNew() (repeat bool, err error) {
 		}
 	}
 
-	if len(evolvedContractSources) != self.Config.Evolve.PollerMaxBatchSize {
+	if len(evolvedContractSources) != self.Config.Evolver.PollerMaxBatchSize {
 		return
 	}
 

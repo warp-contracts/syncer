@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Evolve struct {
+type Evolver struct {
 	// How often to poll the database
 	PollerInterval time.Duration
 
@@ -44,15 +44,16 @@ type Evolve struct {
 	StoreBackoffMaxInterval time.Duration
 }
 
-func setEvolveDefaults() {
-	viper.SetDefault("Evolve.PollerInterval", "20s")
-	viper.SetDefault("Evolve.PollerTimeout", "90s")
-	viper.SetDefault("Evolve.PollerChannelBufferLength", 100)
-	viper.SetDefault("Evolve.PollerMaxBatchSize", 100)
-	viper.SetDefault("Evolve.DownloaderSourceTransactiondMaxInterval", "5s")
-	viper.SetDefault("Evolve.DownloaderNumWorkers", "50")
-	viper.SetDefault("Evolve.DownloaderWorkerQueueSize", "10")
-	viper.SetDefault("Evolve.StoreBatchSize", "10")
-	viper.SetDefault("Evolve.StoreInterval", "10s")
-	viper.SetDefault("Evolve.StoreBackoffMaxElapsedTime", "0")
+func setEvolverDefaults() {
+	viper.SetDefault("Evolver.PollerInterval", "1m")
+	viper.SetDefault("Evolver.PollerTimeout", "90s")
+	viper.SetDefault("Evolver.PollerChannelBufferLength", 100)
+	viper.SetDefault("Evolver.PollerMaxBatchSize", 100)
+	viper.SetDefault("Evolver.DownloaderSourceTransactiondMaxInterval", "5s")
+	viper.SetDefault("Evolver.DownloaderNumWorkers", "50")
+	viper.SetDefault("Evolver.DownloaderWorkerQueueSize", "10")
+	viper.SetDefault("Evolver.StoreBatchSize", "10")
+	viper.SetDefault("Evolver.StoreInterval", "10s")
+	viper.SetDefault("Evolver.StoreBackoffMaxElapsedTime", "0")
+	viper.SetDefault("Evolver.StoreBackoffMaxInterval", "20s")
 }

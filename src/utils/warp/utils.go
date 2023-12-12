@@ -1,0 +1,5 @@
+package warp
+
+var(
+	MAX_TRANSACTION_DATA_SIZE = 5242880
+)
