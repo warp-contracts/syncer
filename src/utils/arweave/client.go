@@ -313,12 +313,12 @@ func (self *Client) GetTransactionDataById(ctx context.Context, tx *Transaction)
 	}
 
 	// Data is base64 url encoded
-	buf, err := base64.RawURLEncoding.DecodeString(string(resp.Body()))
+	data, err := base64.RawURLEncoding.DecodeString(string(resp.Body()))
 	if err != nil {
 		return
 	}
 
-	out.Write(buf)
+	out.Write(data)
 	if out.Len() > 0 {
 		// Do the checks and return
 		if out.Len() != int(tx.DataSize.Int64()) {
@@ -329,7 +329,18 @@ func (self *Client) GetTransactionDataById(ctx context.Context, tx *Transaction)
 		return
 	}
 
-	return self.GetChunks(ctx, tx)
+	out, err = self.GetChunks(ctx, tx)
+	if err == nil {
+		return
+	}
+
+	var err2 error
+	out, err2 = self.GetCachedTransactionDataById(ctx, tx)
+	if err2 == nil {
+		return
+	}
+
+	return out, errors.Join(err, err2)
 }
 
 func (self *Client) GetCachedTransactionDataById(ctx context.Context, tx *Transaction) (out bytes.Buffer, err error) {

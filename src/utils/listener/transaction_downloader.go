@@ -20,11 +20,12 @@ import (
 type TransactionDownloader struct {
 	*task.Task
 
-	client  *arweave.Client
-	monitor monitoring.Monitor
-	filter  func(*arweave.Transaction) bool
-	input   chan *arweave.Block
-	Output  chan *Payload
+	client               *arweave.Client
+	monitor              monitoring.Monitor
+	filter               func(*arweave.Transaction) bool
+	isGetTransactionData func(*arweave.Transaction) bool
+	input                chan *arweave.Block
+	Output               chan *Payload
 
 	// Parameters
 	maxElapsedTime time.Duration
@@ -37,6 +38,8 @@ func NewTransactionDownloader(config *config.Config) (self *TransactionDownloade
 
 	// No time limit by default
 	self.filter = func(tx *arweave.Transaction) bool { return true }
+
+	self.isGetTransactionData = func(tx *arweave.Transaction) bool { return false }
 
 	self.Output = make(chan *Payload)
 
@@ -105,6 +108,7 @@ func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownload
 		}
 		return isInteraction
 	}
+	self.isGetTransactionData = smartweave.IsInteractionWithData
 	return self
 }
 
@@ -218,6 +222,14 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 						self.monitor.GetReport().TransactionDownloader.Errors.Validation.Inc()
 					}
 
+					if self.isGetTransactionData(tx) {
+						tx.Data, err = self.downloadTransactionData(tx)
+						if err != nil {
+							self.monitor.GetReport().TransactionDownloader.Errors.DataDownload.Inc()
+							self.Log.WithField("tx", txId).Error("Failed to download transaction data, retry downloading...")
+						}
+					}
+
 					return err
 				})
 
@@ -250,4 +262,12 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 	wg.Wait()
 
 	return
+}
+
+func (self *TransactionDownloader) downloadTransactionData(tx *arweave.Transaction) (arweave.Base64String, error) {
+	buf, err := self.client.GetTransactionDataById(self.Ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	return arweave.Base64String(buf.Bytes()), nil
 }
