@@ -80,8 +80,8 @@ func (self *Store) flush(payloads []*Payload) (out []*Payload, err error) {
 		return
 	}
 
-	self.Log.WithField("sequencer_height", self.finishedHeight).WithField("num", len(payloads)).Debug("-> Saving blocks")
-	defer self.Log.WithField("sequencer_height", self.finishedHeight).WithField("num", len(payloads)).Debug("<- Saving blocks")
+	self.Log.WithField("sequencer_height", self.finishedHeight).WithField("num", len(payloads)).Trace("-> Saving blocks")
+	defer self.Log.WithField("sequencer_height", self.finishedHeight).WithField("num", len(payloads)).Trace("<- Saving blocks")
 
 	if self.finishedHeight <= 0 {
 		err = errors.New("block height too small")
