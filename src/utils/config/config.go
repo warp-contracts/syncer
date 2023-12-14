@@ -37,6 +37,7 @@ type Config struct {
 	Bundler               Bundler
 	Sender                Sender
 	Bundlr                Bundlr
+	Sequencer             Sequencer
 	Checker               Checker
 	Database              Database
 	ReadOnlyDatabase      Database
@@ -47,6 +48,7 @@ type Config struct {
 	Relayer               Relayer
 	Gateway               Gateway
 	Profiler              Profiler
+	Interactor            Interactor
 }
 
 func setDefaults() {
@@ -73,6 +75,8 @@ func setDefaults() {
 	setRelayerDefaults()
 	setGatewayDefaults()
 	setProfilerDefaults()
+	setInteractorDefaults()
+	setSequencerDefaults()
 }
 
 func Default() (config *Config) {

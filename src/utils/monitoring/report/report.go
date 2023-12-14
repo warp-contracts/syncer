@@ -11,6 +11,7 @@ type Report struct {
 	Forwarder             *ForwarderReport             `json:"forwarder,omitempty"`
 	Relayer               *RelayerReport               `json:"relayer,omitempty"`
 	Gateway               *GatewayReport               `json:"gateway,omitempty"`
+	Interactor            *InteractorReport            `json:"interactor,omitempty"`
 	NetworkInfo           *NetworkInfoReport           `json:"network_info,omitempty"`
 	BlockMonitor          *BlockMonitorReport          `json:"block_monitor,omitempty"`
 	BlockDownloader       *BlockDownloaderReport       `json:"block_downloader,omitempty"`

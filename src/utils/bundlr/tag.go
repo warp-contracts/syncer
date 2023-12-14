@@ -37,3 +37,12 @@ func (self Tags) Size() int {
 func (self Tags) Append(tags []Tag) Tags {
 	return append(self, tags...)
 }
+
+func (self Tags) Get(name string) (string, bool) {
+	for _, tag := range self {
+		if tag.Name == name {
+			return tag.Value, true
+		}
+	}
+	return "", false
+}
