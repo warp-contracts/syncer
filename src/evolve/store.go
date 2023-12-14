@@ -3,6 +3,7 @@ package evolve
 import (
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"gorm.io/gorm"
@@ -12,7 +13,8 @@ import (
 type Store struct {
 	*task.Hole[*model.ContractSource]
 
-	db    *gorm.DB
+	db      *gorm.DB
+	monitor monitoring.Monitor
 }
 
 func NewStore(config *config.Config) (self *Store) {
@@ -36,6 +38,11 @@ func (self *Store) WithDB(db *gorm.DB) *Store {
 	return self
 }
 
+func (self *Store) WithMonitor(monitor monitoring.Monitor) *Store {
+	self.monitor = monitor
+	return self
+}
+
 func (self *Store) flush(contractSources []*model.ContractSource) (err error) {
 	if len(contractSources) == 0 {
 		return nil
@@ -54,8 +61,14 @@ func (self *Store) flush(contractSources []*model.ContractSource) (err error) {
 		Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to insert contract sources, retrying...")
+
+		// Update monitoring
+		self.monitor.GetReport().Evolver.Errors.StoreDbError.Inc()
 		return err
 	}
+
+	// Update monitoring
+	self.monitor.GetReport().Evolver.State.StoreSourcesSaved.Add(uint64(len(contractSources)))
 
 	return nil
 }

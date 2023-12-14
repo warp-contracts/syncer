@@ -9,6 +9,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
 	"github.com/warp-contracts/syncer/src/utils/warp"
 )
@@ -16,9 +17,10 @@ import (
 type Downloader struct {
 	*task.Task
 
-	client *arweave.Client
-	input  <-chan string
-	Output chan *model.ContractSource
+	client  *arweave.Client
+	input   <-chan string
+	Output  chan *model.ContractSource
+	monitor monitoring.Monitor
 }
 
 func NewDownloader(config *config.Config) (self *Downloader) {
@@ -38,6 +40,11 @@ func NewDownloader(config *config.Config) (self *Downloader) {
 
 func (self *Downloader) WithClient(client *arweave.Client) *Downloader {
 	self.client = client
+	return self
+}
+
+func (self *Downloader) WithMonitor(monitor monitoring.Monitor) *Downloader {
+	self.monitor = monitor
 	return self
 }
 
@@ -115,9 +122,12 @@ func (self *Downloader) download(srcId string) (out *model.ContractSource, err e
 		})
 	if err != nil {
 		self.Log.WithError(err).WithField("txId", srcId).Error("Failed to download contract source transaction, giving up")
+		self.monitor.GetReport().Evolver.Errors.DownloaderDownlaodError.Inc()
+
 		return
 	}
 
+	self.monitor.GetReport().Evolver.State.DownloaderSourcesLoaded.Inc()
 	return
 }
 

@@ -19,3 +19,6 @@
 /bin/
 /.gopath~/
 /vendor
+
+# Config files
+*config.json

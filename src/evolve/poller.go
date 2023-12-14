@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
 
 	"gorm.io/gorm"
@@ -13,7 +14,8 @@ import (
 type Poller struct {
 	*task.Task
 
-	db *gorm.DB
+	db      *gorm.DB
+	monitor monitoring.Monitor
 
 	// Evolve to be sent out
 	Output chan string
@@ -38,6 +40,11 @@ func (self *Poller) WithDB(db *gorm.DB) *Poller {
 	return self
 }
 
+func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
+	self.monitor = monitor
+	return self
+}
+
 func (self *Poller) handleNew() (repeat bool, err error) {
 	self.Log.Debug("Checking for new evolved sources...")
 	ctx, cancel := context.WithTimeout(self.Ctx, self.Config.Evolver.PollerTimeout)
@@ -58,6 +65,7 @@ func (self *Poller) handleNew() (repeat bool, err error) {
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			self.Log.WithError(err).Error("Failed to get new evolved contract sources")
+			self.monitor.GetReport().Evolver.Errors.PollerFetchError.Inc()
 		}
 		return
 	}
@@ -71,6 +79,10 @@ func (self *Poller) handleNew() (repeat bool, err error) {
 	}
 
 	for _, src := range evolvedContractSources {
+
+		// Update monitoring
+		self.monitor.GetReport().Evolver.State.PollerSourcesFromSelects.Inc()
+
 		select {
 		case <-self.Ctx.Done():
 			return
