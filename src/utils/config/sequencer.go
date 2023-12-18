@@ -34,7 +34,7 @@ type Sequencer struct {
 }
 
 func setSequencerDefaults() {
-	viper.SetDefault("Sequencer.Urls", []string{"http://sequencer-0.devnet.warp.cc", "http://sequencer-1.devnet.warp.cc", "http://sequencer-2.devnet.warp.cc"})
+	viper.SetDefault("Sequencer.Urls", []string{"https://sequencer-0.devnet.warp.cc", "https://sequencer-1.devnet.warp.cc", "https://sequencer-2.devnet.warp.cc"})
 	viper.SetDefault("Sequencer.RequestTimeout", "30s")
 	viper.SetDefault("Sequencer.DialerTimeout", "30s")
 	viper.SetDefault("Sequencer.DialerKeepAlive", "15s")

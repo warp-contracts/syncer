@@ -118,7 +118,7 @@ func (self *Generator) generate() error {
 		r, _, err := self.sequencerClient.GetNonce(self.Ctx, self.signer.GetType(), base64.RawURLEncoding.EncodeToString(self.signer.GetOwner()))
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to get nonce")
-			return err
+			return nil
 		}
 
 		self.nonce = r.Nonce
