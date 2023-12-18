@@ -115,11 +115,18 @@ func (self *Generator) generate() error {
 	if self.nonce > 0 {
 		self.nonce++
 	} else {
-		r, _, err := self.sequencerClient.GetNonce(self.Ctx, self.signer.GetType(), base64.RawURLEncoding.EncodeToString(self.signer.GetOwner()))
+		r, resp, err := self.sequencerClient.GetNonce(self.Ctx, self.signer.GetType(), base64.RawURLEncoding.EncodeToString(self.signer.GetOwner()))
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to get nonce")
 			return nil
 		}
+
+		if !resp.IsSuccess() {
+			self.Log.WithField("resp", string(resp.Body())).Error("Response is not success")
+			return nil
+		}
+
+		self.Log.WithError(err).WithField("nonce", r.Nonce).Info("Got nonce")
 
 		self.nonce = r.Nonce
 	}

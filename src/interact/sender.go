@@ -56,7 +56,7 @@ func (self *Sender) run() error {
 	// Quits when the channel is closed
 	for payload := range self.input {
 
-		self.Log.WithField("id", payload.DataItem.Id).Debug("Sending data item to sequencer")
+		self.Log.WithField("id", payload.DataItem.Id.Base64()).Debug("Sending data item to sequencer")
 
 		payload := payload
 
@@ -65,7 +65,7 @@ func (self *Sender) run() error {
 			if err != nil {
 				// Update monitoring
 				self.monitor.GetReport().Interactor.Errors.SenderError.Inc()
-				self.Log.WithField("id", payload.DataItem.Id).WithError(err).Error("Failed to send data item to sequencer")
+				self.Log.WithField("id", payload.DataItem.Id.Base64()).WithError(err).Error("Failed to send data item to sequencer")
 				return
 			}
 

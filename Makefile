@@ -97,6 +97,10 @@ send: build-race | ; $(info $(M) starting sending with default params…)
 evolve: build-race | ; $(info $(M) starting evolve with default params…)
 	bin/$(PACKAGE) evolve
 
+.PHONY: interact
+interact: build-race | ; $(info $(M) starting interact with default params…)
+	bin/$(PACKAGE) interact
+
 .PHONY: lint
 lint: $(GOLANGCILINT) | $(BASE) ; $(info $(M) running golangci-lint) @
 	$Q $(GOLANGCILINT) run 
