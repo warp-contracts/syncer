@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"math/big"
 	"math/rand"
 
 	"github.com/go-resty/resty/v2"
@@ -182,6 +183,20 @@ func (self *Bundler) upload(dataItem *model.BundleItem, item *bundlr.BundleItem)
 	return
 }
 
+func (self *Bundler) setBundleProvider(item *model.BundleItem) (err error) {
+	v, err := crypto_rand.Int(crypto_rand.Reader, big.NewInt(100))
+	if err != nil {
+		self.Log.WithError(err).Panic("Failed to generate random number")
+		return
+	}
+
+	if v.Int64() < int64(self.Config.Bundlr.IrysSendProbability) {
+		return item.Service.Set(string(model.BundlingServiceIrys))
+	}
+
+	return item.Service.Set(string(model.BundlingServiceTurbo))
+}
+
 func (self *Bundler) run() (err error) {
 	// Waits for new interactions to bundle
 	// Finishes when when the source of items is closed
@@ -201,6 +216,12 @@ func (self *Bundler) run() (err error) {
 			}
 
 			bundleItem, err := self.createDataItem(item)
+			if err != nil {
+				return
+			}
+
+			// Pick random bundling service
+			err = self.setBundleProvider(item)
 			if err != nil {
 				return
 			}

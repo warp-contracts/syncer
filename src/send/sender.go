@@ -80,10 +80,10 @@ func (self *Sender) setBundleProvider(item *model.DataItem) (err error) {
 	}
 
 	if v.Int64() < int64(self.Config.Bundlr.IrysSendProbability) {
-		return item.Service.Set(model.BundlingServiceIrys)
+		return item.Service.Set(string(model.BundlingServiceIrys))
 	}
 
-	return item.Service.Set(model.BundlingServiceTurbo)
+	return item.Service.Set(string(model.BundlingServiceTurbo))
 }
 
 func (self *Sender) upload(dataItem *model.DataItem, item *bundlr.BundleItem) (resp *resty.Response, err error) {
@@ -201,7 +201,7 @@ func (self *Sender) run() (err error) {
 				goto end
 			}
 
-			// Only Irys is supported
+			// Pick random bundling service
 			err = self.setBundleProvider(item)
 			if err != nil {
 				return
