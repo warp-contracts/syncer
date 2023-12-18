@@ -44,7 +44,7 @@ func (self *Client) Upload(ctx context.Context, item *bundlr.BundleItem) (out *r
 		Post("/tx")
 
 	if resp != nil {
-		if resp.StatusCode() == http.StatusCreated {
+		if resp.StatusCode() == http.StatusAccepted {
 			err = bundlr.ErrAlreadyReceived
 			return
 		}
