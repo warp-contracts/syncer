@@ -7,13 +7,17 @@ import (
 	"errors"
 	"math/rand"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
+	irysResponses "github.com/warp-contracts/syncer/src/utils/bundlr/responses"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
 	"github.com/warp-contracts/syncer/src/utils/tool"
+	"github.com/warp-contracts/syncer/src/utils/turbo"
+	turboResponses "github.com/warp-contracts/syncer/src/utils/turbo/responses"
 
 	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
@@ -27,8 +31,9 @@ type Bundler struct {
 	monitor monitoring.Monitor
 
 	// Bundling and signing
-	bundlrClient *bundlr.Client
-	signer       *bundlr.ArweaveSigner
+	irysClient  *bundlr.Client
+	turboClient *turbo.Client
+	signer      *bundlr.ArweaveSigner
 
 	// Ids of successfully bundled interactions
 	Output chan *Confirmation
@@ -66,8 +71,13 @@ func NewBundler(config *config.Config, db *gorm.DB) (self *Bundler) {
 	return
 }
 
-func (self *Bundler) WithClient(client *bundlr.Client) *Bundler {
-	self.bundlrClient = client
+func (self *Bundler) WithIrysClient(client *bundlr.Client) *Bundler {
+	self.irysClient = client
+	return self
+}
+
+func (self *Bundler) WithTurboClient(client *turbo.Client) *Bundler {
+	self.turboClient = client
 	return self
 }
 
@@ -79,6 +89,83 @@ func (self *Bundler) WithInputChannel(in chan *model.BundleItem) *Bundler {
 func (self *Bundler) WithMonitor(monitor monitoring.Monitor) *Bundler {
 	self.monitor = monitor
 	return self
+}
+
+func (self *Bundler) upload(dataItem *model.BundleItem, item *bundlr.BundleItem) (response any, resp *resty.Response, id string, err error) {
+	switch model.BundlingService(dataItem.Service.String) {
+	case model.BundlingServiceTurbo:
+		var (
+			uploadResponse *turboResponses.Upload
+		)
+
+		uploadResponse, resp, err = self.turboClient.Upload(self.Ctx, item)
+		if err != nil {
+			if resp != nil {
+				self.Log.WithError(err).
+					WithField("data_item_id", dataItem.InteractionID).
+					WithField("resp", string(resp.Body())).
+					WithField("code", resp.StatusCode()).
+					WithField("url", resp.Request.URL).
+					Error("Failed to upload data item to Turbo")
+			} else {
+				self.Log.WithError(err).
+					WithField("data_item_id", dataItem.InteractionID).
+					Error("Failed to upload data item to Turbo, no response")
+			}
+
+			return
+		}
+
+		// Check if the response is valid
+		if len(uploadResponse.Id) == 0 {
+			err = errors.New("Turbo response has empty ID")
+			self.Log.WithError(err).WithField("id", dataItem.InteractionID).Error("Bad Turbo response")
+			// self.monitor.GetReport().Sender.Errors.TurboError.Inc()
+			return
+		}
+
+		response = uploadResponse
+		id = uploadResponse.Id
+
+	case model.BundlingServiceIrys:
+		var (
+			uploadResponse *irysResponses.Upload
+		)
+
+		uploadResponse, resp, err = self.irysClient.Upload(self.Ctx, item)
+		if err != nil {
+			if resp != nil {
+				self.Log.WithError(err).
+					WithField("data_item_id", dataItem.InteractionID).
+					WithField("resp", string(resp.Body())).
+					WithField("code", resp.StatusCode()).
+					WithField("url", resp.Request.URL).
+					Error("Failed to upload data item to Irys")
+			} else {
+				self.Log.WithError(err).
+					WithField("data_item_id", dataItem.InteractionID).
+					Error("Failed to upload data item to Irys, no response")
+			}
+
+			return
+		}
+
+		// Check if the response is valid
+		if len(uploadResponse.Id) == 0 {
+			err = errors.New("Irys response has empty ID")
+			self.Log.WithError(err).WithField("id", dataItem.InteractionID).Error("Bad Irys response")
+			self.monitor.GetReport().Sender.Errors.IrysError.Inc()
+			return
+		}
+
+		response = uploadResponse
+		id = uploadResponse.Id
+
+	default:
+	}
+	err = errors.New("Unknown bundling service")
+	self.Log.WithError(err).WithField("service", dataItem.Service).Error("Unknown bundling service")
+	return
 }
 
 func (self *Bundler) run() (err error) {
@@ -104,9 +191,8 @@ func (self *Bundler) run() (err error) {
 				return
 			}
 
-			// self.Log.WithField("id", item.InteractionID).Trace("Sending interaction to Bundlr")
-			// Send the bundle item to bundlr
-			uploadResponse, resp, err := self.bundlrClient.Upload(self.Ctx, bundleItem)
+			// Send the bundle
+			uploadResponse, resp, id, err := self.upload(item, bundleItem)
 			if err != nil {
 				if resp != nil {
 					self.Log.WithError(err).
@@ -120,8 +206,13 @@ func (self *Bundler) run() (err error) {
 						WithField("id", item.InteractionID).
 						Error("Failed to upload interaction to Bundlr, no response")
 				}
+
 				// Update stats
-				self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
+				switch model.BundlingService(item.Service.String) {
+				case model.BundlingServiceTurbo:
+				case model.BundlingServiceIrys:
+					self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
+				}
 
 				// Bad request shouldn't be retried
 				if resp != nil && resp.StatusCode() > 399 && resp.StatusCode() < 500 {
@@ -141,7 +232,7 @@ func (self *Bundler) run() (err error) {
 				return
 			}
 			// Check if the response is valid
-			if len(uploadResponse.Id) == 0 {
+			if len(id) == 0 {
 				err = errors.New("Bundlr response has empty ID")
 				self.Log.WithError(err).WithField("id", item.InteractionID).Warn("Bad bundlr response")
 				self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
@@ -164,7 +255,7 @@ func (self *Bundler) run() (err error) {
 				return
 			case self.Output <- &Confirmation{
 				InteractionID: item.InteractionID,
-				BundlerTxID:   uploadResponse.Id,
+				BundlerTxID:   id,
 				Response:      pgtype.JSONB{Bytes: response, Status: pgtype.Present},
 			}:
 			}

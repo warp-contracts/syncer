@@ -9,6 +9,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	monitor_bundler "github.com/warp-contracts/syncer/src/utils/monitoring/bundler"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/turbo"
 )
 
 type Controller struct {
@@ -45,7 +46,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// TODO: tutaj musi byc fallback  na arweave.net jak gw nie odpowiada
 
 	// Bundlr client
-	bundlrClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
+	irysClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
+	turboClient := turbo.NewClient(self.Ctx, &config.Bundlr)
 
 	// Monitoring
 	monitor := monitor_bundler.NewMonitor()
@@ -68,7 +70,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	bundler := NewBundler(config, db).
 		WithInputChannel(collector.Output).
 		WithMonitor(monitor).
-		WithClient(bundlrClient)
+		WithIrysClient(irysClient).
+		WithTurboClient(turboClient)
 
 	// Confirmer periodically updates the state of the bundled interactions
 	confirmer := NewConfirmer(config).

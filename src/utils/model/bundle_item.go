@@ -26,6 +26,8 @@ type BundleItem struct {
 	Tags pgtype.JSONB
 	// State of bundle
 	State BundleState
+	// Which bundling service was used to send this data item
+	Service pgtype.Text
 	// Block height upon which interaction was bundled. Used to trigger verification later
 	BlockHeight sql.NullInt64
 	// Response from bundlr.network
