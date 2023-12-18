@@ -78,7 +78,7 @@ func (self *Poller) handleCheck() (repeat bool, err error) {
 					WHERE interaction_id IN (
 						SELECT interaction_id 
 						FROM bundle_items 
-						WHERE state = 'UPLOADED' AND block_height < ?
+						WHERE state = 'UPLOADED' AND block_height < ? AND service = 'IRYS'
 						ORDER BY block_height ASC, interaction_id ASC
 						LIMIT ?
 						FOR UPDATE SKIP LOCKED)
