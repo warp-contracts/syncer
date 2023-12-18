@@ -52,10 +52,10 @@ func (self *Checker) check(payload *Payload) error {
 
 	for i := 0; i < 100; i++ {
 		err := self.db.Table(model.TableInteraction).
-			First(&interaction, "interaction_id = ?", payload.DataItem.Id).
+			First(&interaction, "interaction_id = ?", payload.DataItem.Id.Base64()).
 			Error
 		if err == gorm.ErrRecordNotFound {
-			self.Log.WithField("id", payload.DataItem.Id).Debug("Waiting for data item to be saved to database")
+			self.Log.WithField("id", payload.DataItem.Id.Base64()).Debug("Waiting for data item to be saved to database")
 			select {
 			case <-self.Ctx.Done():
 				return nil
