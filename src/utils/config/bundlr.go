@@ -10,6 +10,16 @@ type Bundlr struct {
 	// List of urls that can be used, order matters
 	Urls []string
 
+	// List of urls that can be used to upload bundles, order matters
+	TurboUrls []string
+
+	// Power of Turbo. TurboSendFactor + IrysSendFactor is 100%. If set to 0, skips sending to this provider.
+	// This is a way to divide traffic between bundle providers
+	TurboSendProbability int
+
+	// Power of Irys
+	IrysSendProbability int
+
 	// Time limit for requests. The timeout includes connection time, any
 	// redirects, and reading the response body
 	RequestTimeout time.Duration
@@ -43,6 +53,9 @@ type Bundlr struct {
 
 func setBundlrDefaults() {
 	viper.SetDefault("Bundlr.Urls", []string{"https://node1.bundlr.network"})
+	viper.SetDefault("Bundlr.TurboUrls", []string{"https://up.arweave.net"})
+	viper.SetDefault("Bundlr.TurboSendProbability", "100")
+	viper.SetDefault("Bundlr.IrysSendProbability", "0")
 	viper.SetDefault("Bundlr.RequestTimeout", "60s")
 	viper.SetDefault("Bundlr.CheckPeerTimeout", "1s")
 	viper.SetDefault("Bundlr.DialerTimeout", "30s")
