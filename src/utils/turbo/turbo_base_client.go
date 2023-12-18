@@ -33,10 +33,9 @@ type BaseClient struct {
 	limiters map[string]*rate.Limiter
 	// lastLimitDecrease time.Time
 
-	ctx          context.Context
-	cancel       context.CancelFunc
-	lastReset    time.Time
-	sumOfFactors int
+	ctx       context.Context
+	cancel    context.CancelFunc
+	lastReset time.Time
 }
 
 func newBaseClient(ctx context.Context, config *config.Bundlr) (self *BaseClient) {

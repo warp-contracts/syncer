@@ -9,6 +9,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	monitor_sender "github.com/warp-contracts/syncer/src/utils/monitoring/sender"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/turbo"
 )
 
 type Controller struct {
@@ -42,8 +43,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Arweave client
 	arweaveClient := arweave.NewClient(self.Ctx, config)
 
-	// Bundlr client
+	// Clients used for bundling
 	irysClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
+	turboClient := turbo.NewClient(self.Ctx, &config.Bundlr)
 
 	// Monitoring
 	monitor := monitor_sender.NewMonitor()
@@ -66,7 +68,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	sender := NewSender(config, db).
 		WithInputChannel(collector.Output).
 		WithMonitor(monitor).
-		WithClient(irysClient)
+		WithIrysClient(irysClient).
+		WithTurboClient(turboClient)
 
 	// Save updated data items
 	store := NewStore(config).

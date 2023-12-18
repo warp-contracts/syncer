@@ -1,15 +1,19 @@
 package send
 
 import (
+	"crypto/rand"
 	"errors"
+	"math/big"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
-	"github.com/warp-contracts/syncer/src/utils/bundlr/responses"
+	irysResponses "github.com/warp-contracts/syncer/src/utils/bundlr/responses"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/turbo"
+	turboResponses "github.com/warp-contracts/syncer/src/utils/turbo/responses"
 
 	"gorm.io/gorm"
 )
@@ -21,7 +25,8 @@ type Sender struct {
 	monitor monitoring.Monitor
 
 	// Bundling and signing
-	irysClient *bundlr.Client
+	irysClient  *bundlr.Client
+	turboClient *turbo.Client
 
 	// Updated data items
 	Output chan *model.DataItem
@@ -47,8 +52,13 @@ func NewSender(config *config.Config, db *gorm.DB) (self *Sender) {
 	return
 }
 
-func (self *Sender) WithClient(client *bundlr.Client) *Sender {
+func (self *Sender) WithIrysClient(client *bundlr.Client) *Sender {
 	self.irysClient = client
+	return self
+}
+
+func (self *Sender) WithTurboClient(client *turbo.Client) *Sender {
+	self.turboClient = client
 	return self
 }
 
@@ -60,6 +70,95 @@ func (self *Sender) WithInputChannel(in chan *model.DataItem) *Sender {
 func (self *Sender) WithMonitor(monitor monitoring.Monitor) *Sender {
 	self.monitor = monitor
 	return self
+}
+
+func (self *Sender) setBundleProvider(item *model.DataItem) (err error) {
+	v, err := rand.Int(rand.Reader, big.NewInt(100))
+	if err != nil {
+		self.Log.WithError(err).Panic("Failed to generate random number")
+		return
+	}
+
+	if v.Int64() < int64(self.Config.Bundlr.IrysSendProbability) {
+		return item.Service.Set(model.BundlingServiceIrys)
+	}
+
+	return item.Service.Set(model.BundlingServiceTurbo)
+}
+
+func (self *Sender) upload(dataItem *model.DataItem, item *bundlr.BundleItem) (response any, resp *resty.Response, err error) {
+	switch model.BundlingService(dataItem.Service.String) {
+	case model.BundlingServiceTurbo:
+		var (
+			uploadResponse *turboResponses.Upload
+		)
+
+		uploadResponse, resp, err = self.turboClient.Upload(self.Ctx, item)
+		if err != nil {
+			if resp != nil {
+				self.Log.WithError(err).
+					WithField("data_item_id", dataItem.DataItemID).
+					WithField("resp", string(resp.Body())).
+					WithField("code", resp.StatusCode()).
+					WithField("url", resp.Request.URL).
+					Error("Failed to upload data item to Turbo")
+			} else {
+				self.Log.WithError(err).
+					WithField("data_item_id", dataItem.DataItemID).
+					Error("Failed to upload data item to Turbo, no response")
+			}
+
+			return
+		}
+
+		// Check if the response is valid
+		if len(uploadResponse.Id) == 0 {
+			err = errors.New("Turbo response has empty ID")
+			self.Log.WithError(err).WithField("id", dataItem.DataItemID).Error("Bad Turbo response")
+			// self.monitor.GetReport().Sender.Errors.TurboError.Inc()
+			return
+		}
+
+		response = uploadResponse
+
+	case model.BundlingServiceIrys:
+		var (
+			uploadResponse *irysResponses.Upload
+		)
+
+		uploadResponse, resp, err = self.irysClient.Upload(self.Ctx, item)
+		if err != nil {
+			if resp != nil {
+				self.Log.WithError(err).
+					WithField("data_item_id", dataItem.DataItemID).
+					WithField("resp", string(resp.Body())).
+					WithField("code", resp.StatusCode()).
+					WithField("url", resp.Request.URL).
+					Error("Failed to upload data item to Irys")
+			} else {
+				self.Log.WithError(err).
+					WithField("data_item_id", dataItem.DataItemID).
+					Error("Failed to upload data item to Irys, no response")
+			}
+
+			return
+		}
+
+		// Check if the response is valid
+		if len(uploadResponse.Id) == 0 {
+			err = errors.New("Irys response has empty ID")
+			self.Log.WithError(err).WithField("id", dataItem.DataItemID).Error("Bad Irys response")
+			self.monitor.GetReport().Sender.Errors.IrysError.Inc()
+			return
+		}
+
+		response = uploadResponse
+
+	default:
+	}
+	err = errors.New("Unknown bundling service")
+	self.Log.WithError(err).WithField("service", dataItem.Service).Error("Unknown bundling service")
+	return
 }
 
 func (self *Sender) run() (err error) {
@@ -83,12 +182,12 @@ func (self *Sender) run() (err error) {
 			}
 
 			var (
-				uploadResponse *responses.Upload
+				uploadResponse any
 				resp           *resty.Response
 				err            error
 			)
 
-			dataItem, err := self.parse(item)
+			bundleItem, err := self.parse(item)
 			if err != nil {
 				self.Log.WithError(err).
 					WithField("data_item_id", item.DataItemID).
@@ -98,7 +197,7 @@ func (self *Sender) run() (err error) {
 			}
 
 			// Only Irys is supported
-			err = item.Service.Set(model.BundlingServiceIrys)
+			err = self.setBundleProvider(item)
 			if err != nil {
 				return
 			}
@@ -109,44 +208,27 @@ func (self *Sender) run() (err error) {
 			}
 
 			// Send the bundle item to the bundling service
-			uploadResponse, resp, err = self.irysClient.Upload(self.Ctx, dataItem)
+			uploadResponse, resp, err = self.upload(item, bundleItem)
 			if err != nil {
-				if resp != nil {
-					self.Log.WithError(err).
-						WithField("data_item_id", item.DataItemID).
-						WithField("resp", string(resp.Body())).
-						WithField("code", resp.StatusCode()).
-						WithField("url", resp.Request.URL).
-						Error("Failed to upload data item to Irys")
-				} else {
-					self.Log.WithError(err).
-						WithField("data_item_id", item.DataItemID).
-						Error("Failed to upload data item to Irys, no response")
-				}
-
 				if errors.Is(err, bundlr.ErrAlreadyReceived) {
 					item.State = model.BundleStateDuplicate
 				} else if errors.Is(err, bundlr.ErrPaymentRequired) {
 					item.State = model.BundleStateUploading
 				} else {
-					// Update stats
-					self.monitor.GetReport().Sender.Errors.IrysError.Inc()
-
 					if resp != nil && resp.StatusCode() > 399 && resp.StatusCode() < 500 {
 						// Bad request shouldn't be retried
 						item.State = model.BundleStateMalformed
 					}
+
+					// Update stats
+					switch model.BundlingService(item.Service.String) {
+					case model.BundlingServiceTurbo:
+					case model.BundlingServiceIrys:
+						self.monitor.GetReport().Sender.Errors.IrysError.Inc()
+					}
 				}
 
 				goto end
-			}
-
-			// Check if the response is valid
-			if len(uploadResponse.Id) == 0 {
-				err = errors.New("Irys response has empty ID")
-				self.Log.WithError(err).WithField("id", item.DataItemID).Error("Bad Irys response")
-				self.monitor.GetReport().Sender.Errors.IrysError.Inc()
-				return
 			}
 
 			// We'll store the JSON response
