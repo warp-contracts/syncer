@@ -43,8 +43,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Arweave client
 	arweaveClient := arweave.NewClient(self.Ctx, config)
 
-	// TODO: tutaj musi byc fallback  na arweave.net jak gw nie odpowiada
-
 	// Bundlr client
 	irysClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
 	turboClient := turbo.NewClient(self.Ctx, &config.Bundlr)

@@ -17,9 +17,13 @@ type Collector struct {
 	RetriedBundlesFromSelects   *prometheus.Desc
 	AllBundlesFromDb            *prometheus.Desc
 	BundlrSuccess               *prometheus.Desc
+	TurboSuccess                *prometheus.Desc
+	AllSuccess                  *prometheus.Desc
 	ConfirmationsSavedToDb      *prometheus.Desc
 	BundrlError                 *prometheus.Desc
 	BundrlMarshalError          *prometheus.Desc
+	TurboError                  *prometheus.Desc
+	TurboMarshalError           *prometheus.Desc
 	ConfirmationsSavedToDbError *prometheus.Desc
 	AdditionalFetchError        *prometheus.Desc
 	PollerFetchError            *prometheus.Desc
@@ -34,10 +38,14 @@ func NewCollector() *Collector {
 		BundlesFromSelects:          prometheus.NewDesc("bundles_from_selects", "", nil, nil),
 		RetriedBundlesFromSelects:   prometheus.NewDesc("retried_bundles_from_selects", "", nil, nil),
 		AllBundlesFromDb:            prometheus.NewDesc("all_bundles_from_db", "", nil, nil),
-		BundlrSuccess:               prometheus.NewDesc("bundlr_success", "", nil, nil),
+		BundlrSuccess:               prometheus.NewDesc("bundlr_success", "Successful uploads to Irys", nil, nil),
+		TurboSuccess:                prometheus.NewDesc("turbo_success", "Successful uploads to Turbo", nil, nil),
+		AllSuccess:                  prometheus.NewDesc("all_success", "All successful uploads", nil, nil),
 		ConfirmationsSavedToDb:      prometheus.NewDesc("confirmations_saved_to_db", "", nil, nil),
 		BundrlError:                 prometheus.NewDesc("bundrl_error", "", nil, nil),
 		BundrlMarshalError:          prometheus.NewDesc("bundrl_marshal_error", "", nil, nil),
+		TurboError:                  prometheus.NewDesc("turbo_error", "", nil, nil),
+		TurboMarshalError:           prometheus.NewDesc("turbo_marshal_error", "", nil, nil),
 		ConfirmationsSavedToDbError: prometheus.NewDesc("confirmations_saved_to_db_error", "", nil, nil),
 		AdditionalFetchError:        prometheus.NewDesc("additional_fetch_error", "", nil, nil),
 		PollerFetchError:            prometheus.NewDesc("poller_fetch_error", "", nil, nil),
@@ -60,10 +68,15 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.AdditionalFetches
 	ch <- self.AllBundlesFromDb
 	ch <- self.BundlrSuccess
+	ch <- self.TurboSuccess
+	ch <- self.AllSuccess
 	ch <- self.ConfirmationsSavedToDb
 
 	// Errors
 	ch <- self.BundrlError
+	ch <- self.BundrlMarshalError
+	ch <- self.TurboError
+	ch <- self.TurboMarshalError
 	ch <- self.ConfirmationsSavedToDbError
 	ch <- self.AdditionalFetchError
 	ch <- self.PollerFetchError
@@ -82,6 +95,8 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.RetriedBundlesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.RetriedBundlesFromSelects.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AllBundlesFromDb, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.AllBundlesFromDb.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundlrSuccess, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.BundlrSuccess.Load()))
+	ch <- prometheus.MustNewConstMetric(self.TurboSuccess, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.TurboSuccess.Load()))
+	ch <- prometheus.MustNewConstMetric(self.AllSuccess, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.AllSuccess.Load()))
 	ch <- prometheus.MustNewConstMetric(self.ConfirmationsSavedToDb, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.ConfirmationsSavedToDb.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundrlError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.BundrlError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundrlMarshalError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.BundrlMarshalError.Load()))

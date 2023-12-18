@@ -91,7 +91,7 @@ func (self *Bundler) WithMonitor(monitor monitoring.Monitor) *Bundler {
 	return self
 }
 
-func (self *Bundler) upload(dataItem *model.BundleItem, item *bundlr.BundleItem) (response any, resp *resty.Response, id string, err error) {
+func (self *Bundler) upload(dataItem *model.BundleItem, item *bundlr.BundleItem) (response []byte, resp *resty.Response, id string, err error) {
 	switch model.BundlingService(dataItem.Service.String) {
 	case model.BundlingServiceTurbo:
 		var (
@@ -120,11 +120,18 @@ func (self *Bundler) upload(dataItem *model.BundleItem, item *bundlr.BundleItem)
 		if len(uploadResponse.Id) == 0 {
 			err = errors.New("Turbo response has empty ID")
 			self.Log.WithError(err).WithField("id", dataItem.InteractionID).Error("Bad Turbo response")
-			// self.monitor.GetReport().Sender.Errors.TurboError.Inc()
+			self.monitor.GetReport().Bundler.Errors.TurboError.Inc()
 			return
 		}
 
-		response = uploadResponse
+		// We'll store the JSON response
+		response, err = json.Marshal(uploadResponse)
+		if err != nil {
+			self.monitor.GetReport().Bundler.Errors.TurboMarshalError.Inc()
+			self.Log.WithError(err).Error("Failed to marshal response from Turbo")
+			return
+		}
+
 		id = uploadResponse.Id
 
 	case model.BundlingServiceIrys:
@@ -154,11 +161,18 @@ func (self *Bundler) upload(dataItem *model.BundleItem, item *bundlr.BundleItem)
 		if len(uploadResponse.Id) == 0 {
 			err = errors.New("Irys response has empty ID")
 			self.Log.WithError(err).WithField("id", dataItem.InteractionID).Error("Bad Irys response")
-			self.monitor.GetReport().Sender.Errors.IrysError.Inc()
+			self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
 			return
 		}
 
-		response = uploadResponse
+		// We'll store the JSON response
+		response, err = json.Marshal(uploadResponse)
+		if err != nil {
+			self.monitor.GetReport().Bundler.Errors.BundrlMarshalError.Inc()
+			self.Log.WithError(err).Error("Failed to marshal response from Irys")
+			return
+		}
+
 		id = uploadResponse.Id
 
 	default:
@@ -210,6 +224,7 @@ func (self *Bundler) run() (err error) {
 				// Update stats
 				switch model.BundlingService(item.Service.String) {
 				case model.BundlingServiceTurbo:
+					self.monitor.GetReport().Bundler.Errors.TurboError.Inc()
 				case model.BundlingServiceIrys:
 					self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
 				}
@@ -239,14 +254,6 @@ func (self *Bundler) run() (err error) {
 				return
 			}
 
-			// We'll store the JSON response
-			response, err := json.Marshal(uploadResponse)
-			if err != nil {
-				self.monitor.GetReport().Bundler.Errors.BundrlMarshalError.Inc()
-				self.Log.WithError(err).Error("Failed to marshal response")
-				return
-			}
-
 			// Update stats
 			self.monitor.GetReport().Bundler.State.BundlrSuccess.Inc()
 
@@ -256,7 +263,7 @@ func (self *Bundler) run() (err error) {
 			case self.Output <- &Confirmation{
 				InteractionID: item.InteractionID,
 				BundlerTxID:   id,
-				Response:      pgtype.JSONB{Bytes: response, Status: pgtype.Present},
+				Response:      pgtype.JSONB{Bytes: uploadResponse, Status: pgtype.Present},
 			}:
 			}
 		})

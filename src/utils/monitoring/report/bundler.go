@@ -5,6 +5,8 @@ import (
 )
 
 type BundlerErrors struct {
+	TurboError                  atomic.Uint64 `json:"turbo_error"`
+	TurboMarshalError           atomic.Uint64 `json:"turbo_marshal_error"`
 	BundrlError                 atomic.Uint64 `json:"bundrl_error"`
 	BundrlMarshalError          atomic.Uint64 `json:"bundrl_marshal_error"`
 	ConfirmationsSavedToDbError atomic.Uint64 `json:"confirmations_saved_to_db_error"`
@@ -25,6 +27,8 @@ type BundlerState struct {
 
 	// Counting bundles sent to bundlr.network
 	BundlrSuccess atomic.Uint64 `json:"bundlr_success"`
+	TurboSuccess  atomic.Uint64 `json:"turbo_success"`
+	AllSuccess    atomic.Uint64 `json:"all_success"`
 
 	// Counting properly saved confirmations that bundle is sent
 	ConfirmationsSavedToDb atomic.Uint64 `json:"confirmations_saved_to_db"`

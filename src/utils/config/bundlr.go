@@ -54,8 +54,8 @@ type Bundlr struct {
 func setBundlrDefaults() {
 	viper.SetDefault("Bundlr.Urls", []string{"https://node1.bundlr.network"})
 	viper.SetDefault("Bundlr.TurboUrls", []string{"https://up.arweave.net"})
-	viper.SetDefault("Bundlr.TurboSendProbability", "100")
-	viper.SetDefault("Bundlr.IrysSendProbability", "0")
+	viper.SetDefault("Bundlr.TurboSendProbability", "0")
+	viper.SetDefault("Bundlr.IrysSendProbability", "100")
 	viper.SetDefault("Bundlr.RequestTimeout", "60s")
 	viper.SetDefault("Bundlr.CheckPeerTimeout", "1s")
 	viper.SetDefault("Bundlr.DialerTimeout", "30s")

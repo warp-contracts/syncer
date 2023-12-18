@@ -86,13 +86,10 @@ func (self *Sender) setBundleProvider(item *model.DataItem) (err error) {
 	return item.Service.Set(model.BundlingServiceTurbo)
 }
 
-func (self *Sender) upload(dataItem *model.DataItem, item *bundlr.BundleItem) (response any, resp *resty.Response, err error) {
+func (self *Sender) upload(dataItem *model.DataItem, item *bundlr.BundleItem) (resp *resty.Response, err error) {
 	switch model.BundlingService(dataItem.Service.String) {
 	case model.BundlingServiceTurbo:
-		var (
-			uploadResponse *turboResponses.Upload
-		)
-
+		var uploadResponse *turboResponses.Upload
 		uploadResponse, resp, err = self.turboClient.Upload(self.Ctx, item)
 		if err != nil {
 			if resp != nil {
@@ -119,13 +116,16 @@ func (self *Sender) upload(dataItem *model.DataItem, item *bundlr.BundleItem) (r
 			return
 		}
 
-		response = uploadResponse
+		// We'll store the JSON response
+		err = dataItem.Response.Set(uploadResponse)
+		if err != nil {
+			self.monitor.GetReport().Sender.Errors.TurboMarshalError.Inc()
+			self.Log.WithError(err).Error("Failed to marshal response")
+			return
+		}
 
 	case model.BundlingServiceIrys:
-		var (
-			uploadResponse *irysResponses.Upload
-		)
-
+		var uploadResponse *irysResponses.Upload
 		uploadResponse, resp, err = self.irysClient.Upload(self.Ctx, item)
 		if err != nil {
 			if resp != nil {
@@ -152,7 +152,13 @@ func (self *Sender) upload(dataItem *model.DataItem, item *bundlr.BundleItem) (r
 			return
 		}
 
-		response = uploadResponse
+		// We'll store the JSON response
+		err = dataItem.Response.Set(uploadResponse)
+		if err != nil {
+			self.monitor.GetReport().Sender.Errors.IrysMarshalError.Inc()
+			self.Log.WithError(err).Error("Failed to marshal response")
+			return
+		}
 
 	default:
 	}
@@ -182,9 +188,8 @@ func (self *Sender) run() (err error) {
 			}
 
 			var (
-				uploadResponse any
-				resp           *resty.Response
-				err            error
+				resp *resty.Response
+				err  error
 			)
 
 			bundleItem, err := self.parse(item)
@@ -208,7 +213,7 @@ func (self *Sender) run() (err error) {
 			}
 
 			// Send the bundle item to the bundling service
-			uploadResponse, resp, err = self.upload(item, bundleItem)
+			resp, err = self.upload(item, bundleItem)
 			if err != nil {
 				if errors.Is(err, bundlr.ErrAlreadyReceived) {
 					item.State = model.BundleStateDuplicate
@@ -223,6 +228,7 @@ func (self *Sender) run() (err error) {
 					// Update stats
 					switch model.BundlingService(item.Service.String) {
 					case model.BundlingServiceTurbo:
+						self.monitor.GetReport().Sender.Errors.TurboError.Inc()
 					case model.BundlingServiceIrys:
 						self.monitor.GetReport().Sender.Errors.IrysError.Inc()
 					}
@@ -231,22 +237,21 @@ func (self *Sender) run() (err error) {
 				goto end
 			}
 
-			// We'll store the JSON response
-			err = item.Response.Set(uploadResponse)
-			if err != nil {
-				self.monitor.GetReport().Sender.Errors.IrysMarshalError.Inc()
-				self.Log.WithError(err).Error("Failed to marshal response")
-				return
-			}
-
 			// Update state
 			item.State = model.BundleStateUploaded
 
 			// Don't keep the data item in memory, let gc do its job
+			// This won't remove data item from the database
 			item.DataItem.Bytes = nil
 
 			// Update stats
-			self.monitor.GetReport().Sender.State.IrysSuccess.Inc()
+			switch model.BundlingService(item.Service.String) {
+			case model.BundlingServiceTurbo:
+				self.monitor.GetReport().Sender.Errors.TurboError.Inc()
+			case model.BundlingServiceIrys:
+				self.monitor.GetReport().Sender.Errors.IrysError.Inc()
+			}
+			self.monitor.GetReport().Sender.State.AllSuccess.Inc()
 
 		end:
 			// Note: Don't wait for the Ctx to be done,

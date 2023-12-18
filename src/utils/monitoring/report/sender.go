@@ -5,6 +5,8 @@ import (
 )
 
 type SenderErrors struct {
+	TurboError                  atomic.Uint64 `json:"turbo_error"`
+	TurboMarshalError           atomic.Uint64 `json:"turbo_marshal_error"`
 	IrysError                   atomic.Uint64 `json:"irys_error"`
 	IrysMarshalError            atomic.Uint64 `json:"irys_marshal_error"`
 	ConfirmationsSavedToDbError atomic.Uint64 `json:"confirmations_saved_to_db_error"`
@@ -24,7 +26,9 @@ type SenderState struct {
 	AllBundlesFromDb          atomic.Uint64 `json:"all_bundles_from_db"`
 
 	// Counting bundles sent to bundlr.network
-	IrysSuccess atomic.Uint64 `json:"irys_success"`
+	IrysSuccess  atomic.Uint64 `json:"irys_success"`
+	TurboSuccess atomic.Uint64 `json:"turbo_success"`
+	AllSuccess   atomic.Uint64 `json:"all_success"`
 
 	// Counting properly saved confirmations that bundle is sent
 	ConfirmationsSavedToDb atomic.Uint64 `json:"confirmations_saved_to_db"`
