@@ -177,9 +177,9 @@ func (self *Bundler) upload(dataItem *model.BundleItem, item *bundlr.BundleItem)
 		id = uploadResponse.Id
 
 	default:
+		err = errors.New("Unknown bundling service")
+		self.Log.WithError(err).WithField("service", dataItem.Service).Error("Unknown bundling service")
 	}
-	err = errors.New("Unknown bundling service")
-	self.Log.WithError(err).WithField("service", dataItem.Service).Error("Unknown bundling service")
 	return
 }
 
@@ -191,10 +191,10 @@ func (self *Bundler) setBundleProvider(item *model.BundleItem) (err error) {
 	}
 
 	if v.Int64() < int64(self.Config.Bundlr.IrysSendProbability) {
-		return item.Service.Set(string(model.BundlingServiceIrys))
+		return item.Service.Set(model.BundlingServiceIrys)
 	}
 
-	return item.Service.Set(string(model.BundlingServiceTurbo))
+	return item.Service.Set(model.BundlingServiceTurbo)
 }
 
 func (self *Bundler) run() (err error) {
