@@ -285,6 +285,7 @@ func (self *Bundler) run() (err error) {
 				InteractionID: item.InteractionID,
 				BundlerTxID:   id,
 				Response:      pgtype.JSONB{Bytes: uploadResponse, Status: pgtype.Present},
+				Service:       item.Service,
 			}:
 			}
 		})

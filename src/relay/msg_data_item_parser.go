@@ -183,6 +183,7 @@ func (self *MsgDataItemParser) parseMessage(msg cosmostypes.Msg, payload *Payloa
 		BundlrResponse: pgtype.JSONB{Status: pgtype.Null},
 		BlockHeight:    sql.NullInt64{Valid: false},
 		State:          model.BundleStatePending,
+		Service:        pgtype.Text{Status: pgtype.Null},
 	}
 
 	tags := getTags(payload, "Warp", self.Config.Relayer.Environment, interaction, dataItem.Random)

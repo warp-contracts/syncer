@@ -28,6 +28,7 @@ type Confirmation struct {
 	InteractionID int
 	BundlerTxID   string
 	Response      pgtype.JSONB
+	Service       pgtype.Text
 }
 
 func NewConfirmer(config *config.Config) (self *Confirmer) {
@@ -113,6 +114,7 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 					State:          model.BundleStateUploaded,
 					BlockHeight:    sql.NullInt64{Int64: currentBlockHeight, Valid: true},
 					BundlrResponse: confirmation.Response,
+					Service:        confirmation.Service,
 				}).
 				Error
 			if err != nil {
