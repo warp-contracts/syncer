@@ -27,7 +27,7 @@ type Interactor struct {
 }
 
 func setInteractorDefaults() {
-	viper.SetDefault("Interactor.GeneratorContractId", "dev-interactor-monitor-contract-0000000000")
+	viper.SetDefault("Interactor.GeneratorContractId", "dev-interactor-monitor-contract-00000000000")
 	viper.SetDefault("Interactor.GeneratorInterval", "30s")
 	viper.SetDefault("Interactor.GeneratorEthereumKey", "0xdbf7711298c3c8c9fc68713c4bb9021ef4e219f1a984fc298bbac20e38bcc213")
 	viper.SetDefault("Interactor.CheckerInterval", "30s")
