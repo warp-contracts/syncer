@@ -75,7 +75,7 @@ func (self *Checker) check(payload *Payload) error {
 		}
 
 		// Get the delay
-		delay := payload.Timestamp.UnixMilli() - interaction.SyncTimestamp.Int
+		delay := interaction.SyncTimestamp.Int - payload.Timestamp.UnixMilli()
 		self.monitor.GetReport().Interactor.State.CheckerDelay.Store(delay)
 
 		self.Log.WithField("delay", delay).Info("Data item detected in database")
