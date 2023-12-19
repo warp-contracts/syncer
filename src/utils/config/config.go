@@ -105,6 +105,14 @@ func BindEnv(path []string, val reflect.Value) {
 				newPath = append(newPath, fmt.Sprintf("%d", i))
 				BindEnv(newPath, reflect.ValueOf(Redis{}))
 			}
+		} else {
+			// Slice of base types
+			key := strings.ToLower(strings.Join(path, "."))
+			env := "SYNCER_" + strcase.ToScreamingSnake(strings.Join(path, "_"))
+			err := viper.BindEnv(key, env)
+			if err != nil {
+				panic(err)
+			}
 		}
 	} else if val.Kind() != reflect.Struct {
 		// Base types
