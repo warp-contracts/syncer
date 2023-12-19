@@ -64,6 +64,7 @@ func (self *Checker) check(payload *Payload) error {
 			continue
 		}
 		if err != nil {
+			self.Log.WithError(err).Error("Failed to get data item from database")
 			return err
 		}
 
@@ -76,10 +77,13 @@ func (self *Checker) check(payload *Payload) error {
 		// Get the delay
 		delay := payload.Timestamp.UnixMilli() - interaction.SyncTimestamp.Int
 		self.monitor.GetReport().Interactor.State.CheckerDelay.Store(delay)
+
+		self.Log.WithField("delay", delay).Info("Data item detected in database")
+
 		return nil
 	}
 
-	self.Log.WithField("id", payload.DataItem.Id).Error("Data item not found in database")
+	self.Log.WithField("id", payload.DataItem.Id.Base64()).Error("Data item not found in database")
 	return nil
 }
 
