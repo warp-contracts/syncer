@@ -244,9 +244,14 @@ func (self *Source) catchUp(height int64) (err error) {
 	self.Log.WithField("last_synced_height", self.lastSyncedHeight).
 		WithField("desired_height", height).
 		WithField("num_blocks_to_catch_up", len).
-		Info("Catching up")
+		Info("-> Catching up")
 
-	// Divide remaining blocks into batches that are downloaded in parallel and put into the Output channel
+	defer self.Log.WithField("last_synced_height", self.lastSyncedHeight).
+		WithField("desired_height", height).
+		WithField("num_blocks_to_catch_up", len).
+		Info("<- Catching up")
+
+		// Divide remaining blocks into batches that are downloaded in parallel and put into the Output channel
 	// This is to avoid big pauses in block processing needed for downloading all blocks at once
 	numBatches := int(len) / self.Config.Relayer.SourceBatchSize
 	for i := 0; i < numBatches; i++ {
