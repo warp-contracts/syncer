@@ -25,7 +25,6 @@ type Generator struct {
 	Output  chan *Payload
 	signer  bundlr.Signer
 
-	nonce           uint64
 	previousId      []byte
 	sequencerClient *sequencer.Client
 }
@@ -63,7 +62,7 @@ func (self *Generator) WithClient(v *sequencer.Client) *Generator {
 	return self
 }
 
-func (self *Generator) generateDataItem(timestamp time.Time) (out *bundlr.BundleItem, err error) {
+func (self *Generator) generateDataItem(nonce uint64, timestamp time.Time) (out *bundlr.BundleItem, err error) {
 	// Draw size
 	out = new(bundlr.BundleItem)
 	out.SignatureType = bundlr.SignatureTypeEthereum
@@ -92,7 +91,7 @@ func (self *Generator) generateDataItem(timestamp time.Time) (out *bundlr.Bundle
 
 	// Nonce tag
 	out.Tags = append(out.Tags,
-		bundlr.Tag{Name: warp.TagSequencerNonce, Value: strconv.FormatUint(self.nonce, 10)},
+		bundlr.Tag{Name: warp.TagSequencerNonce, Value: strconv.FormatUint(nonce, 10)},
 		bundlr.Tag{Name: "Contract", Value: self.Config.Interactor.GeneratorContractId},
 		bundlr.Tag{Name: smartweave.TagAppName, Value: smartweave.TagAppNameValue},
 		bundlr.Tag{Name: smartweave.TagInputFormat, Value: smartweave.TagInputFormatTagValue},
@@ -112,28 +111,21 @@ func (self *Generator) generate() error {
 	self.Log.Debug("Generating bundle item")
 
 	// Get nonce
-	if self.nonce > 0 {
-		self.nonce++
-	} else {
-		r, resp, err := self.sequencerClient.GetNonce(self.Ctx, self.signer.GetType(), base64.RawURLEncoding.EncodeToString(self.signer.GetOwner()))
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to get nonce")
-			return nil
-		}
-
-		if !resp.IsSuccess() {
-			self.Log.WithField("resp", string(resp.Body())).Error("Response is not success")
-			return nil
-		}
-
-		self.Log.WithError(err).WithField("nonce", r.Nonce).Info("Got nonce")
-
-		self.nonce = r.Nonce
+	r, resp, err := self.sequencerClient.GetNonce(self.Ctx, self.signer.GetType(), base64.RawURLEncoding.EncodeToString(self.signer.GetOwner()))
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to get nonce")
+		return nil
 	}
 
-	timestamp := time.Now()
+	if !resp.IsSuccess() {
+		self.Log.WithField("resp", string(resp.Body())).Error("Response is not success")
+		return nil
+	}
 
-	item, err := self.generateDataItem(timestamp)
+	self.Log.WithError(err).WithField("nonce", r.Nonce).Info("Got nonce")
+
+	timestamp := time.Now()
+	item, err := self.generateDataItem(r.Nonce, timestamp)
 	if err != nil {
 		return err
 	}
