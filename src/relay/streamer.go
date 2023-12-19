@@ -122,6 +122,7 @@ func (self *Streamer) run() (err error) {
 				return
 			case <-self.pauseChan:
 				err = self.onPause()
+				input = nil
 				if err != nil {
 					return
 				}
