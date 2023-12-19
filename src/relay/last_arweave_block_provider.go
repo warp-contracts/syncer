@@ -69,8 +69,9 @@ func (self *LastArweaveBlockProvider) getLastBlockHeight(payload *Payload) (out 
 	defer cancel()
 
 	query := fmt.Sprintf("tx.height <= %d AND message.action='/sequencer.sequencer.MsgArweaveBlock'", payload.SequencerBlockHeight)
-
-	results, err := self.client.TxSearch(ctx, query, false /*prove*/, nil /*page*/, nil /*per page*/, "" /*order by*/)
+	page := 1
+	perPage := 1
+	results, err := self.client.TxSearch(ctx, query, false /*prove*/, &page /*page*/, &perPage /*per page*/, "asc" /*order by*/)
 	if err != nil {
 		return
 	}
@@ -93,7 +94,9 @@ func (self *LastArweaveBlockProvider) getLastBlockHeight(payload *Payload) (out 
 
 	out = msg.BlockInfo
 
-	self.Log.WithField("last_arweave_block_height", msg.BlockInfo.Height).Info("Got last arweave block from sequencer")
+	self.Log.WithField("last_arweave_block_height", msg.BlockInfo.Height).
+		WithField("sequencer_height", payload.SequencerBlockHeight).
+		Info("Got last arweave block from sequencer")
 
 	return
 }
