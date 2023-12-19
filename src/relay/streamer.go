@@ -139,6 +139,8 @@ func (self *Streamer) run() (err error) {
 				if !ok {
 					self.Log.WithField("data", data).Error("Unexpected data type")
 					continue
+				} else {
+					self.Log.WithField("height", event.Block.Height).Debug("Received a block event from websocket")
 				}
 
 				self.monitor.GetReport().Relayer.State.SequencerBlocksStreamed.Inc()
