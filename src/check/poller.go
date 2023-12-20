@@ -24,11 +24,6 @@ type Poller struct {
 	Output         chan *Payload
 }
 
-type Payload struct {
-	InteractionId int
-	BundlerTxId   string
-}
-
 // For every network height, fetches unfinished bundles
 func NewPoller(config *config.Config) (self *Poller) {
 	self = new(Poller)
@@ -36,8 +31,10 @@ func NewPoller(config *config.Config) (self *Poller) {
 	self.Output = make(chan *Payload)
 
 	self.Task = task.NewTask(config, "poller").
-		WithRepeatedSubtaskFunc(config.Checker.PollerInterval, self.handleCheck).
-		WithRepeatedSubtaskFunc(config.Checker.PollerInterval, self.handleRetrying)
+		WithRepeatedSubtaskFunc(config.Checker.PollerInterval, self.handleCheck(model.BundlingServiceIrys)).
+		WithRepeatedSubtaskFunc(config.Checker.PollerInterval, self.handleCheck(model.BundlingServiceTurbo)).
+		WithRepeatedSubtaskFunc(config.Checker.PollerInterval, self.handleRetrying(model.BundlingServiceIrys)).
+		WithRepeatedSubtaskFunc(config.Checker.PollerInterval, self.handleRetrying(model.BundlingServiceTurbo))
 
 	return
 }
@@ -57,163 +54,174 @@ func (self *Poller) WithMonitor(monitor monitoring.Monitor) *Poller {
 	return self
 }
 
-func (self *Poller) handleCheck() (repeat bool, err error) {
-	// Get the current network height
-	networkInfo := self.networkMonitor.GetLastNetworkInfo()
-	minHeightToCheck := networkInfo.Height - self.Config.Checker.MinConfirmationBlocks
+func (self *Poller) handleCheck(bundlingService model.BundlingService) task.RepeatedSubtaskFunc {
+	return func() (repeat bool, err error) {
 
-	// Interrupts longer queries
-	ctx, cancel := context.WithTimeout(self.Ctx, 5*time.Minute)
-	defer cancel()
+		// Get the current network height
+		networkInfo := self.networkMonitor.GetLastNetworkInfo()
+		minHeightToCheck := networkInfo.Height - self.Config.Checker.MinConfirmationBlocks
 
-	// Preallocate the slices
-	ids := make([]int, 0, self.Config.Checker.MaxBundlesPerRun)
-	interactions := make([]model.Interaction, 0, self.Config.Checker.MaxBundlesPerRun)
+		// Interrupts longer queries
+		ctx, cancel := context.WithTimeout(self.Ctx, 5*time.Minute)
+		defer cancel()
 
-	err = self.db.WithContext(ctx).
-		Transaction(func(tx *gorm.DB) error {
-			// Select bundles that will get checked
-			err = tx.Raw(`UPDATE bundle_items
+		// Preallocate the slices
+		ids := make([]int, 0, self.Config.Checker.MaxBundlesPerRun)
+		interactions := make([]model.Interaction, 0, self.Config.Checker.MaxBundlesPerRun)
+
+		err = self.db.WithContext(ctx).
+			Transaction(func(tx *gorm.DB) error {
+				// Select bundles that will get checked
+				err = tx.Raw(`UPDATE bundle_items
 			SET state = 'CHECKING', updated_at = NOW()
 					WHERE interaction_id IN (
 						SELECT interaction_id 
 						FROM bundle_items 
-						WHERE state = 'UPLOADED' AND block_height < ? AND service = 'IRYS'
+						WHERE state = 'UPLOADED' AND block_height < ? AND service = ?
 						ORDER BY block_height ASC, interaction_id ASC
 						LIMIT ?
 						FOR UPDATE SKIP LOCKED)
-						RETURNING interaction_id`, minHeightToCheck, self.Config.Checker.MaxBundlesPerRun).
-				Scan(&ids).
-				Error
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to get bundles to check")
-				return err
-			}
+						RETURNING interaction_id`, minHeightToCheck, bundlingService.String(), self.Config.Checker.MaxBundlesPerRun).
+					Scan(&ids).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to get bundles to check")
+					return err
+				}
 
-			if len(ids) == 0 {
+				if len(ids) == 0 {
+					return nil
+				}
+
+				// Get the data from interactions table
+				err := tx.Table(model.TableInteraction).
+					Select("id", "bundler_tx_id").
+					Where("id IN ?", ids).
+					Where("bundler_tx_id IS NOT NULL").
+					Where("bundler_tx_id <> ''").
+					Scan(&interactions).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to get interactions for checking")
+					return err
+				}
 				return nil
-			}
+			})
 
-			// Get the data from interactions table
-			err := tx.Table(model.TableInteraction).
-				Select("id", "bundler_tx_id").
-				Where("id IN ?", ids).
-				Where("bundler_tx_id IS NOT NULL").
-				Where("bundler_tx_id <> ''").
-				Scan(&interactions).
-				Error
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to get interactions for checking")
-				return err
-			}
-			return nil
-		})
-
-	if err != nil {
-		self.Log.WithError(err).Error("Failed to get data for checking")
-		return
-	}
-
-	if len(interactions) > 0 {
-		self.Log.WithField("len", len(interactions)).Debug("Polled interactions for checking")
-	}
-
-	for _, interaction := range interactions {
-		select {
-		case <-self.Ctx.Done():
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to get data for checking")
 			return
-		case self.Output <- &Payload{
-			InteractionId: interaction.ID,
-			BundlerTxId:   interaction.BundlerTxId,
-		}:
 		}
-	}
 
-	// Update monitoring
-	self.monitor.GetReport().Checker.State.BundlesTakenFromDb.Add(uint64(len(interactions)))
+		if len(interactions) > 0 {
+			self.Log.WithField("len", len(interactions)).Debug("Polled interactions for checking")
+		}
 
-	// If we got the maximum number of elements, we need to repeat the query
-	if len(ids) == self.Config.Checker.MaxBundlesPerRun {
-		repeat = true
+		for _, interaction := range interactions {
+			select {
+			case <-self.Ctx.Done():
+				return
+			case self.Output <- &Payload{
+				InteractionId: interaction.ID,
+				BundlerTxId:   interaction.BundlerTxId,
+				Service:       bundlingService,
+				Table:         model.TableBundleItem,
+			}:
+			}
+		}
+
+		// Update monitoring
+		self.monitor.GetReport().Checker.State.BundlesTakenFromDb.Add(uint64(len(interactions)))
+
+		// If we got the maximum number of elements, we need to repeat the query
+		if len(ids) == self.Config.Checker.MaxBundlesPerRun {
+			repeat = true
+		}
+		return
+
 	}
-	return
 }
 
-func (self *Poller) handleRetrying() (repeat bool, err error) {
-	// Interrupts longer queries
-	ctx, cancel := context.WithTimeout(self.Ctx, 5*time.Minute)
-	defer cancel()
+func (self *Poller) handleRetrying(bundlingService model.BundlingService) task.RepeatedSubtaskFunc {
+	return func() (repeat bool, err error) {
+		// Interrupts longer queries
+		ctx, cancel := context.WithTimeout(self.Ctx, 5*time.Minute)
+		defer cancel()
 
-	// Preallocate the slices
-	ids := make([]int, 0, self.Config.Checker.MaxBundlesPerRun)
-	interactions := make([]model.Interaction, 0, self.Config.Checker.MaxBundlesPerRun)
+		// Preallocate the slices
+		ids := make([]int, 0, self.Config.Checker.MaxBundlesPerRun)
+		interactions := make([]model.Interaction, 0, self.Config.Checker.MaxBundlesPerRun)
 
-	err = self.db.WithContext(ctx).
-		Transaction(func(tx *gorm.DB) error {
-			// Select bundles that will get checked
-			err = tx.Raw(`UPDATE bundle_items
+		err = self.db.WithContext(ctx).
+			Transaction(func(tx *gorm.DB) error {
+				// Select bundles that will get checked
+				err = tx.Raw(`UPDATE bundle_items
 						SET updated_at = NOW()
 						WHERE interaction_id IN (
 							SELECT interaction_id 
 							FROM bundle_items 
-							WHERE state = 'CHECKING' AND updated_at < NOW() - ?::interval 
+							WHERE state = 'CHECKING'  AND service = ? AND updated_at < NOW() - ?::interval 
 							ORDER BY block_height ASC, interaction_id ASC
 							LIMIT ?
 							FOR UPDATE SKIP LOCKED)
 						RETURNING interaction_id`,
-				fmt.Sprintf("%d seconds", int((self.Config.Checker.PollerRetryCheckAfter.Seconds()))),
-				self.Config.Checker.MaxBundlesPerRun).
-				Scan(&ids).
-				Error
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to get bundles to re-check")
-				return err
-			}
+					bundlingService.String(),
+					fmt.Sprintf("%d seconds", int((self.Config.Checker.PollerRetryCheckAfter.Seconds()))),
+					self.Config.Checker.MaxBundlesPerRun).
+					Scan(&ids).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to get bundles to re-check")
+					return err
+				}
 
-			if len(ids) == 0 {
+				if len(ids) == 0 {
+					return nil
+				}
+
+				// Get the data from interactions table
+				err := tx.Table(model.TableInteraction).
+					Select("id", "bundler_tx_id").
+					Where("id IN ?", ids).
+					Where("bundler_tx_id IS NOT NULL").
+					Where("bundler_tx_id <> ''").
+					Scan(&interactions).
+					Error
+				if err != nil {
+					self.Log.WithError(err).Error("Failed to get interactions for re-checking")
+					return err
+				}
 				return nil
-			}
+			})
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to get data for checking")
+			return
+		}
 
-			// Get the data from interactions table
-			err := tx.Table(model.TableInteraction).
-				Select("id", "bundler_tx_id").
-				Where("id IN ?", ids).
-				Where("bundler_tx_id IS NOT NULL").
-				Where("bundler_tx_id <> ''").
-				Scan(&interactions).
-				Error
-			if err != nil {
-				self.Log.WithError(err).Error("Failed to get interactions for re-checking")
-				return err
+		if len(interactions) > 0 {
+			self.Log.WithField("len", len(interactions)).Debug("Polled interactions for re-checking")
+		}
+
+		for _, interaction := range interactions {
+			select {
+			case <-self.Ctx.Done():
+				return
+			case self.Output <- &Payload{
+				InteractionId: interaction.ID,
+				BundlerTxId:   interaction.BundlerTxId,
+				Service:       bundlingService,
+				Table:         model.TableBundleItem,
+			}:
 			}
-			return nil
-		})
-	if err != nil {
-		self.Log.WithError(err).Error("Failed to get data for checking")
+		}
+
+		// Update monitoring
+		self.monitor.GetReport().Checker.State.BundlesTakenFromDb.Add(uint64(len(interactions)))
+
+		// If we got the maximum number of elements, we need to repeat the query
+		if len(ids) == self.Config.Checker.MaxBundlesPerRun {
+			repeat = true
+		}
 		return
 	}
-
-	if len(interactions) > 0 {
-		self.Log.WithField("len", len(interactions)).Debug("Polled interactions for re-checking")
-	}
-
-	for _, interaction := range interactions {
-		select {
-		case <-self.Ctx.Done():
-			return
-		case self.Output <- &Payload{
-			InteractionId: interaction.ID,
-			BundlerTxId:   interaction.BundlerTxId,
-		}:
-		}
-	}
-
-	// Update monitoring
-	self.monitor.GetReport().Checker.State.BundlesTakenFromDb.Add(uint64(len(interactions)))
-
-	// If we got the maximum number of elements, we need to repeat the query
-	if len(ids) == self.Config.Checker.MaxBundlesPerRun {
-		repeat = true
-	}
-	return
 }

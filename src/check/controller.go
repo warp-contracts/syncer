@@ -9,6 +9,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	monitor_checker "github.com/warp-contracts/syncer/src/utils/monitoring/checker"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/turbo"
 )
 
 type Controller struct {
@@ -36,7 +37,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithMonitor(monitor)
 
 	// Bundlr client
-	bundlrClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
+	irysClient := bundlr.NewClient(self.Ctx, &config.Bundlr)
+	turboClient := turbo.NewClient(self.Ctx, &config.Bundlr)
 
 	// Gets network height from WARP's GW
 	networkMonitor := listener.NewNetworkMonitor(config).
@@ -54,7 +56,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 
 	// Checks if bundlr finalized the bundle
 	checker := NewChecker(config).
-		WithClient(bundlrClient).
+		WithIrysClient(irysClient).
+		WithTurboClient(turboClient).
 		WithInputChannel(poller.Output).
 		WithMonitor(monitor)
 

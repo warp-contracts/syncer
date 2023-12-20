@@ -66,3 +66,30 @@ func (self *Client) Upload(ctx context.Context, item *bundlr.BundleItem) (out *r
 
 	return
 }
+
+func (self *Client) GetStatus(ctx context.Context, id string) (out *responses.Status, err error) {
+	if len(id) == 0 {
+		err = bundlr.ErrIdEmpty
+		return
+	}
+
+	req, cancel := self.Request(ctx)
+	defer cancel()
+
+	resp, err := req.
+		SetResult(&responses.Status{}).
+		ForceContentType("application/json").
+		SetPathParam("tx_id", id).
+		Get("/tx/{tx_id}/status")
+	if err != nil {
+		return
+	}
+
+	out, ok := resp.Result().(*responses.Status)
+	if !ok {
+		err = bundlr.ErrFailedToParse
+		return
+	}
+
+	return
+}

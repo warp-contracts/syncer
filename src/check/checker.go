@@ -1,10 +1,14 @@
 package check
 
 import (
+	"strings"
+
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
 	"github.com/warp-contracts/syncer/src/utils/config"
+	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/turbo"
 )
 
 // Periodically gets the current network height from warp's GW and confirms bundle is FINALIZED
@@ -13,20 +17,21 @@ type Checker struct {
 	monitor monitoring.Monitor
 
 	// Communication with bundlr
-	bundlrClient *bundlr.Client
+	irysClient  *bundlr.Client
+	turboClient *turbo.Client
 
 	// Interactions that can be checked
 	input chan *Payload
 
 	// Finalized interactions
-	Output chan int
+	Output chan *Payload
 }
 
 // Receives bundles that can be checked in bundlr
 func NewChecker(config *config.Config) (self *Checker) {
 	self = new(Checker)
 
-	self.Output = make(chan int)
+	self.Output = make(chan *Payload)
 
 	self.Task = task.NewTask(config, "checker").
 		WithSubtaskFunc(self.run).
@@ -35,8 +40,13 @@ func NewChecker(config *config.Config) (self *Checker) {
 	return
 }
 
-func (self *Checker) WithClient(client *bundlr.Client) *Checker {
-	self.bundlrClient = client
+func (self *Checker) WithIrysClient(client *bundlr.Client) *Checker {
+	self.irysClient = client
+	return self
+}
+
+func (self *Checker) WithTurboClient(client *turbo.Client) *Checker {
+	self.turboClient = client
 	return self
 }
 
@@ -62,17 +72,33 @@ func (self *Checker) run() error {
 		payload := payload
 
 		self.SubmitToWorker(func() {
+			var isFinalized bool
+
 			self.Log.WithField("id", payload.BundlerTxId).Debug("Checking status")
+
 			// Check if the bundle is finalized
-			status, err := self.bundlrClient.GetStatus(self.Ctx, payload.BundlerTxId)
-			if err != nil {
-				// Update monitoring
-				self.monitor.GetReport().Checker.Errors.BundrlGetStatusError.Inc()
-				self.Log.WithField("interaction_id", payload.InteractionId).WithError(err).Error("Failed to get bundle status")
-				return
+			switch payload.Service {
+			case model.BundlingServiceIrys:
+				status, err := self.irysClient.GetStatus(self.Ctx, payload.BundlerTxId)
+				if err != nil {
+					// Update monitoring
+					self.monitor.GetReport().Checker.Errors.BundrlGetStatusError.Inc()
+					self.Log.WithField("interaction_id", payload.InteractionId).WithError(err).Error("Failed to get bundle status from Irys")
+					return
+				}
+				isFinalized = strings.EqualFold(status.Status, "FINALIZED")
+			case model.BundlingServiceTurbo:
+				status, err := self.turboClient.GetStatus(self.Ctx, payload.BundlerTxId)
+				if err != nil {
+					// Update monitoring
+					self.monitor.GetReport().Checker.Errors.TurboGetStatusError.Inc()
+					self.Log.WithField("interaction_id", payload.InteractionId).WithError(err).Error("Failed to get bundle status from Turbo")
+					return
+				}
+				isFinalized = strings.EqualFold(status.Status, "FINALIZED")
 			}
 
-			if status.Status != "FINALIZED" {
+			if !isFinalized {
 				// Update monitoring
 				self.monitor.GetReport().Checker.State.UnfinishedBundles.Inc()
 				return
@@ -84,7 +110,7 @@ func (self *Checker) run() error {
 			select {
 			case <-self.Ctx.Done():
 				return
-			case self.Output <- payload.InteractionId:
+			case self.Output <- payload:
 			}
 
 		})

@@ -2,7 +2,6 @@ package turbo
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -62,6 +61,10 @@ func (s *ClientTestSuite) TestUpload() {
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), r)
 	require.NotNil(s.T(), resp)
+
+	status, err := s.client.GetStatus(s.ctx, resp.Id)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), status)
 }
 
 func (s *ClientTestSuite) TestNestedBundleUpload() {
@@ -97,6 +100,10 @@ func (s *ClientTestSuite) TestNestedBundleUpload() {
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), r)
 	require.NotNil(s.T(), resp)
-	fmt.Println(string(r.Body()))
-	fmt.Println(r.Header())
+	// fmt.Println(string(r.Body()))
+	// fmt.Println(r.Header())
+
+	status, err := s.client.GetStatus(s.ctx, resp.Id)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), status)
 }

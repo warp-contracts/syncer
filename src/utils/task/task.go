@@ -144,7 +144,7 @@ func (self *Task) WithSubtaskFunc(f func() error) *Task {
 }
 
 // Callback is run again and again until it returns false or an error. Rerun after period.
-func (self *Task) WithRepeatedSubtaskFunc(period time.Duration, f func() (repeat bool, err error)) *Task {
+func (self *Task) WithRepeatedSubtaskFunc(period time.Duration, f RepeatedSubtaskFunc) *Task {
 	return self.WithPeriodicSubtaskFunc(period, func() error {
 		for {
 			repeat, err := f()

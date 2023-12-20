@@ -53,7 +53,7 @@ type Bundlr struct {
 
 func setBundlrDefaults() {
 	viper.SetDefault("Bundlr.Urls", []string{"https://node1.bundlr.network"})
-	viper.SetDefault("Bundlr.TurboUrls", []string{"https://up.arweave.net"})
+	viper.SetDefault("Bundlr.TurboUrls", []string{"https://upload.ardrive.dev"})
 	viper.SetDefault("Bundlr.TurboSendProbability", "0")
 	viper.SetDefault("Bundlr.IrysSendProbability", "100")
 	viper.SetDefault("Bundlr.RequestTimeout", "60s")

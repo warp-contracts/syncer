@@ -14,7 +14,7 @@ import (
 // Periodically saves the states
 // SinkTask handles caching data and periodically calling flush function
 type Store struct {
-	*task.SinkTask[int]
+	*task.Hole[*Payload]
 	db      *gorm.DB
 	monitor monitoring.Monitor
 }
@@ -22,8 +22,8 @@ type Store struct {
 func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
 
-	self.SinkTask = task.NewSinkTask[int](config, "store").
-		WithOnFlush(5*time.Second, self.save).
+	self.Hole = task.NewHole[*Payload](config, "store").
+		WithOnFlush(5*time.Second, self.flush).
 		WithBatchSize(50).
 		WithBackoff(10*time.Minute, 10*time.Second)
 
@@ -35,8 +35,8 @@ func (self *Store) WithDB(db *gorm.DB) *Store {
 	return self
 }
 
-func (self *Store) WithInputChannel(input chan int) *Store {
-	self.SinkTask = self.SinkTask.WithInputChannel(input)
+func (self *Store) WithInputChannel(input chan *Payload) *Store {
+	self.Hole = self.Hole.WithInputChannel(input)
 	return self
 }
 
@@ -45,18 +45,49 @@ func (self *Store) WithMonitor(monitor monitoring.Monitor) *Store {
 	return self
 }
 
-func (self *Store) save(ids []int) error {
-	if len(ids) == 0 {
+func (self *Store) flush(payloads []*Payload) error {
+	if len(payloads) == 0 {
 		return nil
 	}
-	self.Log.WithField("len", len(ids)).Debug("Saving checked states")
 
-	err := self.db.Model(&model.BundleItem{}).
-		Where("interaction_id IN ?", ids).
-		Update("state", model.BundleStateOnArweave).
-		Error
+	// Create lists of ids for both tables
+	bundleItemIds := make([]int, 0, len(payloads))
+	dataItemIds := make([]string, 0, len(payloads))
+	for _, payload := range payloads {
+		switch payload.Table {
+		case model.TableBundleItem:
+			bundleItemIds = append(bundleItemIds, payload.InteractionId)
+		case model.TableDataItem:
+			dataItemIds = append(dataItemIds, payload.BundlerTxId)
+		}
+	}
+
+	self.Log.WithField("len", len(payloads)).Debug("Saving checked states")
+	err := self.db.Transaction(func(tx *gorm.DB) (err error) {
+		if len(bundleItemIds) > 0 {
+			err = self.db.Model(&model.BundleItem{}).
+				Where("interaction_id IN ?", bundleItemIds).
+				Update("state", model.BundleStateOnArweave).
+				Error
+			if err != nil {
+				return
+			}
+		}
+
+		if len(dataItemIds) > 0 {
+			err = self.db.Model(&model.DataItem{}).
+				Where("interaction_id IN ?", dataItemIds).
+				Update("state", model.BundleStateOnArweave).
+				Error
+			if err != nil {
+				return
+			}
+		}
+		return
+	})
+
 	if err != nil {
-		self.Log.WithError(err).Error("Failed to update bundle state")
+		self.Log.WithError(err).Error("Failed to update bundle/data item state")
 
 		// Update monitoring
 		self.monitor.GetReport().Checker.Errors.DbStateUpdateError.Inc()
