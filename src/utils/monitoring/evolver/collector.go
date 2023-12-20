@@ -55,7 +55,7 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.UpForSeconds, prometheus.GaugeValue, float64(self.monitor.Report.Run.State.UpForSeconds.Load()))
 
 	// Bundler
-	ch <- prometheus.MustNewConstMetric(self.PollerSourcesFromSelects, prometheus.GaugeValue, float64(self.monitor.Report.Evolver.State.PollerSourcesFromSelects.Load()))
+	ch <- prometheus.MustNewConstMetric(self.PollerSourcesFromSelects, prometheus.CounterValue, float64(self.monitor.Report.Evolver.State.PollerSourcesFromSelects.Load()))
 	ch <- prometheus.MustNewConstMetric(self.StoreSourcesSaved, prometheus.CounterValue, float64(self.monitor.Report.Evolver.State.StoreSourcesSaved.Load()))
 	ch <- prometheus.MustNewConstMetric(self.DownloaderSourcesLoaded, prometheus.CounterValue, float64(self.monitor.Report.Evolver.State.DownloaderSourcesLoaded.Load()))
 	ch <- prometheus.MustNewConstMetric(self.DownloaderDownlaodError, prometheus.CounterValue, float64(self.monitor.Report.Evolver.Errors.DownloaderDownlaodError.Load()))
