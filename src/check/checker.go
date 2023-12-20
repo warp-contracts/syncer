@@ -74,7 +74,7 @@ func (self *Checker) run() error {
 		self.SubmitToWorker(func() {
 			var isFinalized bool
 
-			self.Log.WithField("id", payload.BundlerTxId).Debug("Checking status")
+			self.Log.WithField("service", payload.Service.String()).WithField("id", payload.BundlerTxId).Debug("Checking status")
 
 			// Check if the bundle is finalized
 			switch payload.Service {
