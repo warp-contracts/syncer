@@ -60,6 +60,30 @@ func (self *Checker) WithMonitor(monitor monitoring.Monitor) *Checker {
 	return self
 }
 
+func (self *Checker) checkIrys(payload *Payload) (isFinalized bool, err error) {
+	status, err := self.irysClient.GetStatus(self.Ctx, payload.BundlerTxId)
+	if err != nil {
+		// Update monitoring
+		self.monitor.GetReport().Checker.Errors.BundrlGetStatusError.Inc()
+		self.Log.WithField("tx_id", payload.BundlerTxId).WithError(err).Error("Failed to get bundle status from Irys")
+		return
+	}
+	isFinalized = strings.EqualFold(status.Status, "FINALIZED")
+	return
+}
+
+func (self *Checker) checkTurbo(payload *Payload) (isFinalized bool, err error) {
+	status, err := self.turboClient.GetStatus(self.Ctx, payload.BundlerTxId)
+	if err != nil {
+		// Update monitoring
+		self.monitor.GetReport().Checker.Errors.BundrlGetStatusError.Inc()
+		self.Log.WithField("tx_id", payload.BundlerTxId).WithError(err).Error("Failed to get bundle status from Irys")
+		return
+	}
+	isFinalized = strings.EqualFold(status.Status, "FINALIZED")
+	return
+}
+
 func (self *Checker) run() error {
 	// Blocks waiting for the next network height
 	// Quits when the channel is closed
@@ -72,30 +96,25 @@ func (self *Checker) run() error {
 		payload := payload
 
 		self.SubmitToWorker(func() {
-			var isFinalized bool
+			var (
+				err         error
+				isFinalized bool
+			)
 
 			self.Log.WithField("service", payload.Service.String()).WithField("id", payload.BundlerTxId).Debug("Checking status")
 
 			// Check if the bundle is finalized
 			switch payload.Service {
 			case model.BundlingServiceIrys:
-				status, err := self.irysClient.GetStatus(self.Ctx, payload.BundlerTxId)
+				isFinalized, err = self.checkIrys(payload)
 				if err != nil {
-					// Update monitoring
-					self.monitor.GetReport().Checker.Errors.BundrlGetStatusError.Inc()
-					self.Log.WithField("interaction_id", payload.InteractionId).WithError(err).Error("Failed to get bundle status from Irys")
 					return
 				}
-				isFinalized = strings.EqualFold(status.Status, "FINALIZED")
 			case model.BundlingServiceTurbo:
-				status, err := self.turboClient.GetStatus(self.Ctx, payload.BundlerTxId)
+				isFinalized, err = self.checkTurbo(payload)
 				if err != nil {
-					// Update monitoring
-					self.monitor.GetReport().Checker.Errors.TurboGetStatusError.Inc()
-					self.Log.WithField("interaction_id", payload.InteractionId).WithError(err).Error("Failed to get bundle status from Turbo")
 					return
 				}
-				isFinalized = strings.EqualFold(status.Status, "FINALIZED")
 			}
 
 			if !isFinalized {
