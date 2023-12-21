@@ -255,7 +255,7 @@ func (self *Poller) handleDataItemCheck(bundlingService model.BundlingService) t
 						ORDER BY block_height ASC, data_item_id ASC
 						LIMIT ?
 						FOR UPDATE SKIP LOCKED)
-					RETURNING interaction_id`, minHeightToCheck, bundlingService.String(), self.Config.Checker.MaxBundlesPerRun).
+					RETURNING data_item_id`, minHeightToCheck, bundlingService.String(), self.Config.Checker.MaxBundlesPerRun).
 					Scan(&ids).
 					Error
 				if err != nil {
@@ -319,7 +319,7 @@ func (self *Poller) handleDataItemRetrying(bundlingService model.BundlingService
 						ORDER BY block_height ASC, data_item_id ASC
 						LIMIT ?
 						FOR UPDATE SKIP LOCKED)
-					RETURNING interaction_id`,
+					RETURNING data_item_id`,
 					bundlingService.String(),
 					fmt.Sprintf("%d seconds", int((self.Config.Checker.PollerRetryCheckAfter.Seconds()))),
 					self.Config.Checker.MaxBundlesPerRun).
