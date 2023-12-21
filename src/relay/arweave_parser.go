@@ -7,6 +7,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	"github.com/warp-contracts/syncer/src/utils/smartweave"
 	"github.com/warp-contracts/syncer/src/utils/task"
 	"github.com/warp-contracts/syncer/src/utils/warp"
 )
@@ -57,9 +58,13 @@ func (self *ArweaveParser) WithInputChannel(v chan *Payload) *ArweaveParser {
 
 func (self *ArweaveParser) run() error {
 	for payload := range self.input {
+		sequencerBlock := &smartweave.SequencerBlock {
+			Height: payload.SequencerBlockHeight,
+			Timestamp: payload.SequencerBlockTimestamp,
+		}
 		for i, arweaveBlock := range payload.ArweaveBlocks {
 			var err error
-			payload.ArweaveBlocks[i].Interactions, err = self.parseAll(arweaveBlock)
+			payload.ArweaveBlocks[i].Interactions, err = self.parseAll(arweaveBlock, sequencerBlock)
 			if err != nil {
 				if self.IsStopping.Load() {
 					// Neglect those transactions, we're stopping anyway
@@ -96,7 +101,7 @@ func (self *ArweaveParser) run() error {
 	return nil
 }
 
-func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.Interaction, err error) {
+func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock, sequencerBlock *smartweave.SequencerBlock) (out []*model.Interaction, err error) {
 	if len(arweaveBlock.Transactions) == 0 {
 		// Skip empty blocks
 		return
@@ -121,6 +126,7 @@ func (self *ArweaveParser) parseAll(arweaveBlock *ArweaveBlock) (out []*model.In
 				info.Random,
 				info.Transaction.SortKey,
 				info.PrevSortKey,
+				sequencerBlock,
 			)
 			mtx.Lock()
 			defer mtx.Unlock()

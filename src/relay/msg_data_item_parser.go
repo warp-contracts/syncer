@@ -18,6 +18,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
+	"github.com/warp-contracts/syncer/src/utils/smartweave"
 	"github.com/warp-contracts/syncer/src/utils/task"
 	"github.com/warp-contracts/syncer/src/utils/warp"
 )
@@ -162,7 +163,12 @@ func (self *MsgDataItemParser) parseMessage(msg cosmostypes.Msg, payload *Payloa
 		return
 	}
 
-	interaction, err = self.parser.Parse(&dataItem.DataItem, int64(payload.LastArweaveBlock.Height), arweaveBlockHash, int64(payload.LastArweaveBlock.Timestamp), dataItem.SortKey, dataItem.PrevSortKey)
+	sequencerBlock := &smartweave.SequencerBlock {
+		Height: payload.SequencerBlockHeight,
+		Timestamp: payload.SequencerBlockTimestamp,
+	}
+
+	interaction, err = self.parser.Parse(&dataItem.DataItem, int64(payload.LastArweaveBlock.Height), arweaveBlockHash, int64(payload.LastArweaveBlock.Timestamp), dataItem.SortKey, dataItem.PrevSortKey, dataItem.Random, sequencerBlock)
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to parse interaction")
 		return

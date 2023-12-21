@@ -38,7 +38,8 @@ func (self *InteractionParser) Parse(
 	blockTimestamp int64,
 	randomValue arweave.Base64String,
 	sortKey string,
-	prevSortKey string) (out *model.Interaction, err error) {
+	prevSortKey string,
+	sequencerBlock *smartweave.SequencerBlock) (out *model.Interaction, err error) {
 	out = &model.Interaction{
 		InteractionId:      tx.ID,
 		BlockHeight:        blockHeight,
@@ -103,6 +104,7 @@ func (self *InteractionParser) Parse(
 			Winston: tx.Quantity,
 		},
 		Random: randomValue,
+		SequencerBlock: sequencerBlock,
 	}
 
 	swInteractionJson, err := json.Marshal(swInteraction)

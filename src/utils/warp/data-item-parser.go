@@ -26,7 +26,7 @@ func NewDataItemParser(config *config.Config) (self *DataItemParser) {
 	return
 }
 
-func (self *DataItemParser) Parse(tx *bundlr.BundleItem, blockHeight int64, blockId arweave.Base64String, blockTimestamp int64, sortKey, lastSortKey string) (out *model.Interaction, err error) {
+func (self *DataItemParser) Parse(tx *bundlr.BundleItem, blockHeight int64, blockId arweave.Base64String, blockTimestamp int64, sortKey, lastSortKey string, random arweave.Base64String, sequencerBlock *smartweave.SequencerBlock) (out *model.Interaction, err error) {
 	out = &model.Interaction{
 		InteractionId:      tx.Id,
 		BlockHeight:        blockHeight,
@@ -74,6 +74,8 @@ func (self *DataItemParser) Parse(tx *bundlr.BundleItem, blockHeight int64, bloc
 			Id:        blockId,
 			Timestamp: blockTimestamp,
 		},
+		Random: random,
+		SequencerBlock: sequencerBlock,
 		// Fee: smartweave.Amount{
 		// 	Winston: tx.Reward,
 		// },
