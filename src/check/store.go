@@ -76,7 +76,7 @@ func (self *Store) flush(payloads []*Payload) error {
 
 		if len(dataItemIds) > 0 {
 			err = self.db.Model(&model.DataItem{}).
-				Where("interaction_id IN ?", dataItemIds).
+				Where("data_item_id IN ?", dataItemIds).
 				Update("state", model.BundleStateOnArweave).
 				Error
 			if err != nil {
