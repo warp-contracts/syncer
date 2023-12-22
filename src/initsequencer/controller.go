@@ -47,11 +47,11 @@ func NewController(config *config.Config, sequencerRepoPath string, env string) 
 		WithHeightRange(lastSyncedBlock.FinishedBlockHeight+1, lastSyncedBlock.FinishedBlockHeight+1)
 
 	transactionDownloader := listener.NewTransactionDownloader(config).
-			WithClient(client).
-			WithInputChannel(blockDownloader.Output).
-			WithMonitor(monitor).
-			WithBackoff(0, config.Syncer.TransactionMaxInterval).
-			WithFilterInteractions()
+		WithClient(client).
+		WithInputChannel(blockDownloader.Output).
+		WithMonitor(monitor).
+		WithBackoff(0, config.Syncer.TransactionMaxInterval).
+		WithFilterInteractions(true)
 
 	writer := NewWriter(config).
 		WithSequencerRepoPath(sequencerRepoPath).

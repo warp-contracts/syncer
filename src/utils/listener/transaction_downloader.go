@@ -99,16 +99,20 @@ func (self *TransactionDownloader) WithFilterContracts() *TransactionDownloader 
 	return self
 }
 
-func (self *TransactionDownloader) WithFilterInteractions() *TransactionDownloader {
+func (self *TransactionDownloader) WithFilterInteractions(isInputInDataEnabled bool) *TransactionDownloader {
 	self.filter = func(tx *arweave.Transaction) bool {
-		isInteraction, err := smartweave.ValidateInteraction(tx)
+		isInteraction, err := smartweave.ValidateInteraction(tx, isInputInDataEnabled)
 		if err != nil {
 			self.Log.WithField("txId", tx.ID.Base64()).WithError(err).Warn("neglecting invalid interaction")
 			return false
 		}
 		return isInteraction
 	}
-	self.isGetTransactionData = smartweave.IsInteractionWithData
+
+	if isInputInDataEnabled {
+		self.isGetTransactionData = smartweave.IsInteractionWithData
+	}
+
 	return self
 }
 

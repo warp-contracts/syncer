@@ -77,7 +77,7 @@ func (self *Checker) checkTurbo(payload *Payload) (isFinalized bool, err error) 
 	if err != nil {
 		// Update monitoring
 		self.monitor.GetReport().Checker.Errors.BundrlGetStatusError.Inc()
-		self.Log.WithField("tx_id", payload.BundlerTxId).WithError(err).Error("Failed to get bundle status from Irys")
+		self.Log.WithField("tx_id", payload.BundlerTxId).WithError(err).Error("Failed to get bundle status from Turbo")
 		return
 	}
 	isFinalized = strings.EqualFold(status.Status, "FINALIZED")

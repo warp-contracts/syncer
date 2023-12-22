@@ -10,7 +10,7 @@ import (
 
 const MaxInteractionDataItemSizeBytes = 20000
 
-func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error) {
+func ValidateInteraction(tx *arweave.Transaction, isInputInDataEnabled bool) (isInteraction bool, err error) {
 	if tx == nil || tx.Format < 2 {
 		return false, nil
 	}
@@ -50,6 +50,10 @@ func ValidateInteraction(tx *arweave.Transaction) (isInteraction bool, err error
 	}
 
 	if !inputFromTag {
+		if !isInputInDataEnabled {
+			// Input in data is disabled
+			return false, nil
+		}
 		input = tx.Data
 	}
 	// Input must be a valid JSON

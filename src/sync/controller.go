@@ -70,7 +70,7 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 			WithInputChannel(blockDownloader.Output).
 			WithMonitor(monitor).
 			WithBackoff(0, config.Syncer.TransactionMaxInterval).
-			WithFilterInteractions()
+			WithFilterInteractions(false /* input from tx's data is disabled */)
 
 		parser := NewParser(config).
 			WithInputChannel(transactionDownloader.Output).
