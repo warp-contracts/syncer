@@ -276,8 +276,15 @@ func (self *Bundler) run() (err error) {
 			}
 
 			// Update stats
-			self.monitor.GetReport().Bundler.State.BundlrSuccess.Inc()
+			switch model.BundlingService(item.Service.String) {
+			case model.BundlingServiceTurbo:
+				self.monitor.GetReport().Bundler.Errors.TurboError.Inc()
+			case model.BundlingServiceIrys:
+				self.monitor.GetReport().Bundler.Errors.BundrlError.Inc()
+			}
+			self.monitor.GetReport().Bundler.State.AllSuccess.Inc()
 
+			// Save the response
 			select {
 			case <-self.Ctx.Done():
 				return
