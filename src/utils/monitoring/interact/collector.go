@@ -1,4 +1,4 @@
-package monitor_syncer
+package monitor_interactor
 
 import (
 	"github.com/prometheus/client_golang/prometheus"

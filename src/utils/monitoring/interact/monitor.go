@@ -1,4 +1,4 @@
-package monitor_syncer
+package monitor_interactor
 
 import (
 	"net/http"
