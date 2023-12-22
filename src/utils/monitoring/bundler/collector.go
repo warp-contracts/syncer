@@ -100,6 +100,8 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.ConfirmationsSavedToDb, prometheus.CounterValue, float64(self.monitor.Report.Bundler.State.ConfirmationsSavedToDb.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundrlError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.BundrlError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundrlMarshalError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.BundrlMarshalError.Load()))
+	ch <- prometheus.MustNewConstMetric(self.TurboError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.TurboError.Load()))
+	ch <- prometheus.MustNewConstMetric(self.TurboMarshalError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.TurboMarshalError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.ConfirmationsSavedToDbError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.ConfirmationsSavedToDbError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.AdditionalFetchError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.AdditionalFetchError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.PollerFetchError, prometheus.CounterValue, float64(self.monitor.Report.Bundler.Errors.PollerFetchError.Load()))
