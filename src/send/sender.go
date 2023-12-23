@@ -247,9 +247,9 @@ func (self *Sender) run() (err error) {
 			// Update stats
 			switch model.BundlingService(item.Service.String) {
 			case model.BundlingServiceTurbo:
-				self.monitor.GetReport().Sender.Errors.TurboError.Inc()
+				self.monitor.GetReport().Sender.State.TurboSuccess.Inc()
 			case model.BundlingServiceIrys:
-				self.monitor.GetReport().Sender.Errors.IrysError.Inc()
+				self.monitor.GetReport().Sender.State.IrysSuccess.Inc()
 			}
 			self.monitor.GetReport().Sender.State.AllSuccess.Inc()
 
