@@ -43,7 +43,7 @@ func NewStreamer(config *config.Config, name string) (self *Streamer) {
 		WithSubtaskFunc(self.run).
 		// WithPeriodicSubtaskFunc(10*time.Second, self.monitor).
 		WithOnBeforeStart(self.connect).
-		WithOnStop(func() {
+		WithOnAfterStop(func() {
 			close(self.Output)
 		}).
 		WithOnAfterStop(self.disconnect)
@@ -104,7 +104,6 @@ func (self *Streamer) Resume() (err error) {
 }
 
 func (self *Streamer) disconnect() {
-
 	err := self.connection.Close()
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to close connection")
