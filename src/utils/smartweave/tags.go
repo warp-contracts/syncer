@@ -16,6 +16,8 @@ const (
 // SmartWeave protocol tag values
 const (
 	TagAppNameValue         = "SmartWeaveAction"
+	TagAppVersionValue      = "0.3.0"
 	TagInputFormatTagValue  = "tag"
 	TagInputFormatDataValue = "data"
+	TagSDKValue             = "Warp"
 )

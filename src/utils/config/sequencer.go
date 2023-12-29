@@ -31,6 +31,9 @@ type Sequencer struct {
 
 	// Max num requests to particular host per interval
 	LimiterBurstSize int
+
+	// Endpoint to which data item will be sent
+	UploadEndpoint string
 }
 
 func setSequencerDefaults() {
@@ -42,4 +45,5 @@ func setSequencerDefaults() {
 	viper.SetDefault("Sequencer.TLSHandshakeTimeout", "10s")
 	viper.SetDefault("Sequencer.LimiterInterval", "24h")
 	viper.SetDefault("Sequencer.LimiterBurstSize", "10000000000000000")
+	viper.SetDefault("Sequencer.UploadEndpoint", "/api/v1/dataitem")
 }
