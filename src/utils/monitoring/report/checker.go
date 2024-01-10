@@ -5,9 +5,9 @@ import (
 )
 
 type CheckerErrors struct {
-	BundrlGetStatusError atomic.Uint64 `json:"bundle_check_state_error"`
-	TurboGetStatusError  atomic.Uint64 `json:"turbo_get_status_error"`
-	DbStateUpdateError   atomic.Uint64 `json:"db_state_update_error"`
+	IrysGetStatusError  atomic.Uint64 `json:"irys_check_state_error"`
+	TurboGetStatusError atomic.Uint64 `json:"turbo_get_status_error"`
+	DbStateUpdateError  atomic.Uint64 `json:"db_state_update_error"`
 }
 
 type CheckerState struct {
