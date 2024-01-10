@@ -16,6 +16,7 @@ type Collector struct {
 	UnfinishedBundles    *prometheus.Desc
 	DbStateUpdated       *prometheus.Desc
 	BundrlGetStatusError *prometheus.Desc
+	TurboGetStatusError  *prometheus.Desc
 	DbStateUpdateError   *prometheus.Desc
 }
 
@@ -28,6 +29,7 @@ func NewCollector() *Collector {
 		UnfinishedBundles:    prometheus.NewDesc("unfinished_bundles", "", nil, nil),
 		DbStateUpdated:       prometheus.NewDesc("db_state_updated", "", nil, nil),
 		BundrlGetStatusError: prometheus.NewDesc("bundle_check_state_error", "", nil, nil),
+		TurboGetStatusError:  prometheus.NewDesc("turbo_check_state_error", "", nil, nil),
 		DbStateUpdateError:   prometheus.NewDesc("db_state_update_error", "", nil, nil),
 	}
 }
@@ -48,6 +50,7 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.UnfinishedBundles
 	ch <- self.DbStateUpdated
 	ch <- self.BundrlGetStatusError
+	ch <- self.TurboGetStatusError
 	ch <- self.DbStateUpdateError
 }
 
@@ -63,5 +66,6 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.UnfinishedBundles, prometheus.CounterValue, float64(self.monitor.Report.Checker.State.UnfinishedBundles.Load()))
 	ch <- prometheus.MustNewConstMetric(self.DbStateUpdated, prometheus.CounterValue, float64(self.monitor.Report.Checker.State.DbStateUpdated.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundrlGetStatusError, prometheus.CounterValue, float64(self.monitor.Report.Checker.Errors.BundrlGetStatusError.Load()))
+	ch <- prometheus.MustNewConstMetric(self.TurboGetStatusError, prometheus.CounterValue, float64(self.monitor.Report.Checker.Errors.TurboGetStatusError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.DbStateUpdateError, prometheus.CounterValue, float64(self.monitor.Report.Checker.Errors.DbStateUpdateError.Load()))
 }

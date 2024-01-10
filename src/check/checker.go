@@ -76,7 +76,7 @@ func (self *Checker) checkTurbo(payload *Payload) (isFinalized bool, err error) 
 	status, err := self.turboClient.GetStatus(self.Ctx, payload.BundlerTxId)
 	if err != nil {
 		// Update monitoring
-		self.monitor.GetReport().Checker.Errors.BundrlGetStatusError.Inc()
+		self.monitor.GetReport().Checker.Errors.TurboGetStatusError.Inc()
 		self.Log.WithField("tx_id", payload.BundlerTxId).WithError(err).Error("Failed to get bundle status from Turbo")
 		return
 	}
