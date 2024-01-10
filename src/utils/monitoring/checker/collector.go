@@ -10,27 +10,31 @@ type Collector struct {
 	// Run
 	UpForSeconds *prometheus.Desc
 
-	BundlesTakenFromDb   *prometheus.Desc
-	AllCheckedBundles    *prometheus.Desc
-	FinishedBundles      *prometheus.Desc
-	UnfinishedBundles    *prometheus.Desc
-	DbStateUpdated       *prometheus.Desc
-	BundrlGetStatusError *prometheus.Desc
-	TurboGetStatusError  *prometheus.Desc
-	DbStateUpdateError   *prometheus.Desc
+	BundlesTakenFromDb     *prometheus.Desc
+	AllCheckedBundles      *prometheus.Desc
+	FinishedBundles        *prometheus.Desc
+	UnfinishedBundles      *prometheus.Desc
+	IrysUnfinishedBundles  *prometheus.Desc
+	TurboUnfinishedBundles *prometheus.Desc
+	DbStateUpdated         *prometheus.Desc
+	BundrlGetStatusError   *prometheus.Desc
+	TurboGetStatusError    *prometheus.Desc
+	DbStateUpdateError     *prometheus.Desc
 }
 
 func NewCollector() *Collector {
 	return &Collector{
-		UpForSeconds:         prometheus.NewDesc("up_for_seconds", "", nil, nil),
-		BundlesTakenFromDb:   prometheus.NewDesc("bundles_taken_from_db", "", nil, nil),
-		AllCheckedBundles:    prometheus.NewDesc("all_checked_bundles", "", nil, nil),
-		FinishedBundles:      prometheus.NewDesc("finished_bundles", "", nil, nil),
-		UnfinishedBundles:    prometheus.NewDesc("unfinished_bundles", "", nil, nil),
-		DbStateUpdated:       prometheus.NewDesc("db_state_updated", "", nil, nil),
-		BundrlGetStatusError: prometheus.NewDesc("bundle_check_state_error", "", nil, nil),
-		TurboGetStatusError:  prometheus.NewDesc("turbo_check_state_error", "", nil, nil),
-		DbStateUpdateError:   prometheus.NewDesc("db_state_update_error", "", nil, nil),
+		UpForSeconds:           prometheus.NewDesc("up_for_seconds", "", nil, nil),
+		BundlesTakenFromDb:     prometheus.NewDesc("bundles_taken_from_db", "", nil, nil),
+		AllCheckedBundles:      prometheus.NewDesc("all_checked_bundles", "", nil, nil),
+		FinishedBundles:        prometheus.NewDesc("finished_bundles", "", nil, nil),
+		UnfinishedBundles:      prometheus.NewDesc("unfinished_bundles", "", nil, nil),
+		IrysUnfinishedBundles:  prometheus.NewDesc("irys_unfinished_bundles", "", nil, nil),
+		TurboUnfinishedBundles: prometheus.NewDesc("turbo_unfinished_bundles", "", nil, nil),
+		DbStateUpdated:         prometheus.NewDesc("db_state_updated", "", nil, nil),
+		BundrlGetStatusError:   prometheus.NewDesc("bundle_check_state_error", "", nil, nil),
+		TurboGetStatusError:    prometheus.NewDesc("turbo_check_state_error", "", nil, nil),
+		DbStateUpdateError:     prometheus.NewDesc("db_state_update_error", "", nil, nil),
 	}
 }
 
@@ -48,6 +52,8 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.AllCheckedBundles
 	ch <- self.FinishedBundles
 	ch <- self.UnfinishedBundles
+	ch <- self.IrysUnfinishedBundles
+	ch <- self.TurboUnfinishedBundles
 	ch <- self.DbStateUpdated
 	ch <- self.BundrlGetStatusError
 	ch <- self.TurboGetStatusError
@@ -64,6 +70,8 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.AllCheckedBundles, prometheus.CounterValue, float64(self.monitor.Report.Checker.State.AllCheckedBundles.Load()))
 	ch <- prometheus.MustNewConstMetric(self.FinishedBundles, prometheus.CounterValue, float64(self.monitor.Report.Checker.State.FinishedBundles.Load()))
 	ch <- prometheus.MustNewConstMetric(self.UnfinishedBundles, prometheus.CounterValue, float64(self.monitor.Report.Checker.State.UnfinishedBundles.Load()))
+	ch <- prometheus.MustNewConstMetric(self.IrysUnfinishedBundles, prometheus.CounterValue, float64(self.monitor.Report.Checker.State.IrysUnfinishedBundles.Load()))
+	ch <- prometheus.MustNewConstMetric(self.TurboUnfinishedBundles, prometheus.CounterValue, float64(self.monitor.Report.Checker.State.TurboUnfinishedBundles.Load()))
 	ch <- prometheus.MustNewConstMetric(self.DbStateUpdated, prometheus.CounterValue, float64(self.monitor.Report.Checker.State.DbStateUpdated.Load()))
 	ch <- prometheus.MustNewConstMetric(self.BundrlGetStatusError, prometheus.CounterValue, float64(self.monitor.Report.Checker.Errors.BundrlGetStatusError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.TurboGetStatusError, prometheus.CounterValue, float64(self.monitor.Report.Checker.Errors.TurboGetStatusError.Load()))
