@@ -113,7 +113,6 @@ func (self *Checker) run() error {
 				if !isFinalized {
 					// Update monitoring
 					self.monitor.GetReport().Checker.State.IrysUnfinishedBundles.Inc()
-					return
 				}
 			case model.BundlingServiceTurbo:
 				isFinalized, err = self.checkTurbo(payload)
@@ -123,7 +122,6 @@ func (self *Checker) run() error {
 				if !isFinalized {
 					// Update monitoring
 					self.monitor.GetReport().Checker.State.TurboUnfinishedBundles.Inc()
-					return
 				}
 			}
 
