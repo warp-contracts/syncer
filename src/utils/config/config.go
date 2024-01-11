@@ -50,6 +50,7 @@ type Config struct {
 	Profiler              Profiler
 	Interactor            Interactor
 	Evolver               Evolver
+	RedstoneTxSyncer      RedstoneTxSyncer
 }
 
 func setDefaults() {
@@ -79,6 +80,7 @@ func setDefaults() {
 	setInteractorDefaults()
 	setSequencerDefaults()
 	setEvolverDefaults()
+	setRedstoneTxSyncerDefaults()
 }
 
 func Default() (config *Config) {
