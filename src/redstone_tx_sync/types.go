@@ -26,8 +26,13 @@ type Member struct {
 	Roles []string `json:"roles"`
 }
 
-type Payload struct {
+type BlockInfoPayload struct {
 	Transactions types.Transactions
-	BlockHeight  int64
-	BlockHash    string
+	Height       int64
+	Hash         string
+}
+
+type LastSyncedBlockPayload struct {
+	Height int64
+	Hash   string
 }

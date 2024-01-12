@@ -7,14 +7,17 @@ import (
 )
 
 type RedstoneTxSyncer struct {
-	// Maximum length of the channel buffer
-	BlockDownloaderBufferLength int
+	// Maximum length of the channel output
+	BlockDownloaderChannelSize int
 
 	// How often poll for new block
 	BlockDownloaderInterval time.Duration
 
-	// Max range for the number of blocks downloaded in one iteration
-	BlockDownloaderMaxRange int
+	// Max worker pool's queue size
+	BlockDownloaderMaxQueueSize int
+
+	// Max batch size for the number of blocks downloaded in one iteration
+	BlockDownloaderBatchSize int
 
 	// Max time between failed retries to download block
 	BlockDownloaderBackoffInterval time.Duration
@@ -42,14 +45,24 @@ type RedstoneTxSyncer struct {
 
 	// Arweave Signer JWK of the interactions sent to Warpy
 	SyncerSigner string
+
+	// Max batch size before last block synced will be inserted into database
+	StoreBatchSize int
+
+	// After this time last block synced will be inserted into database
+	StoreInterval time.Duration
+
+	// Max time between failed retries to save last block synced
+	StoreMaxBackoffInterval time.Duration
 }
 
 func setRedstoneTxSyncerDefaults() {
 	viper.SetDefault("RedstoneTxSyncer.BlockDownloaderInterval", "10s")
-	viper.SetDefault("RedstoneTxSyncer.BlockDownloaderMaxRange", 100)
+	viper.SetDefault("RedstoneTxSyncer.BlockDownloaderMaxQueueSize", 1000)
+	viper.SetDefault("RedstoneTxSyncer.BlockDownloaderBatchSize", 100)
 	viper.SetDefault("RedstoneTxSyncer.BlockDownloaderBackoffInterval", "3s")
 	viper.SetDefault("RedstoneTxSyncer.SyncerBackoffInterval", "3s")
-	viper.SetDefault("RedstoneTxSyncer.BlockDownloaderBufferLength", 100)
+	viper.SetDefault("RedstoneTxSyncer.BlockDownloaderChannelSize", 100)
 	viper.SetDefault("RedstoneTxSyncer.SyncerNumWorkers", "50")
 	viper.SetDefault("RedstoneTxSyncer.SyncerWorkerQueueSize", "10")
 	viper.SetDefault("RedstoneTxSyncer.SyncerRedstoneData", "000002ed57011e0000")
@@ -68,4 +81,7 @@ func setRedstoneTxSyncerDefaults() {
 		"q": "x9SNAr0sk186_9z8WwGGis5_HxOXfiiiqqNO_OaKbHTW1iYdbgQpdPlF-nft8gh4dAKzGQ6hPz0H64lcjL22LWUYjPDkGeByubHuFFbFGlnZpWBXNbceHvYxBrfLBRC2vug1QE21-c8Hww0VnNX0macM0E2sxruEDJXcvdz3jdf-42lPCNPlX73HVmmJACWzubKEsl_VK1MdwWZb_cNL7w6AdwOcug-_YZfMlPv9I8sTMqNwNKppWcrqV1bz0Or04ds1ifA-WR52eaodU8jSMa7j92GShKxtjJ6yaMutLaNtMxsuk1QTAKyAGGUH3HhW_BiS8P2LIGhW5binojWwCw",
 		"qi": "XqpyET1rXxpqflIE_5fpVYzpJy316JgBcoFoaQwJXBV2S-AkiOgSHVP_OClZXj2ondHHpShvNbSmFZ8NDunbZhNqDWpXYWFJsdq8-Hcid-c0kipCfh75i799EdLs2HS8zAbbJiVhl5I0QeTE0n3mEUsNWDSMC0pIbZtKuc1Ij849rIxIDhMOKjEMCNUQJVn-FcajTttoamnUHzb4whFmgnMm8JWVDwdFK0Yt4TbchrHg4gpmGHzn1LD4mUPeqstd_JKgZQYMzZawAupN9C3SXDCYjAI6Glskjm-M5eC3yTEFnOE74cHymtI61rU-4-n2aPzMMPsJsLm7U8hzKkHEZg"
 	}`)
+	viper.SetDefault("RedstoneTxSyncer.StoreBatchSize", "500")
+	viper.SetDefault("RedstoneTxSyncer.StoreInterval", "2s")
+	viper.SetDefault("Syncer.StoreMaxBackoffInterval", "30s")
 }

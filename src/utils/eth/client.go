@@ -1,4 +1,4 @@
-package redstone_tx_sync
+package eth
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type EthUrl int64
+type EthUrl int
 
 const (
 	Avax EthUrl = iota
