@@ -65,6 +65,7 @@ func (self *BlockDownloader) WithInitStartBlockHeight(db *gorm.DB) *BlockDownloa
 
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to get last synced block height")
+			return
 		}
 
 		self.lastSyncedBlockHeight = lastSyncedBlockHeight

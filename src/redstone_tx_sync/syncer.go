@@ -10,6 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/go-resty/resty/v2"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
@@ -24,12 +25,16 @@ type Syncer struct {
 	input           chan *BlockInfoPayload
 	Output          chan *LastSyncedBlockPayload
 	sequencerClient *sequencer.Client
+	httpClient      *resty.Client
 }
 
 // This task receives block info in the input channel, iterate through all of the block's transactions in order to check if any of it contains
 // Redstone data and if so - writes an interaction to Warpy. It emits block height and block hash in the Output channel
 func NewSyncer(config *config.Config) (self *Syncer) {
 	self = new(Syncer)
+
+	self.httpClient = resty.New().
+		SetTimeout(config.RedstoneTxSyncer.SyncerHttpRequestTimeout)
 
 	self.Output = make(chan *LastSyncedBlockPayload)
 
@@ -69,7 +74,7 @@ func (self *Syncer) run() (err error) {
 				if err != nil {
 					self.Log.WithError(err).WithField("txId", tx.Hash()).WithField("height", block.Height).
 						Error("Could not process transaction")
-					self.monitor.GetReport().RedstoneTxSyncer.Errors.SyncerWriteInteractionFailures.Inc()
+					self.monitor.GetReport().RedstoneTxSyncer.Errors.SyncerWriteInteractionsPermanentError.Inc()
 					goto end
 				}
 
@@ -122,12 +127,32 @@ func (self *Syncer) checkTxAndWriteInteraction(tx *types.Transaction, block *Blo
 					self.Log.WithError(err).WithField("txId", tx.Hash()).Warn("Could not retrieve tx sender")
 					return err
 				}
+
+				senderDiscordIdPayload, err := self.getSenderDiscordId(sender)
+				if err != nil {
+					self.Log.WithError(err).Warn("Could not retrieve sender Discord id")
+					return err
+				}
+
+				if senderDiscordIdPayload == nil || senderDiscordIdPayload.Result.UserId == "" {
+					self.Log.WithField("txId", tx.Hash()).WithField("sender", sender).WithField("errorMessage", senderDiscordIdPayload.ErrorMessage).
+						Info("Sender not registered in Warpy, exiting")
+					return nil
+				}
+
+				senderDiscordId := senderDiscordIdPayload.Result.UserId
+
+				roles := []string{}
+				senderRoles, err := self.getSenderRoles(senderDiscordId)
+				if senderRoles != nil {
+					roles = append(roles, *senderRoles...)
+				}
+
 				input := Input{
-					Function: "addPointsCsv",
+					Function: "addPointsForAddress",
 					Points:   self.Config.RedstoneTxSyncer.SyncerInteractionPoints,
 					AdminId:  self.Config.RedstoneTxSyncer.SyncerInteractionAdminId,
-					Members:  []Member{{Id: sender, Roles: []string{}}},
-					NoBoost:  true,
+					Members:  []Member{{Id: sender, TxId: tx.Hash().String(), Roles: roles}},
 				}
 				self.Log.WithField("txId", tx.Hash()).Debug("Writing interaction to Warpy...")
 				interactionId, err := self.writeInteractionToWarpy(
@@ -155,9 +180,73 @@ func (self *Syncer) checkTxForData(tx *types.Transaction, data string, ctx conte
 }
 
 func (self *Syncer) getTxSenderHash(tx *types.Transaction) (txSenderHash string, err error) {
-	signer := types.LatestSignerForChainID(tx.ChainId())
-	sender, err := types.Sender(signer, tx)
-	txSenderHash = sender.Hash().String()
+	sender, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
+	txSenderHash = sender.String()
+	return
+}
+
+func (self *Syncer) getSenderRoles(senderDiscordId string) (roles *[]string, err error) {
+	resp, err := self.httpClient.SetBaseURL(self.Config.RedstoneTxSyncer.SyncerWarpyApiUrl).R().
+		SetResult([]string{}).
+		ForceContentType("application/json").
+		SetQueryParams(map[string]string{
+			"id": senderDiscordId,
+		}).
+		SetHeader("Accept", "application/json").
+		Get("/v1/userRoles")
+
+	if err != nil {
+		self.Log.WithError(err).Warn("Could not retrieve sender roles")
+		return
+	}
+
+	if resp.IsSuccess() == false {
+		self.Log.WithField("statusCode", resp.StatusCode()).Warn("Sender roles request has not been successful")
+		return
+	}
+
+	roles, ok := resp.Result().(*[]string)
+	if !ok {
+		self.Log.Warn("Failed to parse response")
+		return
+	}
+	return
+}
+
+func (self *Syncer) getSenderDiscordId(sender string) (senderIdPayload *SenderDiscordIdPayload, err error) {
+	input, err := json.Marshal(struct {
+		Function string `json:"function"`
+		Address  string `json:"address"`
+	}{
+		Function: "getUserId",
+		Address:  sender,
+	})
+	resp, err := self.httpClient.SetBaseURL(self.Config.RedstoneTxSyncer.SyncerDreUrl).R().
+		SetResult(&SenderDiscordIdPayload{}).
+		ForceContentType("application/json").
+		SetQueryParams(map[string]string{
+			"id":    self.Config.RedstoneTxSyncer.SyncerNameServiceContractId,
+			"input": string(input),
+		}).
+		SetHeader("Accept", "application/json").
+		Get("/contract/view-state")
+
+	if err != nil {
+		return
+	}
+
+	if resp.IsSuccess() == false {
+		self.Log.WithField("statusCode", resp.StatusCode()).WithField("response", resp).WithField("sender", sender).
+			Warn("Sender Discord id request has not been successful")
+		return
+	}
+
+	senderIdPayload, ok := resp.Result().(*SenderDiscordIdPayload)
+	if !ok {
+		self.Log.Warn("Failed to parse response")
+		return
+	}
+
 	return
 }
 

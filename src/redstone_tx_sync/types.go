@@ -24,6 +24,7 @@ func (input Input) MarshalJSON() ([]byte, error) {
 type Member struct {
 	Id    string   `json:"id"`
 	Roles []string `json:"roles"`
+	TxId  string   `json:"txId"`
 }
 
 type BlockInfoPayload struct {
@@ -35,4 +36,12 @@ type BlockInfoPayload struct {
 type LastSyncedBlockPayload struct {
 	Height int64
 	Hash   string
+}
+
+type SenderDiscordIdPayload struct {
+	Type   string `json:"type"`
+	Result struct {
+		UserId string `json:"userId"`
+	} `json:"result"`
+	ErrorMessage string `json:"errorMessage"`
 }

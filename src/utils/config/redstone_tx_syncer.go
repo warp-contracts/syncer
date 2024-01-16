@@ -31,11 +31,23 @@ type RedstoneTxSyncer struct {
 	// Max number of transactions that wait in the worker queue
 	SyncerWorkerQueueSize int
 
+	// Timeout for HTTP requests
+	SyncerHttpRequestTimeout time.Duration
+
 	// Data to be searched in transactions
 	SyncerRedstoneData string
 
 	// Warpy contract id
 	SyncerContractId string
+
+	// Name service contract id, usually the same as SyncerContractId
+	SyncerNameServiceContractId string
+
+	// Dre-Warpy URL
+	SyncerDreUrl string
+
+	// Warpy API url
+	SyncerWarpyApiUrl string
 
 	// Number of points assigned in the Warpy interaction
 	SyncerInteractionPoints int
@@ -65,8 +77,12 @@ func setRedstoneTxSyncerDefaults() {
 	viper.SetDefault("RedstoneTxSyncer.BlockDownloaderChannelSize", 100)
 	viper.SetDefault("RedstoneTxSyncer.SyncerNumWorkers", "50")
 	viper.SetDefault("RedstoneTxSyncer.SyncerWorkerQueueSize", "10")
+	viper.SetDefault("RedstoneTxSyncer.SyncerHttpRequestTimeout", "30s")
 	viper.SetDefault("RedstoneTxSyncer.SyncerRedstoneData", "000002ed57011e0000")
-	viper.SetDefault("RedstoneTxSyncer.SyncerContractId", "JkWVDtfoCNt1-RmbhcttpQBV05o6MX1qB3k3DiXCFIE")
+	viper.SetDefault("RedstoneTxSyncer.SyncerContractId", "RfUarG0sNgwREiKXOO1YeWK6-f3MGb6u4XqMccQwBRc")
+	viper.SetDefault("RedstoneTxSyncer.SyncerNameServiceContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
+	viper.SetDefault("RedstoneTxSyncer.SyncerDreUrl", "https://dre-warpy.warp.cc")
+	viper.SetDefault("RedstoneTxSyncer.SyncerWarpyApiUrl", "https://api-warpy.warp.cc")
 	viper.SetDefault("RedstoneTxSyncer.SyncerInteractionPoints", 20)
 	viper.SetDefault("RedstoneTxSyncer.SyncerInteractionAdminId", "769844280767807520")
 	viper.SetDefault("RedstoneTxSyncer.SyncerSigner", `{
