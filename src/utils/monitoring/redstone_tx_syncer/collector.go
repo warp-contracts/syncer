@@ -83,9 +83,9 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.StoreSaveLastStateFailure, prometheus.CounterValue, float64(self.monitor.Report.RedstoneTxSyncer.Errors.StoreSaveLastStateFailure.Load()))
 
 	// State
-	ch <- prometheus.MustNewConstMetric(self.BlockDownloaderCurrentHeight, prometheus.CounterValue, float64(self.monitor.Report.RedstoneTxSyncer.State.BlockDownloaderCurrentHeight.Load()))
+	ch <- prometheus.MustNewConstMetric(self.BlockDownloaderCurrentHeight, prometheus.GaugeValue, float64(self.monitor.Report.RedstoneTxSyncer.State.BlockDownloaderCurrentHeight.Load()))
 	ch <- prometheus.MustNewConstMetric(self.SyncerTxsProcessed, prometheus.CounterValue, float64(self.monitor.Report.RedstoneTxSyncer.State.SyncerTxsProcessed.Load()))
 	ch <- prometheus.MustNewConstMetric(self.SyncerBlocksProcessed, prometheus.CounterValue, float64(self.monitor.Report.RedstoneTxSyncer.State.SyncerBlocksProcessed.Load()))
 	ch <- prometheus.MustNewConstMetric(self.SyncerInteractionsToWarpy, prometheus.CounterValue, float64(self.monitor.Report.RedstoneTxSyncer.State.SyncerInteractionsToWarpy.Load()))
-	ch <- prometheus.MustNewConstMetric(self.StoreLastSyncedBlockHeight, prometheus.CounterValue, float64(self.monitor.Report.RedstoneTxSyncer.State.StoreLastSyncedBlockHeight.Load()))
+	ch <- prometheus.MustNewConstMetric(self.StoreLastSyncedBlockHeight, prometheus.GaugeValue, float64(self.monitor.Report.RedstoneTxSyncer.State.StoreLastSyncedBlockHeight.Load()))
 }
