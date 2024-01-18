@@ -18,5 +18,6 @@ type Report struct {
 	TransactionDownloader *TransactionDownloaderReport `json:"transaction_downloader,omitempty"`
 	RedisPublishers       []RedisPublisherReport       `json:"redis_publishers,omitempty"`
 	AppSyncPublisher      *AppSyncPublisherReport      `json:"appsync_publisher,omitempty"`
-	Evolver								*EvolverReport							 `json:"evolver,omitempty"`					
+	Evolver               *EvolverReport               `json:"evolver,omitempty"`
+	RedstoneTxSyncer      *RedstoneTxSyncerReport      `json:"redstone_tx_syncer,omitempty"`
 }
