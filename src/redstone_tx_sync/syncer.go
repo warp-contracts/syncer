@@ -144,6 +144,12 @@ func (self *Syncer) checkTxAndWriteInteraction(tx *types.Transaction, block *Blo
 
 				roles := []string{}
 				senderRoles, err := self.getSenderRoles(senderDiscordId)
+
+				if err != nil {
+					self.Log.WithError(err).Warn("Could not retrieve sender roles")
+					return err
+				}
+
 				if senderRoles != nil {
 					roles = append(roles, *senderRoles...)
 				}
@@ -200,7 +206,7 @@ func (self *Syncer) getSenderRoles(senderDiscordId string) (roles *[]string, err
 		return
 	}
 
-	if resp.IsSuccess() == false {
+	if !resp.IsSuccess() {
 		self.Log.WithField("statusCode", resp.StatusCode()).Warn("Sender roles request has not been successful")
 		return
 	}
@@ -221,6 +227,11 @@ func (self *Syncer) getSenderDiscordId(sender string) (senderIdPayload *SenderDi
 		Function: "getUserId",
 		Address:  sender,
 	})
+
+	if err != nil {
+		return
+	}
+
 	resp, err := self.httpClient.SetBaseURL(self.Config.RedstoneTxSyncer.SyncerDreUrl).R().
 		SetResult(&SenderDiscordIdPayload{}).
 		ForceContentType("application/json").
@@ -235,7 +246,7 @@ func (self *Syncer) getSenderDiscordId(sender string) (senderIdPayload *SenderDi
 		return
 	}
 
-	if resp.IsSuccess() == false {
+	if !resp.IsSuccess() {
 		self.Log.WithField("statusCode", resp.StatusCode()).WithField("response", resp).WithField("sender", sender).
 			Warn("Sender Discord id request has not been successful")
 		return
