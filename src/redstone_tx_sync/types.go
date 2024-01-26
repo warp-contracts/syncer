@@ -39,9 +39,5 @@ type LastSyncedBlockPayload struct {
 }
 
 type SenderDiscordIdPayload struct {
-	Type   string `json:"type"`
-	Result struct {
-		UserId string `json:"userId"`
-	} `json:"result"`
-	ErrorMessage string `json:"errorMessage"`
+	Key string `json:"key"`
 }

@@ -134,16 +134,17 @@ func (self *Syncer) checkTxAndWriteInteraction(tx *types.Transaction, block *Blo
 					return err
 				}
 
-				if senderDiscordIdPayload == nil || senderDiscordIdPayload.Result.UserId == "" {
-					self.Log.WithField("txId", tx.Hash()).WithField("sender", sender).WithField("errorMessage", senderDiscordIdPayload.ErrorMessage).
+				if len(*senderDiscordIdPayload) == 0 {
+					self.Log.WithField("txId", tx.Hash()).WithField("sender", sender).
 						Info("Sender not registered in Warpy, exiting")
 					return nil
 				}
 
-				senderDiscordId := senderDiscordIdPayload.Result.UserId
+				senderDiscordId := []SenderDiscordIdPayload{}
+				senderDiscordId = append(senderDiscordId, *senderDiscordIdPayload...)
 
 				roles := []string{}
-				senderRoles, err := self.getSenderRoles(senderDiscordId)
+				senderRoles, err := self.getSenderRoles(senderDiscordId[0].Key)
 
 				if err != nil {
 					self.Log.WithError(err).Warn("Could not retrieve sender roles")
@@ -219,28 +220,19 @@ func (self *Syncer) getSenderRoles(senderDiscordId string) (roles *[]string, err
 	return
 }
 
-func (self *Syncer) getSenderDiscordId(sender string) (senderIdPayload *SenderDiscordIdPayload, err error) {
-	input, err := json.Marshal(struct {
-		Function string `json:"function"`
-		Address  string `json:"address"`
-	}{
-		Function: "getUserId",
-		Address:  sender,
-	})
-
+func (self *Syncer) getSenderDiscordId(sender string) (senderIdPayload *[]SenderDiscordIdPayload, err error) {
 	if err != nil {
 		return
 	}
 
 	resp, err := self.httpClient.SetBaseURL(self.Config.RedstoneTxSyncer.SyncerDreUrl).R().
-		SetResult(&SenderDiscordIdPayload{}).
+		SetResult([]SenderDiscordIdPayload{}).
 		ForceContentType("application/json").
 		SetQueryParams(map[string]string{
-			"id":    self.Config.RedstoneTxSyncer.SyncerNameServiceContractId,
-			"input": string(input),
+			"address": sender,
 		}).
 		SetHeader("Accept", "application/json").
-		Get("/contract/view-state")
+		Get("/warpy/user-id")
 
 	if err != nil {
 		return
@@ -252,7 +244,7 @@ func (self *Syncer) getSenderDiscordId(sender string) (senderIdPayload *SenderDi
 		return
 	}
 
-	senderIdPayload, ok := resp.Result().(*SenderDiscordIdPayload)
+	senderIdPayload, ok := resp.Result().(*[]SenderDiscordIdPayload)
 	if !ok {
 		self.Log.Warn("Failed to parse response")
 		return
