@@ -123,10 +123,6 @@ func (d DoubleSigningProof) Bytes() []byte {
 }
 
 func (b *Block) IsValid() bool {
-	// to be removed - for now, block validation for 1374310 is not passing
-	if b.Height == 1374310 {
-		return true
-	}
 	if b.Height < HEIGHT_2_5 {
 		return false
 	} else if b.Height < HEIGHT_2_6 {
