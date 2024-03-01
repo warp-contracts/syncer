@@ -109,15 +109,15 @@ func (d DoubleSigningProof) Bytes() []byte {
 
 	buf := Encoder{Buffer: bytes.NewBuffer(nil)}
 	buf.RawWrite(byte(1))
-	buf.RawWriteSize(d.Key, 64)
-	buf.RawWriteSize(d.Sig1, 64)
+	buf.RawWriteSize(d.Key, 512)
+	buf.RawWriteSize(d.Sig1, 512)
 	buf.Write(d.CumulativeDiff1, 2)
 	buf.Write(d.PreviousCumulativeDiff1, 2)
-	buf.RawWriteSize(d.Preimage1, 8)
-	buf.RawWriteSize(d.Sig2, 64)
+	buf.RawWriteSize(d.Preimage1, 64)
+	buf.RawWriteSize(d.Sig2, 512)
 	buf.Write(d.CumulativeDiff2, 2)
 	buf.Write(d.PreviousCumulativeDiff2, 2)
-	buf.RawWriteSize(d.Preimage2, 8)
+	buf.RawWriteSize(d.Preimage2, 64)
 
 	return buf.Bytes()
 }
