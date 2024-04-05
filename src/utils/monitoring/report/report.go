@@ -19,5 +19,5 @@ type Report struct {
 	RedisPublishers       []RedisPublisherReport       `json:"redis_publishers,omitempty"`
 	AppSyncPublisher      *AppSyncPublisherReport      `json:"appsync_publisher,omitempty"`
 	Evolver               *EvolverReport               `json:"evolver,omitempty"`
-	RedstoneTxSyncer      *RedstoneTxSyncerReport      `json:"redstone_tx_syncer,omitempty"`
+	WarpySyncer           *WarpySyncerReport           `json:"warpy_syncer,omitempty"`
 }

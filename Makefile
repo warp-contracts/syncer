@@ -100,7 +100,12 @@ evolve: build-race | ; $(info $(M) starting evolve with default params…)
 
 .PHONY: redstone_tx_sync
 redstone_tx_sync: build-race | ; $(info $(M) starting redstone_tx_sync with default params…)
-	bin/$(PACKAGE) redstone_tx_sync
+	SYNCER_CHAIN=0 bin/$(PACKAGE) warpy_sync --config dbconfig.json
+
+
+.PHONY: arbitrum_tx_sync
+arbitrum_tx_sync: build-race | ; $(info $(M) starting arbitrum_tx_sync with default params…)
+	SYNCER_CHAIN=1 bin/$(PACKAGE) warpy_sync --config dbconfig.json
 
 .PHONY: interact
 interact: build-race | ; $(info $(M) starting interact with default params…)

@@ -2,10 +2,10 @@
 package main
 
 import (
-	"github.com/warp-contracts/syncer/src/cmd"
-
 	"fmt"
 	"os"
+
+	"github.com/warp-contracts/syncer/src/cmd"
 )
 
 func main() {
