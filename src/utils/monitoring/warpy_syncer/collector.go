@@ -47,7 +47,7 @@ func NewCollector() *Collector {
 		WriterFailures:                         prometheus.NewDesc("writer_failures", "", nil, nil),
 		StoreGetLastStateFailure:               prometheus.NewDesc("store_get_last_state_failure", "", nil, nil),
 		StoreSaveLastStateFailure:              prometheus.NewDesc("store_save_last_state_failure", "", nil, nil),
-		PollerSommelierFetchError:              prometheus.NewDesc("store_last_synced_block_height", "", nil, nil),
+		PollerSommelierFetchError:              prometheus.NewDesc("poller_sommelier_fetch_error", "", nil, nil),
 		StoreSommelierFailures:                 prometheus.NewDesc("store_sommelier_failures", "", nil, nil),
 
 		// State
