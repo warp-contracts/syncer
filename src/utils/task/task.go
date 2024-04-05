@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/robfig/cron"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/logger"
 
@@ -184,6 +185,32 @@ func (self *Task) WithPeriodicSubtaskFunc(period time.Duration, f func() error) 
 				return nil
 			case <-timer.C:
 				// pass through
+			}
+		}
+	})
+	return self
+}
+
+// Repeatedly run the callback with a period.
+func (self *Task) WithCronSubtaskFunc(cronFormat string, f func() error) *Task {
+	cron := cron.New()
+	self.subtasksFunc = append(self.subtasksFunc, func() error {
+		err := cron.AddFunc(cronFormat, func() {
+			err := f()
+			if err != nil {
+				return
+			}
+		})
+		if err != nil {
+			return err
+		}
+
+		for {
+			cron.Start()
+			if <-self.StopChannel {
+				self.Log.Debug("Cron task stopped")
+				cron.Stop()
+				return nil
 			}
 		}
 	})

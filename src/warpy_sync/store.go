@@ -1,4 +1,4 @@
-package redstone_tx_sync
+package warpy_sync
 
 import (
 	"database/sql"
@@ -20,19 +20,20 @@ type Store struct {
 	db      *gorm.DB
 	monitor monitoring.Monitor
 
-	savedLastSyncedBlockHeight int64
-	lastSyncedBlockHeight      int64
+	savedLastSyncedBlockHeight uint64
+	lastSyncedBlockHeight      uint64
 	lastSyncedBlockHash        string
+	syncedComponent            model.SyncedComponent
 }
 
 func NewStore(config *config.Config) (self *Store) {
 	self = new(Store)
 
 	self.Processor = task.NewProcessor[*LastSyncedBlockPayload, *LastSyncedBlockPayload](config, "store").
-		WithBatchSize(config.RedstoneTxSyncer.StoreBatchSize).
-		WithOnFlush(config.RedstoneTxSyncer.StoreInterval, self.flush).
+		WithBatchSize(config.WarpySyncer.StoreBatchSize).
+		WithOnFlush(config.WarpySyncer.StoreInterval, self.flush).
 		WithOnProcess(self.process).
-		WithBackoff(0, config.RedstoneTxSyncer.StoreMaxBackoffInterval)
+		WithBackoff(0, config.WarpySyncer.StoreMaxBackoffInterval)
 
 	return
 }
@@ -49,6 +50,11 @@ func (self *Store) WithInputChannel(v chan *LastSyncedBlockPayload) *Store {
 
 func (self *Store) WithDb(v *gorm.DB) *Store {
 	self.db = v
+	return self
+}
+
+func (self *Store) WithSyncedComponent(syncedComponent model.SyncedComponent) *Store {
+	self.syncedComponent = syncedComponent
 	return self
 }
 
@@ -79,7 +85,7 @@ func (self *Store) flush([]*LastSyncedBlockPayload) (out []*LastSyncedBlockPaylo
 	// Update saved block height
 	self.savedLastSyncedBlockHeight = self.lastSyncedBlockHeight
 
-	self.monitor.GetReport().RedstoneTxSyncer.State.StoreLastSyncedBlockHeight.Store(int64(self.savedLastSyncedBlockHeight))
+	self.monitor.GetReport().WarpySyncer.State.StoreLastSyncedBlockHeight.Store(int64(self.savedLastSyncedBlockHeight))
 
 	// Processing stops here, no need to return anything
 	out = nil
@@ -94,7 +100,7 @@ func (self *Store) updateLastSyncedHeight(tx *gorm.DB) (err error) {
 		Error
 	if err != nil {
 		self.Log.WithError(err).Error("Failed to get state")
-		self.monitor.GetReport().RedstoneTxSyncer.Errors.StoreGetLastStateFailure.Inc()
+		self.monitor.GetReport().WarpySyncer.Errors.StoreGetLastStateFailure.Inc()
 		return
 	}
 
@@ -102,7 +108,7 @@ func (self *Store) updateLastSyncedHeight(tx *gorm.DB) (err error) {
 	if state.FinishedBlockHeight < uint64(self.lastSyncedBlockHeight) {
 		err = tx.WithContext(self.Ctx).
 			Model(&model.State{
-				Name: model.SyncedComponentRedstoneTxSyncer,
+				Name: self.syncedComponent,
 			}).
 			Updates(model.State{
 				FinishedBlockHeight: uint64(self.lastSyncedBlockHeight),
@@ -111,7 +117,7 @@ func (self *Store) updateLastSyncedHeight(tx *gorm.DB) (err error) {
 			Error
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to update last synced block height")
-			self.monitor.GetReport().RedstoneTxSyncer.Errors.StoreSaveLastStateFailure.Inc()
+			self.monitor.GetReport().WarpySyncer.Errors.StoreSaveLastStateFailure.Inc()
 			return
 		}
 	}
