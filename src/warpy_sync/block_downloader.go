@@ -1,4 +1,4 @@
-package redstone_tx_sync
+package warpy_sync
 
 import (
 	"context"
@@ -32,11 +32,11 @@ type BlockDownloader struct {
 // update lastSyncedBlockHeight to the last processed block
 func NewBlockDownloader(config *config.Config) (self *BlockDownloader) {
 	self = new(BlockDownloader)
-	self.Output = make(chan *BlockInfoPayload, config.RedstoneTxSyncer.BlockDownloaderChannelSize)
+	self.Output = make(chan *BlockInfoPayload, config.WarpySyncer.BlockDownloaderChannelSize)
 
 	self.Task = task.NewTask(config, "block-downloader").
-		WithPeriodicSubtaskFunc(config.RedstoneTxSyncer.BlockDownloaderInterval, self.run).
-		WithWorkerPool(runtime.NumCPU(), config.RedstoneTxSyncer.BlockDownloaderMaxQueueSize).
+		WithPeriodicSubtaskFunc(config.WarpySyncer.BlockDownloaderInterval, self.run).
+		WithWorkerPool(runtime.NumCPU(), config.WarpySyncer.BlockDownloaderMaxQueueSize).
 		WithOnAfterStop(func() {
 			close(self.Output)
 		})
@@ -54,13 +54,13 @@ func (self *BlockDownloader) WithEthClient(ethClient *ethclient.Client) *BlockDo
 	return self
 }
 
-func (self *BlockDownloader) WithInitStartBlockHeight(db *gorm.DB) *BlockDownloader {
+func (self *BlockDownloader) WithInitStartBlockHeight(db *gorm.DB, syncedComponent model.SyncedComponent) *BlockDownloader {
 	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
 		var lastSyncedBlockHeight int64
 		err = db.WithContext(self.Ctx).
 			Raw(`SELECT finished_block_height
 			FROM sync_state
-			WHERE name = ?;`, model.SyncedComponentRedstoneTxSyncer).
+			WHERE name = ?;`, syncedComponent).
 			Scan(&lastSyncedBlockHeight).Error
 
 		if err != nil {
@@ -93,12 +93,12 @@ func (self *BlockDownloader) run() (err error) {
 		Info("Discovered new blocks")
 
 	for ok := true; ok; ok = self.lastSyncedBlockHeight < currentBlockHeight-1 {
-		batchSize := min(self.Config.RedstoneTxSyncer.BlockDownloaderBatchSize, int(currentBlockHeight-self.lastSyncedBlockHeight))
+		batchSize := min(self.Config.WarpySyncer.BlockDownloaderBatchSize, int(currentBlockHeight-self.lastSyncedBlockHeight))
+
 		blocks := make([]int64, batchSize)
 		for i := range blocks {
 			blocks[i] = int64(i) + self.lastSyncedBlockHeight + 1
 		}
-
 		err := self.downloadBlocks(blocks)
 		if err != nil {
 			return err
@@ -106,7 +106,7 @@ func (self *BlockDownloader) run() (err error) {
 
 		self.lastSyncedBlockHeight = blocks[len(blocks)-1]
 		self.Log.WithField("len", len(blocks)).WithField("from", blocks[0]).WithField("to", self.lastSyncedBlockHeight).Info("New blocks downloaded")
-		self.monitor.GetReport().RedstoneTxSyncer.State.BlockDownloaderCurrentHeight.Store(self.lastSyncedBlockHeight)
+		self.monitor.GetReport().WarpySyncer.State.BlockDownloaderCurrentHeight.Store(self.lastSyncedBlockHeight)
 	}
 
 	return
@@ -130,8 +130,9 @@ func (self *BlockDownloader) downloadBlocks(blocks []int64) (err error) {
 				return
 			case self.Output <- &BlockInfoPayload{
 				Transactions: block.Transactions(),
-				Height:       block.Number().Int64(),
+				Height:       block.Number().Uint64(),
 				Hash:         block.Hash().String(),
+				Timestamp:    block.Time(),
 			}:
 			}
 
@@ -149,19 +150,18 @@ func (self *BlockDownloader) downloadBlock(height int64) (block *types.Block, er
 		WithContext(self.Ctx).
 		// Retries infinitely until success
 		WithMaxElapsedTime(0).
-		WithMaxInterval(self.Config.RedstoneTxSyncer.BlockDownloaderBackoffInterval).
-		WithAcceptableDuration(self.Config.RedstoneTxSyncer.BlockDownloaderBackoffInterval * 2).
+		WithMaxInterval(self.Config.WarpySyncer.BlockDownloaderBackoffInterval).
+		WithAcceptableDuration(self.Config.WarpySyncer.BlockDownloaderBackoffInterval * 2).
 		WithOnError(func(err error, isDurationAcceptable bool) error {
 			if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
 				return backoff.Permanent(err)
 			}
-			self.monitor.GetReport().RedstoneTxSyncer.Errors.BlockDownloaderFailures.Inc()
+			self.monitor.GetReport().WarpySyncer.Errors.BlockDownloaderFailures.Inc()
 			self.Log.WithError(err).WithField("height", height).Warn("Failed to download block, retrying...")
 			return err
 		}).
 		Run(func() (err error) {
 			block, err = self.getBlockInfo(height)
-
 			return
 		})
 

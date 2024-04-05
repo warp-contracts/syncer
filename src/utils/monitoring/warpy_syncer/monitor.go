@@ -1,4 +1,4 @@
-package monitor_redstone_tx_syncer
+package monitor_warpy_syncer
 
 import (
 	"net/http"
@@ -27,8 +27,8 @@ func NewMonitor() (self *Monitor) {
 	self = new(Monitor)
 
 	self.Report = report.Report{
-		Run:              &report.RunReport{},
-		RedstoneTxSyncer: &report.RedstoneTxSyncerReport{},
+		Run:         &report.RunReport{},
+		WarpySyncer: &report.WarpySyncerReport{},
 	}
 
 	// Initialization

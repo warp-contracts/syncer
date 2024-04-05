@@ -3,10 +3,11 @@ package model
 type SyncedComponent string
 
 const (
-	SyncedComponentInteractions     SyncedComponent = "Interactions"
-	SyncedComponentContracts        SyncedComponent = "Contracts"
-	SyncedComponentForwarder        SyncedComponent = "Forwarder"
-	SyncedComponentSequencer        SyncedComponent = "Sequencer"
-	SyncedComponentRelayer          SyncedComponent = "Relayer"
-	SyncedComponentRedstoneTxSyncer SyncedComponent = "RedstoneTxSyncer"
+	SyncedComponentInteractions        SyncedComponent = "Interactions"
+	SyncedComponentContracts           SyncedComponent = "Contracts"
+	SyncedComponentForwarder           SyncedComponent = "Forwarder"
+	SyncedComponentSequencer           SyncedComponent = "Sequencer"
+	SyncedComponentRelayer             SyncedComponent = "Relayer"
+	SyncedComponentWarpySyncerAvax     SyncedComponent = "WarpySyncerAvax"
+	SyncedComponentWarpySyncerArbitrum SyncedComponent = "WarpySyncerArbitrum"
 )
