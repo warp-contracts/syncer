@@ -57,8 +57,8 @@ func (self *PollerSommelier) handleNew() (err error) {
 	}
 	err = self.db.WithContext(ctx).
 		Raw(`SELECT from_address, 
-				SUM(points) 
-				FROM warpy_syncer_points 
+				SUM(assets) 
+				FROM warpy_syncer_assets 
 				WHERE timestamp < ? group by from_address;
 		`, time.Now().Unix()-self.Config.WarpySyncer.PollerSommelierSecondsForSelect).
 		Scan(&AssetsSums).Error
