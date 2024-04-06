@@ -12,8 +12,8 @@ func init() {
 }
 
 var warpySyncCmd = &cobra.Command{
-	Use:   "warpy_arbitrum_sync",
-	Short: "Get transactions from Arbitrum Chain and send interactions to Warpy",
+	Use:   "warpy_sync",
+	Short: "Get transactions from specific chain and send interactions to Warpy",
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		controller, err := warpy_sync.NewController(conf)
 		if err != nil {
