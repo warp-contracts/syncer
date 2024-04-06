@@ -8,12 +8,12 @@ import (
 )
 
 func init() {
-	RootCmd.AddCommand(warpy_syncCmd)
+	RootCmd.AddCommand(warpySyncCmd)
 }
 
-var warpy_syncCmd = &cobra.Command{
-	Use:   "redstone_tx_sync",
-	Short: "Get new RedStone transactions from external chains and send interactions to Warpy",
+var warpySyncCmd = &cobra.Command{
+	Use:   "warpy_arbitrum_sync",
+	Short: "Get transactions from Arbitrum Chain and send interactions to Warpy",
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		controller, err := warpy_sync.NewController(conf)
 		if err != nil {
