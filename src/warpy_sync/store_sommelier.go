@@ -86,8 +86,7 @@ func (self *StoreSommelier) run() (err error) {
 						} else {
 							ethTxAssetsFieldName = "assets"
 						}
-						ethValue := math.Round(eth.WeiToEther(payload.Input[ethTxAssetsFieldName].(*big.Int))*1000) / 1000
-						err = self.insertAssets(dbTx, payload.Transaction, payload.FromAddress, ethValue, payload.Method.Name, payload.Block)
+						err = self.insertAssets(dbTx, payload.Transaction, payload.FromAddress, eth.WeiToEther(payload.Input[ethTxAssetsFieldName].(*big.Int)), payload.Method.Name, payload.Block)
 						if err != nil {
 							return err
 						}
@@ -138,6 +137,7 @@ func (self *StoreSommelier) insertLog(dbTx *gorm.DB, tx *types.Transaction, from
 func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, from string, assets float64, methodName string, block *BlockInfoPayload) (err error) {
 	var transactionPayload *model.WarpySyncerAssets
 	if slices.Contains(self.Config.WarpySyncer.StoreSommelierWithdrawFunctions, methodName) {
+		assets = math.Ceil(assets*1000) / 1000
 		self.Log.WithField("tx_id", tx.Hash().String()).WithField("assets_to_subtract", assets).Info("Redeem transaction require subtraction")
 		var lastTxs []*struct {
 			TxId   string
@@ -171,7 +171,7 @@ func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, f
 					err = dbTx.WithContext(self.Ctx).
 						Table(model.TableWarpySyncerAssets).
 						Where("tx_id = ?", lastTxs[currentIdx].TxId).
-						Update("assets", lastTxs[currentIdx].Assets-assetsToSubtract).
+						Update("assets", math.Round((lastTxs[currentIdx].Assets-assetsToSubtract)*1000)/1000).
 						Error
 
 					if err != nil {
@@ -208,6 +208,7 @@ func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, f
 			}
 		}
 	} else {
+		assets = math.Round(assets*1000) / 1000
 		transactionPayload = &model.WarpySyncerAssets{
 			TxId:        tx.Hash().String(),
 			FromAddress: from,
