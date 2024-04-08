@@ -105,7 +105,7 @@ redstone_tx_sync: build-race | ; $(info $(M) starting redstone_tx_sync with defa
 
 .PHONY: warpy_sync
 warpy_sync: build-race | ; $(info $(M) starting warpy_sync with default params…)
-	bin/$(PACKAGE) warpy_sync
+	bin/$(PACKAGE) warpy_sync --config dbconfig.json
 
 .PHONY: interact
 interact: build-race | ; $(info $(M) starting interact with default params…)

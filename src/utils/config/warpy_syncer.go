@@ -149,7 +149,7 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.PollerSommelierChannelBufferLength", 100)
 	viper.SetDefault("WarpySyncer.PollerSommelierInterval", "1m")
 	viper.SetDefault("WarpySyncer.PollerSommelierTimeout", "90s")
-	viper.SetDefault("WarpySyncer.PollerSommelierCron", "0 0 * * * *")
+	viper.SetDefault("WarpySyncer.PollerSommelierCron", "0 * * * * *")
 	viper.SetDefault("WarpySyncer.PollerSommelierPointsBase", 1000)
 	viper.SetDefault("WarpySyncer.PollerSommelierSecondsForSelect", 3600)
 	viper.SetDefault("WarpySyncer.WriterBackoffInterval", "3s")
