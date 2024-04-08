@@ -3,6 +3,7 @@ package warpy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
@@ -61,6 +62,7 @@ func GetSenderDiscordId(httpClient *resty.Client, url string, sender string, log
 	if !resp.IsSuccess() {
 		log.WithField("statusCode", resp.StatusCode()).WithField("response", resp).WithField("sender", sender).
 			Warn("Sender Discord id request has not been successful")
+		err = errors.New("sender Discord id request has not been successful")
 		return
 	}
 
