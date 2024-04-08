@@ -3,6 +3,7 @@ package warpy_sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"slices"
@@ -87,7 +88,7 @@ func (self *StoreSommelier) run() (err error) {
 							ethTxAssetsFieldName = "assets"
 						}
 						ethValue := math.Round(eth.WeiToEther(payload.Input[ethTxAssetsFieldName].(*big.Int))*1000) / 1000
-						err = self.insertAssets(dbTx, payload.Transaction, payload.FromAddress, ethValue, payload.Method.Name)
+						err = self.insertAssets(dbTx, payload.Transaction, payload.FromAddress, ethValue, payload.Method.Name, payload.Block)
 						if err != nil {
 							return err
 						}
@@ -135,7 +136,7 @@ func (self *StoreSommelier) insertLog(dbTx *gorm.DB, tx *types.Transaction, from
 	return
 }
 
-func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, from string, assets float64, methodName string) (err error) {
+func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, from string, assets float64, methodName string, block *BlockInfoPayload) (err error) {
 	var transactionPayload *model.WarpySyncerAssets
 	if slices.Contains(self.Config.WarpySyncer.StoreSommelierWithdrawFunctions, methodName) {
 		self.Log.WithField("tx_id", tx.Hash().String()).WithField("assets_to_subtract", assets).Info("Redeem transaction require subtraction")
@@ -212,7 +213,7 @@ func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, f
 			TxId:        tx.Hash().String(),
 			FromAddress: from,
 			Assets:      assets,
-			Timestamp:   uint64(time.Now().Unix()),
+			Timestamp:   fmt.Sprintf("%s_%s", fmt.Sprint(block.Timestamp), fmt.Sprint(time.Now().Unix())),
 			Protocol:    eth.Sommelier.String(),
 		}
 
