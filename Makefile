@@ -97,15 +97,9 @@ send: build-race | ; $(info $(M) starting sending with default params…)
 evolve: build-race | ; $(info $(M) starting evolve with default params…)
 	bin/$(PACKAGE) evolve
 
-
-.PHONY: redstone_tx_sync
-redstone_tx_sync: build-race | ; $(info $(M) starting redstone_tx_sync with default params…)
-	bin/$(PACKAGE) warpy_sync
-
-
 .PHONY: warpy_sync
 warpy_sync: build-race | ; $(info $(M) starting warpy_sync with default params…)
-	bin/$(PACKAGE) warpy_sync --config dbconfig.json
+	bin/$(PACKAGE) warpy_sync
 
 .PHONY: interact
 interact: build-race | ; $(info $(M) starting interact with default params…)
