@@ -23,7 +23,7 @@ type WarpySyncerAssets struct {
 	TxId        string  `gorm:"primaryKey" json:"tx_id"`
 	FromAddress string  `json:"from_address"`
 	Assets      float64 `json:"assets"`
-	Timestamp   string  `json:"timestamp"`
+	Timestamp   uint64  `json:"timestamp"`
 	Protocol    string  `json:"protocol"`
 }
 

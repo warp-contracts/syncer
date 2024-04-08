@@ -3,7 +3,6 @@ package warpy_sync
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 	"slices"
@@ -213,7 +212,7 @@ func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, f
 			TxId:        tx.Hash().String(),
 			FromAddress: from,
 			Assets:      assets,
-			Timestamp:   fmt.Sprintf("%s_%s", fmt.Sprint(block.Timestamp), fmt.Sprint(time.Now().Unix())),
+			Timestamp:   block.Timestamp,
 			Protocol:    eth.Sommelier.String(),
 		}
 
