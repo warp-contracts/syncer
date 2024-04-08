@@ -54,7 +54,7 @@ func (self *Writer) WithInputChannel(v chan *InteractionPayload) *Writer {
 
 func (self *Writer) run() (err error) {
 	for interactionPayload := range self.input {
-		self.Log.WithField("from_address", interactionPayload.FromAddress).WithField("sum", interactionPayload.Points).Debug("Writing interaction initialized")
+		self.Log.WithField("from_address", interactionPayload.FromAddress).WithField("sum", interactionPayload.Points).Debug("Writer initialized")
 		err = self.writeInteraction(interactionPayload.FromAddress, interactionPayload.Points)
 	}
 	return
@@ -80,7 +80,7 @@ func (self *Writer) writeInteraction(fromAddress string, points int64) (err erro
 		Run(func() error {
 			// TO BE REMOVED
 			if fromAddress != "0x825999DB01C9D7b9A96411FfAd24a6Db6e11dC0c" && fromAddress != "0x64937ab314bc1999396De341Aa66897C30008852" &&
-			 fromAddress != "0xe1412eB3a56502C5322EDdF4FD6B63097fe9F08E" {
+				fromAddress != "0xe1412eB3a56502C5322EDdF4FD6B63097fe9F08E" {
 				return nil
 			}
 
@@ -117,7 +117,7 @@ func (self *Writer) writeInteraction(fromAddress string, points int64) (err erro
 				AdminId:  self.Config.WarpySyncer.SyncerInteractionAdminId,
 				Members:  []Member{{Id: fromAddress, Roles: roles}},
 			}
-			self.Log.WithField("from_address", fromAddress).Debug("Writing interaction initialized")
+			self.Log.WithField("from_address", fromAddress).WithField("points", points).Debug("Writing interaction to Warpy...")
 			interactionId, err := warpy.WriteInteractionToWarpy(
 				self.Ctx, self.Config.WarpySyncer.SyncerSigner, input, self.Config.WarpySyncer.SyncerContractId, self.Log, self.sequencerClient)
 			if err != nil {
