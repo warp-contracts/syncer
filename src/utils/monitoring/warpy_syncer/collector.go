@@ -28,6 +28,7 @@ type Collector struct {
 	SyncerDeltaTxsProcessed          *prometheus.Desc
 	SyncerDeltaBlocksProcessed       *prometheus.Desc
 	SyncerSommelierTxsProcessed      *prometheus.Desc
+	SyncerSommelierBlocksProcessed   *prometheus.Desc
 	WriterInteractionsToWarpy        *prometheus.Desc
 	StoreLastSyncedBlockHeight       *prometheus.Desc
 	PollerSommelierAssetsFromSelects *prometheus.Desc
@@ -55,6 +56,7 @@ func NewCollector() *Collector {
 		SyncerDeltaTxsProcessed:          prometheus.NewDesc("syncer_delta_txs_processed", "", nil, nil),
 		SyncerDeltaBlocksProcessed:       prometheus.NewDesc("syncer_delta_blocks_processed", "", nil, nil),
 		SyncerSommelierTxsProcessed:      prometheus.NewDesc("syncer_sommelier_txs_processed", "", nil, nil),
+		SyncerSommelierBlocksProcessed:   prometheus.NewDesc("syncer_sommelier_blocks_processed", "", nil, nil),
 		WriterInteractionsToWarpy:        prometheus.NewDesc("writer_interactions_to_warpy", "", nil, nil),
 		StoreLastSyncedBlockHeight:       prometheus.NewDesc("store_last_synced_block_height", "", nil, nil),
 		PollerSommelierAssetsFromSelects: prometheus.NewDesc("poller_sommelier_assets_from_selects", "", nil, nil),
@@ -115,6 +117,7 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.SyncerDeltaTxsProcessed, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.State.SyncerDeltaTxsProcessed.Load()))
 	ch <- prometheus.MustNewConstMetric(self.SyncerDeltaBlocksProcessed, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.State.SyncerDeltaBlocksProcessed.Load()))
 	ch <- prometheus.MustNewConstMetric(self.SyncerSommelierTxsProcessed, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.State.SyncerSommelierTxsProcessed.Load()))
+	ch <- prometheus.MustNewConstMetric(self.SyncerSommelierBlocksProcessed, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.State.SyncerSommelierBlocksProcessed.Load()))
 	ch <- prometheus.MustNewConstMetric(self.WriterInteractionsToWarpy, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.State.WriterInteractionsToWarpy.Load()))
 	ch <- prometheus.MustNewConstMetric(self.StoreLastSyncedBlockHeight, prometheus.GaugeValue, float64(self.monitor.Report.WarpySyncer.State.StoreLastSyncedBlockHeight.Load()))
 	ch <- prometheus.MustNewConstMetric(self.PollerSommelierAssetsFromSelects, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.State.PollerSommelierAssetsFromSelects.Load()))

@@ -78,12 +78,6 @@ func (self *Writer) writeInteraction(fromAddress string, points int64) (err erro
 			return err
 		}).
 		Run(func() error {
-			// TO BE REMOVED
-			if fromAddress != "0x825999DB01C9D7b9A96411FfAd24a6Db6e11dC0c" && fromAddress != "0x64937ab314bc1999396De341Aa66897C30008852" &&
-				fromAddress != "0xe1412eB3a56502C5322EDdF4FD6B63097fe9F08E" {
-				return nil
-			}
-
 			senderDiscordIdPayload, err := warpy.GetSenderDiscordId(self.httpClient, self.Config.WarpySyncer.SyncerDreUrl, fromAddress, self.Log)
 			if err != nil {
 				self.Log.WithError(err).Warn("Could not retrieve sender Discord id")
