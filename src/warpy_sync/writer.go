@@ -111,6 +111,10 @@ func (self *Writer) writeInteraction(fromAddress string, points int64) (err erro
 				roles = append(roles, *senderRoles...)
 			}
 
+			if points == 0 {
+				return nil
+			}
+
 			input := Input{
 				Function: "addPointsForAddress",
 				Points:   points,
