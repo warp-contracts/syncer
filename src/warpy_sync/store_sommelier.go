@@ -81,7 +81,7 @@ func (self *StoreSommelier) run() (err error) {
 						}
 
 						var ethTxAssetsFieldName string
-						if payload.Method.Name == "redeem" {
+						if slices.Contains(self.Config.WarpySyncer.StoreSommelierWithdrawFunctions, payload.Method.Name) {
 							ethTxAssetsFieldName = "shares"
 						} else {
 							ethTxAssetsFieldName = "assets"

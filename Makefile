@@ -99,7 +99,7 @@ evolve: build-race | ; $(info $(M) starting evolve with default params…)
 
 .PHONY: warpy_sync
 warpy_sync: build-race | ; $(info $(M) starting warpy_sync with default params…)
-	bin/$(PACKAGE) warpy_sync --config dbconfig.json
+	bin/$(PACKAGE) warpy_sync
 
 .PHONY: interact
 interact: build-race | ; $(info $(M) starting interact with default params…)
