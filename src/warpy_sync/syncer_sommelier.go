@@ -95,8 +95,9 @@ func (self *SyncerSommelier) run() (err error) {
 		case <-self.Ctx.Done():
 			return nil
 		case self.Output <- &LastSyncedBlockPayload{
-			Height: block.Height,
-			Hash:   block.Hash,
+			Height:    block.Height,
+			Hash:      block.Hash,
+			Timestamp: block.Timestamp,
 		}:
 		}
 

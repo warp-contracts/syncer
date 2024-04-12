@@ -23,6 +23,7 @@ type Store struct {
 	savedLastSyncedBlockHeight uint64
 	lastSyncedBlockHeight      uint64
 	lastSyncedBlockHash        string
+	lastSyncedBlockTimestamp   uint64
 	syncedComponent            model.SyncedComponent
 }
 
@@ -61,6 +62,7 @@ func (self *Store) WithSyncedComponent(syncedComponent model.SyncedComponent) *S
 func (self *Store) process(payload *LastSyncedBlockPayload) (out []*LastSyncedBlockPayload, err error) {
 	self.lastSyncedBlockHeight = payload.Height
 	self.lastSyncedBlockHash = payload.Hash
+	self.lastSyncedBlockTimestamp = payload.Timestamp
 	return
 }
 
@@ -111,8 +113,9 @@ func (self *Store) updateLastSyncedHeight(tx *gorm.DB) (err error) {
 				Name: self.syncedComponent,
 			}).
 			Updates(model.State{
-				FinishedBlockHeight: uint64(self.lastSyncedBlockHeight),
-				FinishedBlockHash:   arweave.Base64String(self.lastSyncedBlockHash),
+				FinishedBlockHeight:    self.lastSyncedBlockHeight,
+				FinishedBlockHash:      arweave.Base64String(self.lastSyncedBlockHash),
+				FinishedBlockTimestamp: self.lastSyncedBlockTimestamp,
 			}).
 			Error
 		if err != nil {

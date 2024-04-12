@@ -36,8 +36,9 @@ type BlockInfoPayload struct {
 }
 
 type LastSyncedBlockPayload struct {
-	Height uint64
-	Hash   string
+	Height    uint64
+	Hash      string
+	Timestamp uint64
 }
 
 type InteractionPayload struct {
