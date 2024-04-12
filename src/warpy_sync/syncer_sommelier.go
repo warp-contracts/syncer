@@ -128,7 +128,7 @@ func (self *SyncerSommelier) checkTx(tx *types.Transaction, block *BlockInfoPayl
 				method, inputsMap, err := eth.DecodeTransactionInputData(self.contractAbi, tx.Data())
 				if err != nil {
 					self.Log.WithError(err).Error("Could not decode transaction input data")
-					return err
+					return nil
 				}
 
 				if slices.Contains(self.Config.WarpySyncer.SyncerSommelierFunctions, method.Name) {

@@ -134,6 +134,10 @@ func GetContractABI(contractAddress, apiKey string, chain Chain) (*abi.ABI, erro
 }
 
 func DecodeTransactionInputData(contractABI *abi.ABI, data []byte) (method *abi.Method, inputsMap map[string]interface{}, err error) {
+	if len(data) == 0 {
+		err = errors.New("no data to decode")
+		return
+	}
 	methodSigData := data[:4]
 	inputsSigData := data[4:]
 	method, err = contractABI.MethodById(methodSigData)
