@@ -101,10 +101,13 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithContractAbi(contractAbi).
 			WithDb(db)
 
+		blockDownloader.WithPollerCron()
+
 		// Polls records from db
 		poller := NewPollerSommelier(config).
 			WithDB(db).
-			WithMonitor(monitor)
+			WithMonitor(monitor).
+			WithInputChannel(blockDownloader.OutputPollTxs)
 
 		// Writes interaction to Warpy based on the records from the poller
 		writer := NewWriter(config).

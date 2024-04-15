@@ -23,6 +23,9 @@ type WarpySyncer struct {
 	// Max time between failed retries to download block
 	BlockDownloaderBackoffInterval time.Duration
 
+	// Time between poller task is called from block downloader
+	BlockDownloaderPollerInterval int64
+
 	// Warpy contract id
 	SyncerContractId string
 
@@ -101,9 +104,6 @@ type WarpySyncer struct {
 	// How long does it wait for the query response
 	PollerSommelierTimeout time.Duration
 
-	// Cron which indicates how often to poll for new records
-	PollerSommelierCron string
-
 	// Base for the points multiplication
 	PollerSommelierPointsBase int64
 
@@ -123,6 +123,7 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.BlockDownloaderBatchSize", 100)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.BlockDownloaderChannelSize", 100)
+	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 3600)
 	viper.SetDefault("WarpySyncer.SyncerContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
 	viper.SetDefault("WarpySyncer.SyncerNameServiceContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
 	viper.SetDefault("WarpySyncer.SyncerChain", eth.Arbitrum)
@@ -149,7 +150,6 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.PollerSommelierChannelBufferLength", 100)
 	viper.SetDefault("WarpySyncer.PollerSommelierInterval", "1m")
 	viper.SetDefault("WarpySyncer.PollerSommelierTimeout", "90s")
-	viper.SetDefault("WarpySyncer.PollerSommelierCron", "0 * * * * *")
 	viper.SetDefault("WarpySyncer.PollerSommelierPointsBase", 1000)
 	viper.SetDefault("WarpySyncer.PollerSommelierSecondsForSelect", 3600)
 	viper.SetDefault("WarpySyncer.WriterBackoffInterval", "3s")

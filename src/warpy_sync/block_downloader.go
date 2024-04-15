@@ -3,6 +3,7 @@ package warpy_sync
 import (
 	"context"
 	"errors"
+	"math"
 	"math/big"
 	"runtime"
 	"sync"
@@ -20,7 +21,10 @@ import (
 type BlockDownloader struct {
 	*task.Task
 	lastSyncedBlockHeight int64
+	pollerCron            bool
+	nextPollBlockHeight   int64
 	Output                chan *BlockInfoPayload
+	OutputPollTxs         chan uint64
 	monitor               monitoring.Monitor
 	ethClient             *ethclient.Client
 }
@@ -33,6 +37,7 @@ type BlockDownloader struct {
 func NewBlockDownloader(config *config.Config) (self *BlockDownloader) {
 	self = new(BlockDownloader)
 	self.Output = make(chan *BlockInfoPayload, config.WarpySyncer.BlockDownloaderChannelSize)
+	self.OutputPollTxs = make(chan uint64, config.WarpySyncer.BlockDownloaderChannelSize)
 
 	self.Task = task.NewTask(config, "block-downloader").
 		WithPeriodicSubtaskFunc(config.WarpySyncer.BlockDownloaderInterval, self.run).
@@ -49,6 +54,11 @@ func (self *BlockDownloader) WithMonitor(monitor monitoring.Monitor) *BlockDownl
 	return self
 }
 
+func (self *BlockDownloader) WithPollerCron() *BlockDownloader {
+	self.pollerCron = true
+	return self
+}
+
 func (self *BlockDownloader) WithEthClient(ethClient *ethclient.Client) *BlockDownloader {
 	self.ethClient = ethClient
 	return self
@@ -56,19 +66,26 @@ func (self *BlockDownloader) WithEthClient(ethClient *ethclient.Client) *BlockDo
 
 func (self *BlockDownloader) WithInitStartBlockHeight(db *gorm.DB, syncedComponent model.SyncedComponent) *BlockDownloader {
 	self.Task = self.Task.WithOnBeforeStart(func() (err error) {
-		var lastSyncedBlockHeight int64
+		var LastSyncedBlock struct {
+			FinishedBlockHeight    int64
+			FinishedBlockTimestamp int64
+		}
+
 		err = db.WithContext(self.Ctx).
-			Raw(`SELECT finished_block_height
+			Raw(`SELECT finished_block_height, finished_block_timestamp
 			FROM sync_state
 			WHERE name = ?;`, syncedComponent).
-			Scan(&lastSyncedBlockHeight).Error
+			Scan(&LastSyncedBlock).Error
 
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to get last synced block height")
 			return
 		}
 
-		self.lastSyncedBlockHeight = lastSyncedBlockHeight
+		self.lastSyncedBlockHeight = LastSyncedBlock.FinishedBlockHeight
+		if self.pollerCron {
+			self.nextPollBlockHeight = self.calculateNextFullBlockHeight(self.lastSyncedBlockHeight, LastSyncedBlock.FinishedBlockTimestamp)
+		}
 		return nil
 	})
 	return self
@@ -118,6 +135,7 @@ func (self *BlockDownloader) downloadBlocks(blocks []int64) (err error) {
 
 	for _, height := range blocks {
 		height := height
+		nextPollBlockHeight := self.nextPollBlockHeight
 		self.SubmitToWorker(func() {
 			block, err := self.downloadBlock(height)
 			if err != nil {
@@ -134,6 +152,12 @@ func (self *BlockDownloader) downloadBlocks(blocks []int64) (err error) {
 				Hash:         block.Hash().String(),
 				Timestamp:    block.Time(),
 			}:
+				if self.pollerCron && height == nextPollBlockHeight {
+					self.OutputPollTxs <- block.Number().Uint64()
+
+					self.nextPollBlockHeight = self.calculateNextFullBlockHeight(block.Number().Int64(), int64(block.Time()))
+					self.Log.WithField("next_poll_block_height", self.nextPollBlockHeight).Debug("Next poll block height has been set")
+				}
 			}
 
 		end:
@@ -185,4 +209,11 @@ func (self *BlockDownloader) getBlockInfo(blockNumber int64) (blockInfo *types.B
 		return
 	}
 	return
+}
+
+func (self *BlockDownloader) calculateNextFullBlockHeight(lastSyncedBlockHeight int64, lastSyncedBlockTimestamp int64) int64 {
+	nextPollBlockTimestamp := (lastSyncedBlockTimestamp - (lastSyncedBlockTimestamp % self.Config.WarpySyncer.BlockDownloaderPollerInterval)) + self.Config.WarpySyncer.BlockDownloaderPollerInterval
+	timestampDiff := nextPollBlockTimestamp - lastSyncedBlockTimestamp
+	blocksDiff := math.Round(float64(timestampDiff) / float64(0.26))
+	return lastSyncedBlockHeight + int64(blocksDiff)
 }
