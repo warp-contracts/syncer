@@ -23,9 +23,10 @@ func (input Input) MarshalJSON() ([]byte, error) {
 }
 
 type Member struct {
-	Id    string   `json:"id"`
-	Roles []string `json:"roles"`
-	TxId  string   `json:"txId"`
+	Id     string   `json:"id"`
+	Roles  []string `json:"roles"`
+	TxId   string   `json:"txId"`
+	Points int64    `json:"points"`
 }
 
 type BlockInfoPayload struct {
