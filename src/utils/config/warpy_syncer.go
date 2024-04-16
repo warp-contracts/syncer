@@ -26,6 +26,9 @@ type WarpySyncer struct {
 	// Time between poller task is called from block downloader
 	BlockDownloaderPollerInterval int64
 
+	// Block time
+	BlockDownloaderBlockTime float64
+
 	// Warpy contract id
 	SyncerContractId string
 
@@ -124,6 +127,7 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.BlockDownloaderBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.BlockDownloaderChannelSize", 100)
 	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 3600)
+	viper.SetDefault("WarpySyncer.BlockDownloaderBlockTime", float64(0.26))
 	viper.SetDefault("WarpySyncer.SyncerContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
 	viper.SetDefault("WarpySyncer.SyncerNameServiceContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
 	viper.SetDefault("WarpySyncer.SyncerChain", eth.Arbitrum)

@@ -85,6 +85,7 @@ func (self *BlockDownloader) WithInitStartBlockHeight(db *gorm.DB, syncedCompone
 		self.lastSyncedBlockHeight = LastSyncedBlock.FinishedBlockHeight
 		if self.pollerCron {
 			self.nextPollBlockHeight = self.calculateNextFullBlockHeight(self.lastSyncedBlockHeight, LastSyncedBlock.FinishedBlockTimestamp)
+			self.Log.WithField("block_height", self.nextPollBlockHeight).Debug("Initial full block height has been set")
 		}
 		return nil
 	})
@@ -155,7 +156,7 @@ func (self *BlockDownloader) downloadBlocks(blocks []int64) (err error) {
 				if self.pollerCron && height == nextPollBlockHeight {
 					self.OutputPollTxs <- block.Number().Uint64()
 
-					self.nextPollBlockHeight = self.calculateNextFullBlockHeight(block.Number().Int64(), int64(block.Time()))
+					self.nextPollBlockHeight = block.Number().Int64() + int64(float64(self.Config.WarpySyncer.BlockDownloaderPollerInterval)/self.Config.WarpySyncer.BlockDownloaderBlockTime)
 					self.Log.WithField("next_poll_block_height", self.nextPollBlockHeight).Debug("Next poll block height has been set")
 				}
 			}
