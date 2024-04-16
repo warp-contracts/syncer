@@ -77,7 +77,8 @@ func (self *StoreSommelier) run() (err error) {
 					Transaction(func(dbTx *gorm.DB) error {
 						err = self.insertLog(dbTx, payload.Transaction, payload.FromAddress, payload.Block, payload.Method, payload.ParsedInput)
 						if err != nil {
-							return err
+							self.Log.WithError(err).Error("Log insert has not been successful")
+							return nil
 						}
 
 						var ethTxAssetsFieldName string
