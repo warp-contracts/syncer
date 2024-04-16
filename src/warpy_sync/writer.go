@@ -66,11 +66,9 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 		self.Log.Debug("Interaction Payload slice is empty")
 		return
 	}
+	members := make([]Member, 0, min(chunkSize, len(*payloads)))
 
-	counter := 0
-	members := make([]Member, chunkSize)
-
-	for _, payload := range *payloads {
+	for i, payload := range *payloads {
 		if payload.Points == 0 {
 			self.Log.WithField("from_address", payload.FromAddress).Debug("Skipping from address, points 0")
 			continue
@@ -86,12 +84,10 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 			continue
 		}
 
-		members[counter] = Member{Id: payload.FromAddress, Roles: *roles, Points: payload.Points}
-		counter += 1
-		if counter >= chunkSize {
+		members = append(members, Member{Id: payload.FromAddress, Roles: *roles, Points: payload.Points})
+		if len(members) >= chunkSize {
 			err = self.sendInteractionChunk(&members)
-			counter = 0
-			members = make([]Member, chunkSize)
+			members = make([]Member, 0, min(chunkSize, len(*payloads)-i-1))
 		}
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to send interaction chunk")
