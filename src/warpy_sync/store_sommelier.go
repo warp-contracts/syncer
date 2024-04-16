@@ -95,7 +95,7 @@ func (self *StoreSommelier) run() (err error) {
 						return nil
 					})
 
-				return err
+				return nil
 			})
 
 		//Update monitoring
