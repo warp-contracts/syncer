@@ -19,7 +19,7 @@ type Writer struct {
 
 	monitor monitoring.Monitor
 
-	input           <-chan *InteractionPayload
+	input           <-chan *[]InteractionPayload
 	sequencerClient *sequencer.Client
 	httpClient      *resty.Client
 }
@@ -47,20 +47,96 @@ func (self *Writer) WithSequencerClient(sequencerClient *sequencer.Client) *Writ
 	return self
 }
 
-func (self *Writer) WithInputChannel(v chan *InteractionPayload) *Writer {
+func (self *Writer) WithInputChannel(v chan *[]InteractionPayload) *Writer {
 	self.input = v
 	return self
 }
 
 func (self *Writer) run() (err error) {
 	for interactionPayload := range self.input {
-		self.Log.WithField("from_address", interactionPayload.FromAddress).WithField("sum", interactionPayload.Points).Debug("Writer initialized")
-		err = self.writeInteraction(interactionPayload.FromAddress, interactionPayload.Points)
+		self.Log.Debug("Writer initialized")
+		err = self.writeInteraction(interactionPayload)
 	}
 	return
 }
 
-func (self *Writer) writeInteraction(fromAddress string, points int64) (err error) {
+func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error) {
+	chunkSize := self.Config.WarpySyncer.WriterInteractionChunkSize
+	if len(*payloads) == 0 {
+		self.Log.Debug("Interaction Payload slice is empty")
+		return
+	}
+
+	counter := 0
+	members := make([]Member, chunkSize)
+
+	for _, payload := range *payloads {
+		if payload.Points == 0 {
+			self.Log.WithField("from_address", payload.FromAddress).Debug("Skipping from address, points 0")
+			continue
+		}
+
+		roles, err := self.discordRoles(payload.FromAddress)
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to get roles")
+			return err
+		}
+		if roles == nil {
+			self.Log.WithField("from_address", payload.FromAddress).Debug("Skipping address, not registered in warpy")
+			continue
+		}
+
+		members[counter] = Member{Id: payload.FromAddress, Roles: *roles, Points: payload.Points}
+		counter += 1
+		if counter >= chunkSize {
+			err = self.sendInteractionChunk(&members)
+			counter = 0
+			members = make([]Member, chunkSize)
+		}
+		if err != nil {
+			self.Log.WithError(err).Error("Failed to send interaction chunk")
+			return err
+		}
+	}
+	if len(members) > 0 {
+		err = self.sendInteractionChunk(&members)
+	}
+
+	return
+}
+
+func (self *Writer) sendInteractionChunk(members *[]Member) (err error) {
+
+	input := Input{
+		Function: "addPointsForAddress",
+		Points:   0,
+		AdminId:  self.Config.WarpySyncer.SyncerInteractionAdminId,
+		Members:  *members,
+	}
+
+	if len(*members) == 1 {
+		self.Log.WithField("from_address", (*members)[0].Id).
+			WithField("points", (*members)[0].Points).
+			Debug("Writing interaction to Warpy...")
+
+	} else {
+		self.Log.WithField("chunk_size", len(*members)).
+			WithField("points_default", 0).
+			Debug("Writing interaction to Warpy...")
+	}
+
+	interactionId, err := warpy.WriteInteractionToWarpy(
+		self.Ctx, self.Config.WarpySyncer.SyncerSigner, input, self.Config.WarpySyncer.SyncerContractId, self.Log, self.sequencerClient)
+	if err != nil {
+		return err
+	}
+
+	self.Log.WithField("interactionId", interactionId).Info("Interaction sent to Warpy")
+	self.monitor.GetReport().WarpySyncer.State.WriterInteractionsToWarpy.Inc()
+	return
+}
+
+func (self *Writer) discordRoles(fromAddress string) (roles *[]string, err error) {
 	err = task.NewRetry().
 		WithContext(self.Ctx).
 		// Retries infinitely until success
@@ -73,7 +149,7 @@ func (self *Writer) writeInteraction(fromAddress string, points int64) (err erro
 			}
 
 			self.monitor.GetReport().WarpySyncer.Errors.WriterFailures.Inc()
-			self.Log.WithError(err).WithField("from_address", fromAddress).WithField("points", points).
+			self.Log.WithError(err).WithField("from_address", fromAddress).
 				Warn("Could not process assets sum, retrying...")
 			return err
 		}).
@@ -93,7 +169,6 @@ func (self *Writer) writeInteraction(fromAddress string, points int64) (err erro
 			senderDiscordId := []model.SenderDiscordIdPayload{}
 			senderDiscordId = append(senderDiscordId, *senderDiscordIdPayload...)
 
-			roles := []string{}
 			senderRoles, err := warpy.GetSenderRoles(self.httpClient, self.Config.WarpySyncer.SyncerWarpyApiUrl, senderDiscordId[0].Key, self.Log)
 
 			if err != nil {
@@ -102,30 +177,12 @@ func (self *Writer) writeInteraction(fromAddress string, points int64) (err erro
 			}
 
 			if senderRoles != nil {
-				roles = append(roles, *senderRoles...)
+				roles = senderRoles
+			} else {
+				roles = &[]string{}
 			}
 
-			if points == 0 {
-				return nil
-			}
-
-			input := Input{
-				Function: "addPointsForAddress",
-				Points:   points,
-				AdminId:  self.Config.WarpySyncer.SyncerInteractionAdminId,
-				Members:  []Member{{Id: fromAddress, Roles: roles}},
-			}
-			self.Log.WithField("from_address", fromAddress).WithField("points", points).Debug("Writing interaction to Warpy...")
-			interactionId, err := warpy.WriteInteractionToWarpy(
-				self.Ctx, self.Config.WarpySyncer.SyncerSigner, input, self.Config.WarpySyncer.SyncerContractId, self.Log, self.sequencerClient)
-			if err != nil {
-				return err
-			}
-			self.Log.WithField("interactionId", interactionId).Info("Interaction sent to Warpy")
-			self.monitor.GetReport().WarpySyncer.State.WriterInteractionsToWarpy.Inc()
-
-			return err
+			return nil
 		})
-
 	return
 }

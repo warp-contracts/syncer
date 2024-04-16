@@ -118,6 +118,9 @@ type WarpySyncer struct {
 
 	// Timeout for HTTP requests
 	WriterHttpRequestTimeout time.Duration
+
+	// Writer splits interaction into chunks with max size of
+	WriterInteractionChunkSize int
 }
 
 func setWarpySyncerDefaults() {
@@ -158,4 +161,5 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.PollerSommelierSecondsForSelect", 3600)
 	viper.SetDefault("WarpySyncer.WriterBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.WriterHttpRequestTimeout", "30s")
+	viper.SetDefault("WarpySyncer.WriterInteractionChunkSize", 50)
 }

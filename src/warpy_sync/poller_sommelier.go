@@ -17,7 +17,7 @@ type PollerSommelier struct {
 	db      *gorm.DB
 	monitor monitoring.Monitor
 
-	Output chan *InteractionPayload
+	Output chan *[]InteractionPayload
 
 	input chan uint64
 }
@@ -25,7 +25,7 @@ type PollerSommelier struct {
 func NewPollerSommelier(config *config.Config) (self *PollerSommelier) {
 	self = new(PollerSommelier)
 
-	self.Output = make(chan *InteractionPayload, config.WarpySyncer.PollerSommelierChannelBufferLength)
+	self.Output = make(chan *[]InteractionPayload, config.WarpySyncer.PollerSommelierChannelBufferLength)
 
 	self.Task = task.NewTask(config, "poller_sommelier").
 		WithSubtaskFunc(self.handleNew).
@@ -85,20 +85,21 @@ func (self *PollerSommelier) handleNew() (err error) {
 		} else {
 			self.Log.Debug("No new assets sum found")
 		}
+		interactions := make([]InteractionPayload, len(AssetsSums))
 
-		for _, sum := range AssetsSums {
-
+		for i, sum := range AssetsSums {
 			self.monitor.GetReport().WarpySyncer.State.PollerSommelierAssetsFromSelects.Inc()
-
-			select {
-			case <-self.Ctx.Done():
-				return
-			case self.Output <- &InteractionPayload{
+			interactions[i] = InteractionPayload{
 				FromAddress: sum.FromAddress,
 				Points:      int64(sum.Sum * float64(self.Config.WarpySyncer.PollerSommelierPointsBase)),
-			}:
 			}
 		}
+		select {
+		case <-self.Ctx.Done():
+			return
+		case self.Output <- &interactions:
+		}
 	}
+
 	return
 }

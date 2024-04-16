@@ -20,7 +20,7 @@ type SyncerDelta struct {
 	monitor                  monitoring.Monitor
 	input                    chan *BlockInfoPayload
 	Output                   chan *LastSyncedBlockPayload
-	OutputInteractionPayload chan *InteractionPayload
+	OutputInteractionPayload chan *[]InteractionPayload
 }
 
 // This task receives block info in the input channel, iterate through all of the block's transactions in order to check if any of it contains
@@ -29,7 +29,7 @@ func NewSyncerDelta(config *config.Config) (self *SyncerDelta) {
 	self = new(SyncerDelta)
 
 	self.Output = make(chan *LastSyncedBlockPayload)
-	self.OutputInteractionPayload = make(chan *InteractionPayload)
+	self.OutputInteractionPayload = make(chan *[]InteractionPayload)
 
 	self.Task = task.NewTask(config, "syncer").
 		WithSubtaskFunc(self.run).
@@ -117,10 +117,10 @@ func (self *SyncerDelta) checkTxAndWriteInteraction(tx *types.Transaction, block
 					return err
 				}
 
-				self.OutputInteractionPayload <- &InteractionPayload{
+				self.OutputInteractionPayload <- &[]InteractionPayload{{
 					FromAddress: sender,
 					Points:      self.Config.WarpySyncer.SyncerDeltaInteractionPoints,
-				}
+				}}
 			}
 
 			return err
