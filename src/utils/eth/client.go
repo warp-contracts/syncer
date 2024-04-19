@@ -156,5 +156,6 @@ func GetTxSenderHash(tx *types.Transaction) (txSenderHash string, err error) {
 }
 
 func WeiToEther(wei *big.Int) float64 {
-	return float64(wei.Int64()) / params.Ether
+	ether, _ := new(big.Float).Quo(new(big.Float).SetInt(wei), big.NewFloat(params.Ether)).Float64()
+	return ether
 }

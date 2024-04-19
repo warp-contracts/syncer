@@ -76,10 +76,6 @@ func (self *StoreSommelier) run() (err error) {
 				err = self.db.WithContext(self.Ctx).
 					Transaction(func(dbTx *gorm.DB) error {
 						err = self.insertLog(dbTx, payload.Transaction, payload.FromAddress, payload.Block, payload.Method, payload.ParsedInput)
-						if err != nil {
-							self.Log.WithError(err).Error("Log insert has not been successful")
-							return nil
-						}
 
 						var ethTxAssetsFieldName string
 						if slices.Contains(self.Config.WarpySyncer.StoreSommelierWithdrawFunctions, payload.Method.Name) {
@@ -95,7 +91,7 @@ func (self *StoreSommelier) run() (err error) {
 						return nil
 					})
 
-				return nil
+				return err
 			})
 
 		//Update monitoring
