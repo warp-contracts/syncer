@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
@@ -41,32 +40,32 @@ func GetSenderRoles(httpClient *resty.Client, url string, senderDiscordId string
 	return
 }
 
-func GetSenderDiscordId(httpClient *resty.Client, url string, sender string, log *logrus.Entry) (senderIdPayload *[]model.SenderDiscordIdPayload, err error) {
+func GetWalletToDiscordIdMap(httpClient *resty.Client, url string, addresses *[]string, log *logrus.Entry) (senderIdPayload *model.WalletDiscordIdPayload, err error) {
 	if err != nil {
 		return
 	}
 
 	resp, err := httpClient.SetBaseURL(url).R().
-		SetResult([]model.SenderDiscordIdPayload{}).
+		SetResult(model.WalletDiscordIdPayload{}).
 		ForceContentType("application/json").
-		SetQueryParams(map[string]string{
-			"address": sender,
+		SetBody(map[string]interface{}{
+			"addresses": *addresses,
 		}).
 		SetHeader("Accept", "application/json").
-		Get("/warpy/user-id")
+		Post("/warpy/user-ids")
 
 	if err != nil {
 		return
 	}
 
 	if !resp.IsSuccess() {
-		log.WithField("statusCode", resp.StatusCode()).WithField("response", resp).WithField("sender", sender).
+		log.WithField("statusCode", resp.StatusCode()).WithField("response", resp).
 			Warn("Sender Discord id request has not been successful")
 		err = errors.New("sender Discord id request has not been successful")
 		return
 	}
 
-	senderIdPayload, ok := resp.Result().(*[]model.SenderDiscordIdPayload)
+	senderIdPayload, ok := resp.Result().(*model.WalletDiscordIdPayload)
 	if !ok {
 		log.Warn("Failed to parse response")
 

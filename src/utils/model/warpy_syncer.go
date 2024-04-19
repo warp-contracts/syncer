@@ -29,6 +29,6 @@ type WarpySyncerAssets struct {
 	Chain       string  `json:"chain"`
 }
 
-type SenderDiscordIdPayload struct {
-	Key string `json:"key"`
+type WalletDiscordIdPayload struct {
+	WalletToDiscordId map[string]string `json:"wallet_to_id"`
 }
