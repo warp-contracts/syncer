@@ -118,7 +118,7 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload) (er
 	for _, p := range *interactions {
 		roles, ok := (*addressToRoles)[p.FromAddress]
 		if ok {
-			members = append(members, Member{Id: p.FromAddress, Roles: *roles, Points: p.Points})
+			members = append(members, Member{Id: p.FromAddress, Roles: roles, Points: p.Points})
 		} else {
 			self.Log.WithField("from_address", p.FromAddress).Debug("Skipping address, not registered in warpy")
 		}
@@ -155,7 +155,7 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload) (er
 // Returns a map of wallet address to a list of discord roles.
 // If wallet not registered in warpy the map will not contain the key.
 // If wallet found but no roles the map will point to an empty collection.
-func (self *Writer) walletAddressToDiscordRoles(payloads *[]InteractionPayload) (roles *map[string]*[]string, err error) {
+func (self *Writer) walletAddressToDiscordRoles(payloads *[]InteractionPayload) (walletToRoles *map[string][]string, err error) {
 	addresses := make([]string, 0, len(*payloads))
 	for _, p := range *payloads {
 		addresses = append(addresses, p.FromAddress)
@@ -190,25 +190,31 @@ func (self *Writer) walletAddressToDiscordRoles(payloads *[]InteractionPayload) 
 				return nil
 			}
 
-			roles = &map[string]*[]string{}
-			for w, id := range result.WalletToDiscordId {
-				self.Log.
-					WithField("discord id", id).
-					Debug("Looking for roles")
-				senderRoles, err := warpy.GetSenderRoles(self.httpClient, self.Config.WarpySyncer.SyncerWarpyApiUrl, id, self.Log)
-
-				if err != nil {
-					self.Log.
-						WithField("address", w).
-						WithError(err).Warn("Could not retrieve sender roles")
-					return err
-				}
-				if senderRoles == nil {
-					(*roles)[w] = &[]string{}
+			ids := make([]string, 0, len(result.WalletToDiscordId))
+			for _, w := range addresses {
+				id := result.WalletToDiscordId[w]
+				if len(id) > 15 {
+					ids = append(ids, id)
 				} else {
-					(*roles)[w] = senderRoles
+					self.Log.WithField("from_address", w).
+						Info("Address not registered in Warpy, skipping")
 				}
 			}
+
+			walletToRoles = &map[string][]string{}
+			rolesPayload, err := warpy.GetSendersRoles(self.httpClient, self.Config.WarpySyncer.SyncerWarpyApiUrl, &ids, self.Log)
+			if err != nil {
+				self.Log.
+					WithError(err).Warn("Could not retrieve senders roles")
+				return err
+			}
+
+			for _, w := range addresses {
+				if id, ok := result.WalletToDiscordId[w]; ok {
+					(*walletToRoles)[w] = (*rolesPayload).IdToRoles[id]
+				}
+			}
+
 			return nil
 		})
 	return

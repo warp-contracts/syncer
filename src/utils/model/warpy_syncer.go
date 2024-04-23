@@ -32,3 +32,7 @@ type WarpySyncerAssets struct {
 type WalletDiscordIdPayload struct {
 	WalletToDiscordId map[string]string `json:"wallet_to_id"`
 }
+
+type DiscordIdRolesPayload struct {
+	IdToRoles map[string][]string `json:"id_to_roles"`
+}
