@@ -12,15 +12,15 @@ import (
 	sequencer_types "github.com/warp-contracts/syncer/src/utils/sequencer/types"
 )
 
-func GetSenderRoles(httpClient *resty.Client, url string, senderDiscordId string, log *logrus.Entry) (roles *[]string, err error) {
+func GetSendersRoles(httpClient *resty.Client, url string, senderDiscordIds *[]string, log *logrus.Entry) (roles *model.DiscordIdRolesPayload, err error) {
 	resp, err := httpClient.SetBaseURL(url).R().
-		SetResult([]string{}).
+		SetResult(model.DiscordIdRolesPayload{}).
 		ForceContentType("application/json").
-		SetQueryParams(map[string]string{
-			"id": senderDiscordId,
+		SetBody(map[string]interface{}{
+			"ids": *senderDiscordIds,
 		}).
 		SetHeader("Accept", "application/json").
-		Get("/v1/userRoles")
+		Post("/v1/usersRoles")
 
 	if err != nil {
 		log.WithError(err).Warn("Could not retrieve sender roles")
@@ -32,7 +32,7 @@ func GetSenderRoles(httpClient *resty.Client, url string, senderDiscordId string
 		return
 	}
 
-	roles, ok := resp.Result().(*[]string)
+	roles, ok := resp.Result().(*model.DiscordIdRolesPayload)
 	if !ok {
 		log.Warn("Failed to parse response")
 		return
