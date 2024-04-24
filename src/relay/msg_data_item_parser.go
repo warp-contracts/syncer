@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"cmp"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -120,8 +121,8 @@ func (self *MsgDataItemParser) validateSortKey(interaction *model.Interaction, p
 func (self *MsgDataItemParser) validateSortKeys(payload *Payload, interactions []*model.Interaction) (err error) {
 	// Downlaod order may differ from the order in the block
 	sortedInteractions := append(make([]*model.Interaction, 0, len(interactions)), interactions...)
-	slices.SortFunc(sortedInteractions, func(a *model.Interaction, b *model.Interaction) bool {
-		return a.SortKey < b.SortKey
+	slices.SortFunc(sortedInteractions, func(a *model.Interaction, b *model.Interaction) int {
+		return cmp.Compare(a.SortKey, b.SortKey)
 	})
 
 	for idx, dataItem := range sortedInteractions {

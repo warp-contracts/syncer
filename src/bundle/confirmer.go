@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"cmp"
 	"database/sql"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -71,8 +72,8 @@ func (self *Confirmer) save(confirmations []*Confirmation) error {
 	self.Log.WithField("len", len(confirmations)).Trace("Saving confirmations to DB")
 
 	// Sort confirmations by interaction ID to minimize deadlocks
-	slices.SortFunc(confirmations, func(a, b *Confirmation) bool {
-		return a.InteractionID < b.InteractionID
+	slices.SortFunc(confirmations, func(a, b *Confirmation) int {
+		 return cmp.Compare(a.InteractionID, b.InteractionID)
 	})
 
 	// Prepare ids

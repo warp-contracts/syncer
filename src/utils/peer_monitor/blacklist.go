@@ -41,8 +41,12 @@ func (self *Blacklist) RemoveOldest(n int) {
 	})
 
 	// Oldest are in the beggining of the slice
-	slices.SortFunc(items, func(a, b item) bool {
-		return a.Inserted.Before(b.Inserted)
+	slices.SortFunc(items, func(a, b item) int {
+		if a.Inserted.Before(b.Inserted) {
+			return -1
+		} else {
+			return +1
+		}
 	})
 
 	for i := 0; i < n && i < len(items); i++ {
