@@ -36,6 +36,7 @@ const (
 	Avax     Chain = iota
 	Arbitrum Chain = iota
 	Mode     Chain = iota
+	Manta    Chain = iota
 )
 
 func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
@@ -48,6 +49,9 @@ func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
 		return
 	case Mode:
 		rpcProviderUrl = "https://mainnet.mode.network"
+		return
+	case Manta:
+		rpcProviderUrl = "https://pacific-rpc.manta.network/http"
 		return
 	}
 
@@ -62,6 +66,9 @@ func (chain Chain) Api() (apiUrl string, err error) {
 		return
 	case Mode:
 		apiUrl = "https://explorer.mode.network/api"
+		return
+	case Manta:
+		apiUrl = "https://pacific-explorer.manta.network/api"
 		return
 	}
 
@@ -89,6 +96,8 @@ func (chain Chain) String() string {
 		return "arbitrum"
 	case Mode:
 		return "mode"
+	case Manta:
+		return "manta"
 	}
 	return ""
 }

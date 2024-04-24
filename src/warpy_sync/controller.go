@@ -51,6 +51,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		syncedComponent = model.SyncedComponentWarpySyncerArbitrum
 	case eth.Mode:
 		syncedComponent = model.SyncedComponentWarpySyncerMode
+	case eth.Manta:
+		syncedComponent = model.SyncedComponentWarpySyncerManta
 	default:
 		err = errors.New("synced component not recognized")
 	}
