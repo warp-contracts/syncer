@@ -49,6 +49,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		syncedComponent = model.SyncedComponentWarpySyncerAvax
 	case eth.Arbitrum:
 		syncedComponent = model.SyncedComponentWarpySyncerArbitrum
+	case eth.Mode:
+		syncedComponent = model.SyncedComponentWarpySyncerMode
 	default:
 		err = errors.New("synced component not recognized")
 	}
@@ -67,7 +69,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	var syncerTask *task.Task
 	var pollerTask *task.Task
 	var writerTask *task.Task
-	var storeSommelierTask *task.Task
+	var StoreDepositTask *task.Task
 	var syncerOutput chan *LastSyncedBlockPayload
 
 	switch config.WarpySyncer.SyncerProtocol {
@@ -86,16 +88,16 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		writerTask = writer.Task
 		syncerTask = syncer.Task
 		syncerOutput = syncer.Output
-	case eth.Sommelier:
+	case eth.Sommelier, eth.LayerBank:
 		contractAbi, errAbi := eth.GetContractABI(
-			config.WarpySyncer.SyncerSommelierContractId,
-			config.WarpySyncer.SyncerArbiscanApiKey,
+			config.WarpySyncer.SyncerDepositContractId,
+			config.WarpySyncer.SyncerApiKey,
 			config.WarpySyncer.SyncerChain)
 
 		err = errAbi
 
 		// Checks wether block's transactions contain specific Sommelier transactions
-		syncer := NewSyncerSommelier(config).
+		syncer := NewSyncerDeposit(config).
 			WithMonitor(monitor).
 			WithInputChannel(blockDownloader.Output).
 			WithContractAbi(contractAbi).
@@ -104,7 +106,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		blockDownloader.WithPollerCron()
 
 		// Polls records from db
-		poller := NewPollerSommelier(config).
+		poller := NewPollerDeposit(config).
 			WithDB(db).
 			WithMonitor(monitor).
 			WithInputChannel(blockDownloader.OutputPollTxs)
@@ -115,7 +117,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithMonitor(monitor).
 			WithSequencerClient(sequencerClient)
 
-		storeSommelier := NewStoreSommelier(config).
+		StoreDeposit := NewStoreDeposit(config).
 			WithDB(db).
 			WithMonitor(monitor).
 			WithInputChannel(syncer.OutputTransactionPayload)
@@ -124,7 +126,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		syncerTask = syncer.Task
 		syncerOutput = syncer.Output
 		writerTask = writer.Task
-		storeSommelierTask = storeSommelier.Task
+		StoreDepositTask = StoreDeposit.Task
 	default:
 		self.Log.WithError(err).Error("ETH Protocol not recognized")
 		return
@@ -151,6 +153,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(server.Task).
 		WithConditionalSubtask(pollerTask.Name != "", pollerTask).
 		WithSubtask(writerTask).
-		WithSubtask(storeSommelierTask)
+		WithSubtask(StoreDepositTask)
 	return
 }

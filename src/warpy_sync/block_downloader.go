@@ -138,7 +138,7 @@ func (self *BlockDownloader) downloadBlocks(blocks []int64) (err error) {
 		height := height
 		nextPollBlockHeight := self.nextPollBlockHeight
 		self.SubmitToWorker(func() {
-			block, err := self.downloadBlock(height)
+			blockHeight, blockHash, blockTime, blockTxs, err := self.downloadBlockOrHeader(height)
 			if err != nil {
 				self.Log.WithError(err).WithField("height", height).Error("Failed to download block")
 				goto end
@@ -148,15 +148,15 @@ func (self *BlockDownloader) downloadBlocks(blocks []int64) (err error) {
 			case <-self.Ctx.Done():
 				return
 			case self.Output <- &BlockInfoPayload{
-				Transactions: block.Transactions(),
-				Height:       block.Number().Uint64(),
-				Hash:         block.Hash().String(),
-				Timestamp:    block.Time(),
+				Transactions: blockTxs,
+				Height:       blockHeight,
+				Hash:         blockHash,
+				Timestamp:    blockTime,
 			}:
 				if self.pollerCron && height == nextPollBlockHeight {
-					self.OutputPollTxs <- block.Number().Uint64()
+					self.OutputPollTxs <- blockHeight
 
-					self.nextPollBlockHeight = block.Number().Int64() + int64(float64(self.Config.WarpySyncer.BlockDownloaderPollerInterval)/self.Config.WarpySyncer.BlockDownloaderBlockTime)
+					self.nextPollBlockHeight = int64(blockHeight) + int64(float64(self.Config.WarpySyncer.BlockDownloaderPollerInterval)/self.Config.WarpySyncer.BlockDownloaderBlockTime)
 					self.Log.WithField("next_poll_block_height", self.nextPollBlockHeight).Debug("Next poll block height has been set")
 				}
 			}
@@ -170,7 +170,7 @@ func (self *BlockDownloader) downloadBlocks(blocks []int64) (err error) {
 	return
 }
 
-func (self *BlockDownloader) downloadBlock(height int64) (block *types.Block, err error) {
+func (self *BlockDownloader) downloadBlockOrHeader(height int64) (blockHeight uint64, blockHash string, blockTime uint64, blockTxs []*types.Transaction, err error) {
 	err = task.NewRetry().
 		WithContext(self.Ctx).
 		// Retries infinitely until success
@@ -186,7 +186,7 @@ func (self *BlockDownloader) downloadBlock(height int64) (block *types.Block, er
 			return err
 		}).
 		Run(func() (err error) {
-			block, err = self.getBlockInfo(height)
+			blockHeight, blockHash, blockTime, blockTxs, err = self.getBlockOrHeaderInfo(height)
 			return
 		})
 
@@ -204,11 +204,41 @@ func (self *BlockDownloader) getCurrentBlockHeight(ctx context.Context) (current
 	return
 }
 
-func (self *BlockDownloader) getBlockInfo(blockNumber int64) (blockInfo *types.Block, err error) {
-	blockInfo, err = self.ethClient.BlockByNumber(context.Background(), big.NewInt(blockNumber))
-	if err != nil {
-		return
+func (self *BlockDownloader) getBlockOrHeaderInfo(height int64) (blockHeight uint64, blockHash string, blockTime uint64, blockTxs []*types.Transaction, err error) {
+	if self.Config.WarpySyncer.BlockDownloaderByHeader {
+		header, errHeader := self.ethClient.HeaderByNumber(context.Background(), big.NewInt(height))
+		err = errHeader
+		if err != nil {
+			return
+		}
+		blockHeight = header.Number.Uint64()
+		blockHash = header.Hash().String()
+		blockTime = header.Time
+		txCount, err := self.ethClient.TransactionCount(context.Background(), header.Hash())
+		if err != nil {
+			self.Log.WithField("err", err).Warn("could not get transaction count")
+		}
+
+		for i := 0; i < int(txCount); i++ {
+			tx, err := self.ethClient.TransactionInBlock(context.Background(), header.Hash(), uint(i))
+			if err != nil {
+				continue
+			}
+
+			blockTxs = append(blockTxs, tx)
+		}
+	} else {
+		block, errBlock := self.ethClient.BlockByNumber(context.Background(), big.NewInt(height))
+		err = errBlock
+		if err != nil {
+			return
+		}
+		blockTxs = block.Transactions()
+		blockHeight = block.Number().Uint64()
+		blockHash = block.Hash().String()
+		blockTime = block.Time()
 	}
+
 	return
 }
 

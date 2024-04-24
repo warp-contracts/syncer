@@ -30,7 +30,7 @@ type Member struct {
 }
 
 type BlockInfoPayload struct {
-	Transactions types.Transactions
+	Transactions []*types.Transaction
 	Height       uint64
 	Hash         string
 	Timestamp    uint64
