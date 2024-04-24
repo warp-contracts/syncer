@@ -104,6 +104,7 @@ func (self *StoreDeposit) run() (err error) {
 
 func (self *StoreDeposit) insertLog(dbTx *gorm.DB, tx *types.Transaction, from string, block *BlockInfoPayload, method *abi.Method, input []byte) (err error) {
 	chain := self.Config.WarpySyncer.SyncerChain.String()
+	protocol := self.Config.WarpySyncer.SyncerProtocol.String()
 	transactionPayload := &model.WarpySyncerTransaction{
 		TxId:           tx.Hash().String(),
 		FromAddress:    from,
@@ -113,6 +114,7 @@ func (self *StoreDeposit) insertLog(dbTx *gorm.DB, tx *types.Transaction, from s
 		SyncTimestamp:  uint64(time.Now().Unix()),
 		MethodName:     method.Name,
 		Chain:          chain,
+		Protocol:       protocol,
 		Input:          pgtype.JSONB{Bytes: input, Status: pgtype.Present},
 	}
 	err = dbTx.WithContext(self.Ctx).
@@ -144,7 +146,8 @@ func (self *StoreDeposit) insertAssets(dbTx *gorm.DB, tx *types.Transaction, fro
 			Table(model.TableWarpySyncerAssets).
 			Select("tx_id, assets").
 			Where("from_address = ?", from).
-			Where("protocol = ?", eth.LayerBank.String()).
+			Where("protocol = ?", self.Config.WarpySyncer.SyncerProtocol.String()).
+			Where("chain = ?", self.Config.WarpySyncer.SyncerChain.String()).
 			Order("timestamp DESC").
 			Scan(&lastTxs).
 			Error
@@ -212,7 +215,8 @@ func (self *StoreDeposit) insertAssets(dbTx *gorm.DB, tx *types.Transaction, fro
 			FromAddress: from,
 			Assets:      assets,
 			Timestamp:   block.Timestamp,
-			Protocol:    eth.LayerBank.String(),
+			Protocol:    self.Config.WarpySyncer.SyncerProtocol.String(),
+			Chain:       self.Config.WarpySyncer.SyncerChain.String(),
 		}
 
 		err = dbTx.WithContext(self.Ctx).
