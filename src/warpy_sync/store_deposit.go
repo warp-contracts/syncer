@@ -32,7 +32,7 @@ type StoreDeposit struct {
 func NewStoreDeposit(config *config.Config) (self *StoreDeposit) {
 	self = new(StoreDeposit)
 
-	self.Task = task.NewTask(config, "store_sommelier").
+	self.Task = task.NewTask(config, "store_deposit").
 		WithSubtaskFunc(self.run).
 		WithWorkerPool(config.WarpySyncer.SyncerDepositNumWorkers, config.WarpySyncer.SyncerDepositWorkerQueueSize)
 

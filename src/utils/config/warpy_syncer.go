@@ -133,7 +133,7 @@ type WarpySyncer struct {
 }
 
 func setWarpySyncerDefaults() {
-	viper.SetDefault("WarpySyncer.BlockDownloaderInterval", "10s")
+	viper.SetDefault("WarpySyncer.BlockDownloaderInterval", "30s")
 	viper.SetDefault("WarpySyncer.BlockDownloaderMaxQueueSize", 1000)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBatchSize", 100)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBackoffInterval", "3s")
@@ -143,7 +143,7 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.BlockDownloaderByHeader", true)
 	viper.SetDefault("WarpySyncer.SyncerContractId", "mdxBOJ3cy98lqJoPZf7EW0iU4jaqePC3XZRkzoWU1QY")
 	viper.SetDefault("WarpySyncer.SyncerNameServiceContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
-	viper.SetDefault("WarpySyncer.SyncerChain", eth.Mode)
+	viper.SetDefault("WarpySyncer.SyncerChain", eth.Manta)
 	viper.SetDefault("WarpySyncer.SyncerProtocol", eth.LayerBank)
 	viper.SetDefault("WarpySyncer.SyncerDreUrl", "https://dre-warpy.warp.cc")
 	viper.SetDefault("WarpySyncer.SyncerWarpyApiUrl", "https://api-warpy.warp.cc")
@@ -157,7 +157,7 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.SyncerDeltaRedstoneData", "000002ed57011e0000")
 	viper.SetDefault("WarpySyncer.SyncerDeltaNumWorkers", "50")
 	viper.SetDefault("WarpySyncer.SyncerDeltaWorkerQueueSize", "10")
-	viper.SetDefault("WarpySyncer.SyncerDepositContractId", "0x80980869D90A737aff47aBA6FbaA923012C1FF50")
+	viper.SetDefault("WarpySyncer.SyncerDepositContractId", "0xB7A23Fc0b066051dE58B922dC1a08f33DF748bbf")
 	viper.SetDefault("WarpySyncer.SyncerDepositBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.SyncerDepositFunctions", []string{"supply", "redeemToken"})
 	viper.SetDefault("WarpySyncer.StoreDepositWithdrawFunctions", []string{"redeemToken"})

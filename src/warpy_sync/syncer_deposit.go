@@ -125,7 +125,7 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 		}).
 		Run(func() error {
 			if tx.To() != nil && tx.To().String() == self.Config.WarpySyncer.SyncerDepositContractId {
-				self.Log.WithField("tx_id", tx.Hash()).Info("Found new deposit transaction")
+				self.Log.WithField("tx_id", tx.Hash()).Info("Found new on-chain transaction")
 				method, inputsMap, err := eth.DecodeTransactionInputData(self.contractAbi, tx.Data())
 				if err != nil {
 					self.Log.WithError(err).Error("Could not decode transaction input data")
