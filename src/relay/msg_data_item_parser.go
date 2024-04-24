@@ -163,8 +163,8 @@ func (self *MsgDataItemParser) parseMessage(msg cosmostypes.Msg, payload *Payloa
 		return
 	}
 
-	sequencerBlock := &smartweave.SequencerBlock {
-		Height: payload.SequencerBlockHeight,
+	sequencerBlock := &smartweave.SequencerBlock{
+		Height:    payload.SequencerBlockHeight,
 		Timestamp: payload.SequencerBlockTimestamp,
 	}
 

@@ -21,7 +21,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type StoreSommelier struct {
+type StoreDeposit struct {
 	*task.Task
 
 	db      *gorm.DB
@@ -29,45 +29,45 @@ type StoreSommelier struct {
 	input   chan *SommelierTransactionPayload
 }
 
-func NewStoreSommelier(config *config.Config) (self *StoreSommelier) {
-	self = new(StoreSommelier)
+func NewStoreDeposit(config *config.Config) (self *StoreDeposit) {
+	self = new(StoreDeposit)
 
 	self.Task = task.NewTask(config, "store_sommelier").
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(config.WarpySyncer.SyncerSommelierNumWorkers, config.WarpySyncer.SyncerSommelierWorkerQueueSize)
+		WithWorkerPool(config.WarpySyncer.SyncerDepositNumWorkers, config.WarpySyncer.SyncerDepositWorkerQueueSize)
 
 	return
 }
 
-func (self *StoreSommelier) WithInputChannel(v chan *SommelierTransactionPayload) *StoreSommelier {
+func (self *StoreDeposit) WithInputChannel(v chan *SommelierTransactionPayload) *StoreDeposit {
 	self.input = v
 	return self
 }
 
-func (self *StoreSommelier) WithDB(db *gorm.DB) *StoreSommelier {
+func (self *StoreDeposit) WithDB(db *gorm.DB) *StoreDeposit {
 	self.db = db
 	return self
 }
 
-func (self *StoreSommelier) WithMonitor(monitor monitoring.Monitor) *StoreSommelier {
+func (self *StoreDeposit) WithMonitor(monitor monitoring.Monitor) *StoreDeposit {
 	self.monitor = monitor
 	return self
 }
 
-func (self *StoreSommelier) run() (err error) {
+func (self *StoreDeposit) run() (err error) {
 	for payload := range self.input {
 		err = task.NewRetry().
 			WithContext(self.Ctx).
 			// Retries infinitely until success
 			WithMaxElapsedTime(0).
-			WithMaxInterval(self.Config.WarpySyncer.SyncerSommelierBackoffInterval).
-			WithAcceptableDuration(self.Config.WarpySyncer.SyncerSommelierBackoffInterval * 2).
+			WithMaxInterval(self.Config.WarpySyncer.SyncerDepositBackoffInterval).
+			WithAcceptableDuration(self.Config.WarpySyncer.SyncerDepositBackoffInterval * 2).
 			WithOnError(func(err error, isDurationAcceptable bool) error {
 				if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
 					return backoff.Permanent(err)
 				}
 
-				self.monitor.GetReport().WarpySyncer.Errors.StoreSommelierFailures.Inc()
+				self.monitor.GetReport().WarpySyncer.Errors.StoreDepositFailures.Inc()
 				self.Log.WithError(err).WithField("txId", payload.Transaction.Hash().String()).
 					Warn("Could not process transaction, retrying...")
 				return err
@@ -78,10 +78,10 @@ func (self *StoreSommelier) run() (err error) {
 						err = self.insertLog(dbTx, payload.Transaction, payload.FromAddress, payload.Block, payload.Method, payload.ParsedInput)
 
 						var ethTxAssetsFieldName string
-						if slices.Contains(self.Config.WarpySyncer.StoreSommelierWithdrawFunctions, payload.Method.Name) {
-							ethTxAssetsFieldName = "shares"
+						if slices.Contains(self.Config.WarpySyncer.StoreDepositWithdrawFunctions, payload.Method.Name) {
+							ethTxAssetsFieldName = self.Config.WarpySyncer.StoreDepositDepositAssetsName
 						} else {
-							ethTxAssetsFieldName = "assets"
+							ethTxAssetsFieldName = self.Config.WarpySyncer.StoreDepositWithdrawAssetsName
 						}
 						err = self.insertAssets(dbTx, payload.Transaction, payload.FromAddress, eth.WeiToEther(payload.Input[ethTxAssetsFieldName].(*big.Int)), payload.Method.Name, payload.Block)
 						if err != nil {
@@ -95,15 +95,15 @@ func (self *StoreSommelier) run() (err error) {
 			})
 
 		//Update monitoring
-		self.monitor.GetReport().WarpySyncer.State.StoreSommelierRecordsSaved.Inc()
+		self.monitor.GetReport().WarpySyncer.State.StoreDepositRecordsSaved.Inc()
 		self.Log.WithField("tx_id", payload.Transaction.Hash().String()).WithField("from", payload.FromAddress).Info("New log and assets inserted")
 
 	}
 	return nil
 }
 
-func (self *StoreSommelier) insertLog(dbTx *gorm.DB, tx *types.Transaction, from string, block *BlockInfoPayload, method *abi.Method, input []byte) (err error) {
-	chain, _ := self.Config.WarpySyncer.SyncerChain.RpcProviderUrl()
+func (self *StoreDeposit) insertLog(dbTx *gorm.DB, tx *types.Transaction, from string, block *BlockInfoPayload, method *abi.Method, input []byte) (err error) {
+	chain := self.Config.WarpySyncer.SyncerChain.String()
 	transactionPayload := &model.WarpySyncerTransaction{
 		TxId:           tx.Hash().String(),
 		FromAddress:    from,
@@ -131,9 +131,9 @@ func (self *StoreSommelier) insertLog(dbTx *gorm.DB, tx *types.Transaction, from
 	return
 }
 
-func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, from string, assets float64, methodName string, block *BlockInfoPayload) (err error) {
+func (self *StoreDeposit) insertAssets(dbTx *gorm.DB, tx *types.Transaction, from string, assets float64, methodName string, block *BlockInfoPayload) (err error) {
 	var transactionPayload *model.WarpySyncerAssets
-	if slices.Contains(self.Config.WarpySyncer.StoreSommelierWithdrawFunctions, methodName) {
+	if slices.Contains(self.Config.WarpySyncer.StoreDepositWithdrawFunctions, methodName) {
 		assets = math.Ceil(assets*1000) / 1000
 		self.Log.WithField("tx_id", tx.Hash().String()).WithField("assets_to_subtract", assets).Info("Redeem transaction require subtraction")
 		var lastTxs []*struct {
@@ -144,6 +144,7 @@ func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, f
 			Table(model.TableWarpySyncerAssets).
 			Select("tx_id, assets").
 			Where("from_address = ?", from).
+			Where("protocol = ?", eth.LayerBank.String()).
 			Order("timestamp DESC").
 			Scan(&lastTxs).
 			Error
@@ -211,7 +212,7 @@ func (self *StoreSommelier) insertAssets(dbTx *gorm.DB, tx *types.Transaction, f
 			FromAddress: from,
 			Assets:      assets,
 			Timestamp:   block.Timestamp,
-			Protocol:    eth.Sommelier.String(),
+			Protocol:    eth.LayerBank.String(),
 		}
 
 		err = dbTx.WithContext(self.Ctx).

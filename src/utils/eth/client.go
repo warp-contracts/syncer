@@ -3,7 +3,6 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 
@@ -28,6 +27,7 @@ type Protocol int
 const (
 	Delta     Protocol = iota
 	Sommelier Protocol = iota
+	LayerBank Protocol = iota
 )
 
 type Chain int
@@ -35,6 +35,7 @@ type Chain int
 const (
 	Avax     Chain = iota
 	Arbitrum Chain = iota
+	Mode     Chain = iota
 )
 
 func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
@@ -44,6 +45,9 @@ func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
 		return
 	case Arbitrum:
 		rpcProviderUrl = "https://arb1.arbitrum.io/rpc"
+		return
+	case Mode:
+		rpcProviderUrl = "https://mainnet.mode.network"
 		return
 	}
 
@@ -55,6 +59,9 @@ func (chain Chain) Api() (apiUrl string, err error) {
 	switch chain {
 	case Arbitrum:
 		apiUrl = "https://api.arbiscan.io/api"
+		return
+	case Mode:
+		apiUrl = "https://explorer.mode.network/api"
 		return
 	}
 
@@ -68,6 +75,20 @@ func (protocol Protocol) String() string {
 		return "delta"
 	case Sommelier:
 		return "sommelier"
+	case LayerBank:
+		return "layer_bank"
+	}
+	return ""
+}
+
+func (chain Chain) String() string {
+	switch chain {
+	case Avax:
+		return "avax"
+	case Arbitrum:
+		return "arbitrum"
+	case Mode:
+		return "mode"
 	}
 	return ""
 }
@@ -142,7 +163,7 @@ func DecodeTransactionInputData(contractABI *abi.ABI, data []byte) (method *abi.
 	inputsSigData := data[4:]
 	method, err = contractABI.MethodById(methodSigData)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 	inputsMap = make(map[string]interface{})
 	err = method.Inputs.UnpackIntoMap(inputsMap, inputsSigData)

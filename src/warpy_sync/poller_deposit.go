@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type PollerSommelier struct {
+type PollerDeposit struct {
 	*task.Task
 
 	db      *gorm.DB
@@ -22,10 +22,10 @@ type PollerSommelier struct {
 	input chan uint64
 }
 
-func NewPollerSommelier(config *config.Config) (self *PollerSommelier) {
-	self = new(PollerSommelier)
+func NewPollerDeposit(config *config.Config) (self *PollerDeposit) {
+	self = new(PollerDeposit)
 
-	self.Output = make(chan *[]InteractionPayload, config.WarpySyncer.PollerSommelierChannelBufferLength)
+	self.Output = make(chan *[]InteractionPayload, config.WarpySyncer.PollerDepositChannelBufferLength)
 
 	self.Task = task.NewTask(config, "poller_sommelier").
 		WithSubtaskFunc(self.handleNew).
@@ -36,26 +36,26 @@ func NewPollerSommelier(config *config.Config) (self *PollerSommelier) {
 	return
 }
 
-func (self *PollerSommelier) WithDB(db *gorm.DB) *PollerSommelier {
+func (self *PollerDeposit) WithDB(db *gorm.DB) *PollerDeposit {
 	self.db = db
 	return self
 }
 
-func (self *PollerSommelier) WithMonitor(monitor monitoring.Monitor) *PollerSommelier {
+func (self *PollerDeposit) WithMonitor(monitor monitoring.Monitor) *PollerDeposit {
 	self.monitor = monitor
 	return self
 }
 
-func (self *PollerSommelier) WithInputChannel(v chan uint64) *PollerSommelier {
+func (self *PollerDeposit) WithInputChannel(v chan uint64) *PollerDeposit {
 	self.input = v
 	return self
 }
 
-func (self *PollerSommelier) handleNew() (err error) {
+func (self *PollerDeposit) handleNew() (err error) {
 	for block := range self.input {
 		block := block
 		self.Log.WithField("block_height", block).Debug("Checking for new assets sums...")
-		ctx, cancel := context.WithTimeout(self.Ctx, self.Config.WarpySyncer.PollerSommelierTimeout)
+		ctx, cancel := context.WithTimeout(self.Ctx, self.Config.WarpySyncer.PollerDepositTimeout)
 		defer cancel()
 
 		var AssetsSums []struct {
@@ -67,13 +67,13 @@ func (self *PollerSommelier) handleNew() (err error) {
 				SUM(assets) 
 				FROM warpy_syncer_assets 
 				WHERE timestamp < ? group by from_address;
-		`, time.Now().Unix()-self.Config.WarpySyncer.PollerSommelierSecondsForSelect).
+		`, time.Now().Unix()-self.Config.WarpySyncer.PollerDepositSecondsForSelect).
 			Scan(&AssetsSums).Error
 
 		if err != nil {
 			if err != gorm.ErrRecordNotFound {
 				self.Log.WithError(err).Error("Failed to get new assets sums")
-				self.monitor.GetReport().WarpySyncer.Errors.PollerSommelierFetchError.Inc()
+				self.monitor.GetReport().WarpySyncer.Errors.PollerDepositFetchError.Inc()
 			}
 			return
 		}
@@ -88,10 +88,10 @@ func (self *PollerSommelier) handleNew() (err error) {
 		interactions := make([]InteractionPayload, len(AssetsSums))
 
 		for i, sum := range AssetsSums {
-			self.monitor.GetReport().WarpySyncer.State.PollerSommelierAssetsFromSelects.Inc()
+			self.monitor.GetReport().WarpySyncer.State.PollerDepositAssetsFromSelects.Inc()
 			interactions[i] = InteractionPayload{
 				FromAddress: sum.FromAddress,
-				Points:      int64(sum.Sum * float64(self.Config.WarpySyncer.PollerSommelierPointsBase)),
+				Points:      int64(sum.Sum * float64(self.Config.WarpySyncer.PollerDepositPointsBase)),
 			}
 		}
 		select {

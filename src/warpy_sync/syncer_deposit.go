@@ -17,7 +17,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type SyncerSommelier struct {
+type SyncerDeposit struct {
 	*task.Task
 	monitor                  monitoring.Monitor
 	db                       *gorm.DB
@@ -30,41 +30,41 @@ type SyncerSommelier struct {
 
 // This task receives block info in the input channel, iterate through all of the block's transactions in order to check if any contains
 // Sommelier transaction and saves transaction in the db
-func NewSyncerSommelier(config *config.Config) (self *SyncerSommelier) {
-	self = new(SyncerSommelier)
+func NewSyncerDeposit(config *config.Config) (self *SyncerDeposit) {
+	self = new(SyncerDeposit)
 
 	self.Output = make(chan *LastSyncedBlockPayload)
 
 	self.OutputTransactionPayload = make(chan *SommelierTransactionPayload)
 
-	self.Task = task.NewTask(config, "syncer").
+	self.Task = task.NewTask(config, "syncer_deposit").
 		WithSubtaskFunc(self.run).
-		WithWorkerPool(config.WarpySyncer.SyncerSommelierNumWorkers, config.WarpySyncer.SyncerSommelierWorkerQueueSize)
+		WithWorkerPool(config.WarpySyncer.SyncerDepositNumWorkers, config.WarpySyncer.SyncerDepositWorkerQueueSize)
 
 	return
 }
 
-func (self *SyncerSommelier) WithInputChannel(v chan *BlockInfoPayload) *SyncerSommelier {
+func (self *SyncerDeposit) WithInputChannel(v chan *BlockInfoPayload) *SyncerDeposit {
 	self.input = v
 	return self
 }
 
-func (self *SyncerSommelier) WithMonitor(monitor monitoring.Monitor) *SyncerSommelier {
+func (self *SyncerDeposit) WithMonitor(monitor monitoring.Monitor) *SyncerDeposit {
 	self.monitor = monitor
 	return self
 }
 
-func (self *SyncerSommelier) WithDb(v *gorm.DB) *SyncerSommelier {
+func (self *SyncerDeposit) WithDb(v *gorm.DB) *SyncerDeposit {
 	self.db = v
 	return self
 }
 
-func (self *SyncerSommelier) WithContractAbi(contractAbi *abi.ABI) *SyncerSommelier {
+func (self *SyncerDeposit) WithContractAbi(contractAbi *abi.ABI) *SyncerDeposit {
 	self.contractAbi = contractAbi
 	return self
 }
 
-func (self *SyncerSommelier) run() (err error) {
+func (self *SyncerDeposit) run() (err error) {
 	for block := range self.input {
 		self.Log.WithField("height", block.Height).Trace("Checking transactions for block")
 		var wg sync.WaitGroup
@@ -78,11 +78,11 @@ func (self *SyncerSommelier) run() (err error) {
 				if err != nil {
 					self.Log.WithError(err).WithField("txId", tx.Hash()).WithField("height", block.Height).
 						Error("Could not process transaction")
-					self.monitor.GetReport().WarpySyncer.Errors.SyncerSommelierProcessTxPermanentError.Inc()
+					self.monitor.GetReport().WarpySyncer.Errors.SyncerDepositProcessTxPermanentError.Inc()
 					goto end
 				}
 
-				self.monitor.GetReport().WarpySyncer.State.SyncerSommelierTxsProcessed.Inc()
+				self.monitor.GetReport().WarpySyncer.State.SyncerDepositTxsProcessed.Inc()
 
 			end:
 				wg.Done()
@@ -101,38 +101,38 @@ func (self *SyncerSommelier) run() (err error) {
 		}:
 		}
 
-		self.monitor.GetReport().WarpySyncer.State.SyncerSommelierBlocksProcessed.Inc()
+		self.monitor.GetReport().WarpySyncer.State.SyncerDepositBlocksProcessed.Inc()
 	}
 	return
 }
 
-func (self *SyncerSommelier) checkTx(tx *types.Transaction, block *BlockInfoPayload) (err error) {
+func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayload) (err error) {
 	err = task.NewRetry().
 		WithContext(self.Ctx).
 		// Retries infinitely until success
 		WithMaxElapsedTime(0).
-		WithMaxInterval(self.Config.WarpySyncer.SyncerSommelierBackoffInterval).
-		WithAcceptableDuration(self.Config.WarpySyncer.SyncerSommelierBackoffInterval * 2).
+		WithMaxInterval(self.Config.WarpySyncer.SyncerDepositBackoffInterval).
+		WithAcceptableDuration(self.Config.WarpySyncer.SyncerDepositBackoffInterval * 2).
 		WithOnError(func(err error, isDurationAcceptable bool) error {
 			if errors.Is(err, context.Canceled) && self.IsStopping.Load() {
 				return backoff.Permanent(err)
 			}
 
-			self.monitor.GetReport().WarpySyncer.Errors.SyncerSommelierCheckTxFailures.Inc()
+			self.monitor.GetReport().WarpySyncer.Errors.SyncerDepositCheckTxFailures.Inc()
 			self.Log.WithError(err).WithField("txId", tx.Hash()).WithField("height", block.Height).
 				Warn("Could not process transaction, retrying...")
 			return err
 		}).
 		Run(func() error {
-			if tx.To() != nil && tx.To().String() == self.Config.WarpySyncer.SyncerSommelierContractId {
-				self.Log.WithField("tx_id", tx.Hash()).Info("Found new Sommelier transaction")
+			if tx.To() != nil && tx.To().String() == self.Config.WarpySyncer.SyncerDepositContractId {
+				self.Log.WithField("tx_id", tx.Hash()).Info("Found new deposit transaction")
 				method, inputsMap, err := eth.DecodeTransactionInputData(self.contractAbi, tx.Data())
 				if err != nil {
 					self.Log.WithError(err).Error("Could not decode transaction input data")
 					return nil
 				}
 
-				if slices.Contains(self.Config.WarpySyncer.SyncerSommelierFunctions, method.Name) {
+				if slices.Contains(self.Config.WarpySyncer.SyncerDepositFunctions, method.Name) {
 					parsedInputsMap, err := json.Marshal(inputsMap)
 					if err != nil {
 						self.Log.WithError(err).Error("Could not parse transaction input")

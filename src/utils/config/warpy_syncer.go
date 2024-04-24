@@ -29,6 +29,9 @@ type WarpySyncer struct {
 	// Block time
 	BlockDownloaderBlockTime float64
 
+	// If should download block by header number (for integrations which cannot decode transactions inside the block)
+	BlockDownloaderByHeader bool
+
 	// Warpy contract id
 	SyncerContractId string
 
@@ -47,8 +50,8 @@ type WarpySyncer struct {
 	// Protocol to be synced
 	SyncerProtocol eth.Protocol
 
-	// API key for Arbiscan
-	SyncerArbiscanApiKey string
+	// API key
+	SyncerApiKey string
 
 	// Warpy admin id
 	SyncerInteractionAdminId string
@@ -72,19 +75,19 @@ type WarpySyncer struct {
 	SyncerDeltaInteractionPoints int64
 
 	// Sommelier contract id to be synced
-	SyncerSommelierContractId string
+	SyncerDepositContractId string
 
 	// Sommelier functions to be synced
-	SyncerSommelierFunctions []string
+	SyncerDepositFunctions []string
 
 	// Max time between failed retries to sync transaction
-	SyncerSommelierBackoffInterval time.Duration
+	SyncerDepositBackoffInterval time.Duration
 
 	// Number of workers that sync transactions
-	SyncerSommelierNumWorkers int
+	SyncerDepositNumWorkers int
 
 	// Max number of transactions that wait in the worker queue
-	SyncerSommelierWorkerQueueSize int
+	SyncerDepositWorkerQueueSize int
 
 	// Max batch size before last block synced will be inserted into database
 	StoreBatchSize int
@@ -93,25 +96,31 @@ type WarpySyncer struct {
 	StoreInterval time.Duration
 
 	// Sommelier functions for withdrawal
-	StoreSommelierWithdrawFunctions []string
+	StoreDepositWithdrawFunctions []string
+
+	// Name of the deposit assets input name
+	StoreDepositDepositAssetsName string
+
+	// Name of the withdraw assets input name
+	StoreDepositWithdrawAssetsName string
 
 	// Max time between failed retries to save last block synced
 	StoreMaxBackoffInterval time.Duration
 
 	// Maximum length of the channel buffer
-	PollerSommelierChannelBufferLength int
+	PollerDepositChannelBufferLength int
 
 	// How often to poll the database
-	PollerSommelierInterval time.Duration
+	PollerDepositInterval time.Duration
 
 	// How long does it wait for the query response
-	PollerSommelierTimeout time.Duration
+	PollerDepositTimeout time.Duration
 
 	// Base for the points multiplication
-	PollerSommelierPointsBase int64
+	PollerDepositPointsBase int64
 
 	// How much time should pass until we include transaction in rewards (in seconds)
-	PollerSommelierSecondsForSelect int64
+	PollerDepositSecondsForSelect int64
 
 	// Max time between failed retries to write interaction
 	WriterBackoffInterval time.Duration
@@ -129,15 +138,16 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.BlockDownloaderBatchSize", 100)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.BlockDownloaderChannelSize", 100)
-	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 3600)
+	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 360)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBlockTime", float64(0.26))
-	viper.SetDefault("WarpySyncer.SyncerContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
+	viper.SetDefault("WarpySyncer.BlockDownloaderByHeader", true)
+	viper.SetDefault("WarpySyncer.SyncerContractId", "mdxBOJ3cy98lqJoPZf7EW0iU4jaqePC3XZRkzoWU1QY")
 	viper.SetDefault("WarpySyncer.SyncerNameServiceContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
-	viper.SetDefault("WarpySyncer.SyncerChain", eth.Arbitrum)
-	viper.SetDefault("WarpySyncer.SyncerProtocol", eth.Sommelier)
+	viper.SetDefault("WarpySyncer.SyncerChain", eth.Mode)
+	viper.SetDefault("WarpySyncer.SyncerProtocol", eth.LayerBank)
 	viper.SetDefault("WarpySyncer.SyncerDreUrl", "https://dre-warpy.warp.cc")
 	viper.SetDefault("WarpySyncer.SyncerWarpyApiUrl", "https://api-warpy.warp.cc")
-	viper.SetDefault("WarpySyncer.SyncerArbiscanApiKey", "")
+	viper.SetDefault("WarpySyncer.SyncerApiKey", "")
 	viper.SetDefault("WarpySyncer.SyncerInteractionAdminId", "769844280767807520")
 	viper.SetDefault("WarpySyncer.SyncerSigner", "")
 	viper.SetDefault("WarpySyncer.SyncerDeltaInteractionPoints", 20)
@@ -147,18 +157,20 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.SyncerDeltaRedstoneData", "000002ed57011e0000")
 	viper.SetDefault("WarpySyncer.SyncerDeltaNumWorkers", "50")
 	viper.SetDefault("WarpySyncer.SyncerDeltaWorkerQueueSize", "10")
-	viper.SetDefault("WarpySyncer.SyncerSommelierContractId", "0xC47bB288178Ea40bF520a91826a3DEE9e0DbFA4C")
-	viper.SetDefault("WarpySyncer.SyncerSommelierBackoffInterval", "3s")
-	viper.SetDefault("WarpySyncer.SyncerSommelierFunctions", []string{"deposit", "multiAssetDeposit", "redeem"})
-	viper.SetDefault("WarpySyncer.StoreSommelierWithdrawFunctions", []string{"redeem"})
+	viper.SetDefault("WarpySyncer.SyncerDepositContractId", "0x80980869D90A737aff47aBA6FbaA923012C1FF50")
+	viper.SetDefault("WarpySyncer.SyncerDepositBackoffInterval", "3s")
+	viper.SetDefault("WarpySyncer.SyncerDepositFunctions", []string{"supply", "redeemToken"})
+	viper.SetDefault("WarpySyncer.StoreDepositWithdrawFunctions", []string{"redeemToken"})
 	viper.SetDefault("WarpySyncer.StoreBatchSize", "500")
 	viper.SetDefault("WarpySyncer.StoreInterval", "2s")
 	viper.SetDefault("WarpySyncer.StoreMaxBackoffInterval", "30s")
-	viper.SetDefault("WarpySyncer.PollerSommelierChannelBufferLength", 100)
-	viper.SetDefault("WarpySyncer.PollerSommelierInterval", "1m")
-	viper.SetDefault("WarpySyncer.PollerSommelierTimeout", "90s")
-	viper.SetDefault("WarpySyncer.PollerSommelierPointsBase", 1000)
-	viper.SetDefault("WarpySyncer.PollerSommelierSecondsForSelect", 3600)
+	viper.SetDefault("WarpySyncer.StoreDepositDepositAssetsName", "lAmount")
+	viper.SetDefault("WarpySyncer.StoreDepositWithdrawAssetsName", "uAmount")
+	viper.SetDefault("WarpySyncer.PollerDepositChannelBufferLength", 100)
+	viper.SetDefault("WarpySyncer.PollerDepositInterval", "1m")
+	viper.SetDefault("WarpySyncer.PollerDepositTimeout", "90s")
+	viper.SetDefault("WarpySyncer.PollerDepositPointsBase", 1000)
+	viper.SetDefault("WarpySyncer.PollerDepositSecondsForSelect", 3600)
 	viper.SetDefault("WarpySyncer.WriterBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.WriterHttpRequestTimeout", "30s")
 	viper.SetDefault("WarpySyncer.WriterInteractionChunkSize", 50)
