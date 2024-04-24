@@ -16,6 +16,7 @@ type WarpySyncerTransaction struct {
 	SyncTimestamp  uint64       `json:"sync_timestamp"`
 	MethodName     string       `json:"method_name"`
 	Chain          string       `json:"chain"`
+	Protocol       string       `json:"protocol"`
 	Input          pgtype.JSONB `json:"input"`
 }
 
@@ -25,6 +26,7 @@ type WarpySyncerAssets struct {
 	Assets      float64 `json:"assets"`
 	Timestamp   uint64  `json:"timestamp"`
 	Protocol    string  `json:"protocol"`
+	Chain       string  `json:"chain"`
 }
 
 type SenderDiscordIdPayload struct {
