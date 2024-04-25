@@ -243,8 +243,9 @@ func (self *BlockDownloader) getBlockOrHeaderInfo(height int64) (blockHeight uin
 }
 
 func (self *BlockDownloader) calculateNextFullBlockHeight(lastSyncedBlockHeight int64, lastSyncedBlockTimestamp int64) int64 {
+	blockTime, _ := self.Config.WarpySyncer.SyncerChain.BlockTime()
 	nextPollBlockTimestamp := (lastSyncedBlockTimestamp - (lastSyncedBlockTimestamp % self.Config.WarpySyncer.BlockDownloaderPollerInterval)) + self.Config.WarpySyncer.BlockDownloaderPollerInterval
 	timestampDiff := nextPollBlockTimestamp - lastSyncedBlockTimestamp
-	blocksDiff := math.Round(float64(timestampDiff) / float64(0.26))
+	blocksDiff := math.Round(float64(timestampDiff) / blockTime)
 	return lastSyncedBlockHeight + int64(blocksDiff)
 }
