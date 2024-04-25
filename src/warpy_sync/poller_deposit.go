@@ -27,7 +27,7 @@ func NewPollerDeposit(config *config.Config) (self *PollerDeposit) {
 
 	self.Output = make(chan *[]InteractionPayload, config.WarpySyncer.PollerDepositChannelBufferLength)
 
-	self.Task = task.NewTask(config, "poller_sommelier").
+	self.Task = task.NewTask(config, "poller_deposit").
 		WithSubtaskFunc(self.handleNew).
 		WithOnAfterStop(func() {
 			close(self.Output)
@@ -66,7 +66,7 @@ func (self *PollerDeposit) handleNew() (err error) {
 			Raw(`SELECT from_address, 
 				SUM(assets) 
 				FROM warpy_syncer_assets 
-				WHERE timestamp < ? AND chain = ? AND protocol ? 
+				WHERE timestamp < ? AND chain = ? AND protocol = ? 
 				group by from_address;
 		`, time.Now().Unix()-self.Config.WarpySyncer.PollerDepositSecondsForSelect,
 				self.Config.WarpySyncer.SyncerChain, self.Config.WarpySyncer.SyncerProtocol).
