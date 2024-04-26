@@ -7,6 +7,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
+	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/sequencer"
 	sequencer_types "github.com/warp-contracts/syncer/src/utils/sequencer/types"
@@ -75,14 +76,21 @@ func GetWalletToDiscordIdMap(httpClient *resty.Client, url string, addresses *[]
 	return
 }
 
-func WriteInteractionToWarpy(ctx context.Context, arweaveSigner string, input json.Marshaler, contractId string, log *logrus.Entry, sequencerClient *sequencer.Client) (interactionId string, err error) {
-	signer, err := bundlr.NewArweaveSigner(arweaveSigner)
+func WriteInteractionToWarpy(ctx context.Context, config config.WarpySyncer, input json.Marshaler, log *logrus.Entry, sequencerClient *sequencer.Client) (interactionId string, err error) {
+	signer, err := bundlr.NewArweaveSigner(config.SyncerSigner)
 	if err != nil {
 		log.WithError(err).Error("Could not create Arweave Signer")
 		return
 	}
 
-	interactionId, err = sequencerClient.UploadInteraction(ctx, input, sequencer_types.WriteInteractionOptions{ContractTxId: contractId}, signer)
+	interactionId, err = sequencerClient.UploadInteraction(
+		ctx,
+		input,
+		sequencer_types.WriteInteractionOptions{ContractTxId: config.SyncerContractId, Tags: []bundlr.Tag{{
+			Name:  "Chain",
+			Value: config.SyncerChain.String(),
+		}}},
+		signer)
 	if err != nil {
 		log.WithError(err).Error("Could not write interaction to Warpy")
 		return
