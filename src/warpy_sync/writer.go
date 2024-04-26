@@ -142,7 +142,7 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload) (er
 	}
 
 	interactionId, err := warpy.WriteInteractionToWarpy(
-		self.Ctx, self.Config.WarpySyncer.SyncerSigner, input, self.Config.WarpySyncer.SyncerContractId, self.Log, self.sequencerClient)
+		self.Ctx, self.Config.WarpySyncer, input, self.Log, self.sequencerClient)
 	if err != nil {
 		return err
 	}
