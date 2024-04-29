@@ -3,11 +3,11 @@ package warpy_sync
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/cenkalti/backoff"
 	"github.com/go-resty/resty/v2"
 	"github.com/warp-contracts/syncer/src/utils/config"
-	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/sequencer"
 	"github.com/warp-contracts/syncer/src/utils/task"
@@ -67,8 +67,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 		return
 	}
 
-	counter := 0
-	members := make([]Member, chunkSize)
+	payloadChunk := make([]InteractionPayload, 0, chunkSize)
 
 	for _, payload := range *payloads {
 		if payload.Points == 0 {
@@ -76,57 +75,74 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 			continue
 		}
 
-		roles, err := self.discordRoles(payload.FromAddress)
-		if err != nil {
-			self.Log.WithError(err).Error("Failed to get roles")
-			return err
-		}
-		if roles == nil {
-			self.Log.WithField("from_address", payload.FromAddress).Debug("Skipping address, not registered in warpy")
-			continue
+		payloadChunk = append(payloadChunk, payload)
+		if len(payloadChunk) >= chunkSize {
+			err = self.sendInteractionChunk(&payloadChunk)
+			if err != nil {
+				self.Log.
+					WithField("chunk_size", len(payloadChunk)).
+					WithError(err).Error("Failed to send interaction chunk")
+				return err
+			}
+			payloadChunk = make([]InteractionPayload, 0, chunkSize)
 		}
 
-		members[counter] = Member{Id: payload.FromAddress, Roles: *roles, Points: payload.Points}
-		counter += 1
-		if counter >= chunkSize {
-			err = self.sendInteractionChunk(&members)
-			counter = 0
-			members = make([]Member, chunkSize)
-		}
+	}
+	if len(payloadChunk) > 0 {
+		err = self.sendInteractionChunk(&payloadChunk)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to send interaction chunk")
 			return err
 		}
 	}
-	if len(members) > 0 {
-		err = self.sendInteractionChunk(&members)
-	}
 
 	return
 }
 
-func (self *Writer) sendInteractionChunk(members *[]Member) (err error) {
+func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload) (err error) {
+	self.Log.WithField("chunk_size", len(*interactions)).
+		Info("Attempting to send a chunk of interaction payload")
+
+	addressToRoles, err := self.walletAddressToDiscordRoles(interactions)
+	if err != nil {
+		self.Log.WithError(err).Error("Failed to get roles")
+		return err
+	}
+	if addressToRoles == nil || len(*addressToRoles) == 0 {
+		self.Log.WithField("chunk_size", len(*interactions)).
+			Debug("Skipping writing interactions, none of the addresses registered in warpy")
+		return
+	}
+
+	members := make([]Member, 0, len(*interactions))
+	for _, p := range *interactions {
+		roles, ok := (*addressToRoles)[p.FromAddress]
+		if ok {
+			members = append(members, Member{Id: p.FromAddress, Roles: roles, Points: p.Points})
+		} else {
+			self.Log.WithField("from_address", p.FromAddress).Debug("Skipping address, not registered in warpy")
+		}
+	}
+
+	if len(members) == 1 {
+		self.Log.WithField("from_address", (members)[0].Id).
+			WithField("points", (members)[0].Points).
+			Debug("Writing interaction to Warpy...")
+	} else {
+		self.Log.WithField("chunk_size", len(members)).
+			WithField("points_default", 0).
+			Debug("Writing interaction to Warpy...")
+	}
 
 	input := Input{
 		Function: "addPointsForAddress",
 		Points:   0,
 		AdminId:  self.Config.WarpySyncer.SyncerInteractionAdminId,
-		Members:  *members,
-	}
-
-	if len(*members) == 1 {
-		self.Log.WithField("from_address", (*members)[0].Id).
-			WithField("points", (*members)[0].Points).
-			Debug("Writing interaction to Warpy...")
-
-	} else {
-		self.Log.WithField("chunk_size", len(*members)).
-			WithField("points_default", 0).
-			Debug("Writing interaction to Warpy...")
+		Members:  members,
 	}
 
 	interactionId, err := warpy.WriteInteractionToWarpy(
-		self.Ctx, self.Config.WarpySyncer.SyncerSigner, input, self.Config.WarpySyncer.SyncerContractId, self.Log, self.sequencerClient)
+		self.Ctx, self.Config.WarpySyncer, input, self.Log, self.sequencerClient)
 	if err != nil {
 		return err
 	}
@@ -136,7 +152,14 @@ func (self *Writer) sendInteractionChunk(members *[]Member) (err error) {
 	return
 }
 
-func (self *Writer) discordRoles(fromAddress string) (roles *[]string, err error) {
+// Returns a map of wallet address to a list of discord roles.
+// If wallet not registered in warpy the map will not contain the key.
+// If wallet found but no roles the map will point to an empty collection.
+func (self *Writer) walletAddressToDiscordRoles(payloads *[]InteractionPayload) (walletToRoles *map[string][]string, err error) {
+	addresses := make([]string, 0, len(*payloads))
+	for _, p := range *payloads {
+		addresses = append(addresses, p.FromAddress)
+	}
 	err = task.NewRetry().
 		WithContext(self.Ctx).
 		// Retries infinitely until success
@@ -149,37 +172,47 @@ func (self *Writer) discordRoles(fromAddress string) (roles *[]string, err error
 			}
 
 			self.monitor.GetReport().WarpySyncer.Errors.WriterFailures.Inc()
-			self.Log.WithError(err).WithField("from_address", fromAddress).
+			self.Log.WithError(err).
 				Warn("Could not process assets sum, retrying...")
 			return err
 		}).
 		Run(func() error {
-			senderDiscordIdPayload, err := warpy.GetSenderDiscordId(self.httpClient, self.Config.WarpySyncer.SyncerDreUrl, fromAddress, self.Log)
+			result, err := warpy.GetWalletToDiscordIdMap(self.httpClient, self.Config.WarpySyncer.SyncerDreUrl, &addresses, self.Log)
 			if err != nil {
-				self.Log.WithError(err).Warn("Could not retrieve sender Discord id")
+				self.Log.WithError(err).Warn("Could not retrieve sender Discord ids")
 				return err
 			}
 
-			if senderDiscordIdPayload == nil || len(*senderDiscordIdPayload) == 0 {
-				self.Log.WithField("from_address", fromAddress).
-					Info("Address not registered in Warpy, exiting")
+			if result.WalletToDiscordId == nil || len(result.WalletToDiscordId) == 0 {
+				self.Log.
+					WithField("addresses", strings.Join(addresses, ",")).
+					Debug("No discord ids found for specified address, exiting")
 				return nil
 			}
 
-			senderDiscordId := []model.SenderDiscordIdPayload{}
-			senderDiscordId = append(senderDiscordId, *senderDiscordIdPayload...)
+			ids := make([]string, 0, len(result.WalletToDiscordId))
+			for _, w := range addresses {
+				id := result.WalletToDiscordId[w]
+				if len(id) > 15 {
+					ids = append(ids, id)
+				} else {
+					self.Log.WithField("from_address", w).
+						Info("Address not registered in Warpy, skipping")
+				}
+			}
 
-			senderRoles, err := warpy.GetSenderRoles(self.httpClient, self.Config.WarpySyncer.SyncerWarpyApiUrl, senderDiscordId[0].Key, self.Log)
-
+			walletToRoles = &map[string][]string{}
+			rolesPayload, err := warpy.GetSendersRoles(self.httpClient, self.Config.WarpySyncer.SyncerWarpyApiUrl, &ids, self.Log)
 			if err != nil {
-				self.Log.WithError(err).Warn("Could not retrieve sender roles")
+				self.Log.
+					WithError(err).Warn("Could not retrieve senders roles")
 				return err
 			}
 
-			if senderRoles != nil {
-				roles = senderRoles
-			} else {
-				roles = &[]string{}
+			for _, w := range addresses {
+				if id, ok := result.WalletToDiscordId[w]; ok {
+					(*walletToRoles)[w] = (*rolesPayload).IdToRoles[id]
+				}
 			}
 
 			return nil
