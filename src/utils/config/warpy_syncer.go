@@ -138,7 +138,7 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.BlockDownloaderBatchSize", 100)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.BlockDownloaderChannelSize", 100)
-	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 360)
+	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 3600) // should be 1h: 60 * 60 seconds
 	viper.SetDefault("WarpySyncer.BlockDownloaderBlockTime", float64(0.26))
 	viper.SetDefault("WarpySyncer.BlockDownloaderByHeader", true)
 	viper.SetDefault("WarpySyncer.SyncerContractId", "mdxBOJ3cy98lqJoPZf7EW0iU4jaqePC3XZRkzoWU1QY")
