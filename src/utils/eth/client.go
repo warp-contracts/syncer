@@ -39,23 +39,6 @@ const (
 	Manta    Chain = iota
 )
 
-func (chain Chain) BlockTime() (blockTime float64, err error) {
-	switch chain {
-	case Arbitrum:
-		blockTime = float64(0.26)
-		return
-	case Mode:
-		blockTime = float64(2)
-		return
-	case Manta:
-		blockTime = float64(10)
-		return
-	}
-
-	err = errors.New("Block time unknown")
-	return
-}
-
 func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
 	switch chain {
 	case Avax:
