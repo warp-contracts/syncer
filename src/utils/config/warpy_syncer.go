@@ -141,7 +141,7 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 3600) // should be 1h: 60 * 60 seconds
 	viper.SetDefault("WarpySyncer.BlockDownloaderBlockTime", float64(0.26))
 	viper.SetDefault("WarpySyncer.BlockDownloaderByHeader", true)
-	viper.SetDefault("WarpySyncer.SyncerContractId", "mdxBOJ3cy98lqJoPZf7EW0iU4jaqePC3XZRkzoWU1QY")
+	viper.SetDefault("WarpySyncer.SyncerContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
 	viper.SetDefault("WarpySyncer.SyncerNameServiceContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
 	viper.SetDefault("WarpySyncer.SyncerChain", eth.Manta)
 	viper.SetDefault("WarpySyncer.SyncerProtocol", eth.LayerBank)
