@@ -139,18 +139,23 @@ func (self *Client) UploadInteraction(ctx context.Context, input json.Marshaler,
 	if err != nil {
 		return
 	}
+
 	if len(tagsBytes) > 4096 {
-		inputFormatTagIndex := slices.Index(bundleItem.Tags, bundlr.Tag{Name: smartweave.TagInputFormat, Value: smartweave.TagInputFormatTagValue})
-		bundleItem.Tags = slices.Delete(bundleItem.Tags, inputFormatTagIndex, inputFormatTagIndex+1)
-
-		bundleItem.Tags = append(bundleItem.Tags, bundlr.Tag{Name: smartweave.TagInputFormat, Value: smartweave.TagInputFormatDataValue})
-
-		inputTagIndex := slices.Index(bundleItem.Tags, bundlr.Tag{Name: smartweave.TagInput, Value: string(parsedInput)})
-		bundleItem.Tags = slices.Delete(bundleItem.Tags, inputTagIndex, inputTagIndex+1)
-
-		dataFields.Input = input
-
+		self.log.WithField("taglen", len(tagsBytes)).Debug("Tags len over 4096")
+	} else {
+		self.log.WithField("taglen", len(tagsBytes)).Debug("Tags len under 4096")
 	}
+
+	inputFormatTagIndex := slices.Index(bundleItem.Tags, bundlr.Tag{Name: smartweave.TagInputFormat, Value: smartweave.TagInputFormatTagValue})
+	bundleItem.Tags = slices.Delete(bundleItem.Tags, inputFormatTagIndex, inputFormatTagIndex+1)
+
+	bundleItem.Tags = append(bundleItem.Tags, bundlr.Tag{Name: smartweave.TagInputFormat, Value: smartweave.TagInputFormatDataValue})
+
+	inputTagIndex := slices.Index(bundleItem.Tags, bundlr.Tag{Name: smartweave.TagInput, Value: string(parsedInput)})
+	bundleItem.Tags = slices.Delete(bundleItem.Tags, inputTagIndex, inputTagIndex+1)
+
+	dataFields.Input = input
+
 	if options.ManifestData != nil {
 		dataFields.Manifest = options.ManifestData
 	}
