@@ -134,6 +134,25 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 
 				if slices.Contains(self.Config.WarpySyncer.SyncerDepositFunctions, method.Name) {
 					parsedInputsMap, err := json.Marshal(inputsMap)
+
+					tokenName := inputsMap["lToken"]
+					self.Log.WithField("token_name", tokenName).Info("Token set for transfer")
+
+					// TODO: do it properly (i.e. via params, not hardcoded)
+					if self.Config.WarpySyncer.SyncerChain == eth.Mode {
+						if tokenName != "0x6A0d9584D88D22BcaD7D4F83E7d6AB7949895DDF" {
+							self.Log.WithField("token_name", tokenName).Warn("Wrong token set for transfer")
+							return nil
+						}
+					}
+
+					if self.Config.WarpySyncer.SyncerChain == eth.Manta {
+						if tokenName != "0x71384B2c17433Ba1D8F6Fe895E9B2E7953dCED68" {
+							self.Log.WithField("token_id", tokenName).Warn("Wrong token set for transfer")
+							return nil
+						}
+					}
+
 					if err != nil {
 						self.Log.WithError(err).Error("Could not parse transaction input")
 						return err
