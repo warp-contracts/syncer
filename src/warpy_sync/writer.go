@@ -192,7 +192,7 @@ func (self *Writer) walletAddressToDiscordRoles(payloads *[]InteractionPayload) 
 
 			ids := make([]string, 0, len(result.WalletToDiscordId))
 			for _, w := range addresses {
-				id := result.WalletToDiscordId[w]
+				id := result.WalletToDiscordId[strings.ToLower(w)]
 				if len(id) > 15 {
 					ids = append(ids, id)
 				} else {

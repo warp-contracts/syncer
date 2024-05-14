@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/warp-contracts/syncer/src/utils/bundlr"
@@ -53,7 +54,7 @@ func GetWalletToDiscordIdMap(httpClient *resty.Client, url string, addresses *[]
 			"addresses": *addresses,
 		}).
 		SetHeader("Accept", "application/json").
-		Post("/warpy/user-ids")
+		Post("/warpy/fixed/user-ids")
 
 	if err != nil {
 		return
