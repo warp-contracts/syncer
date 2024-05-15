@@ -117,6 +117,9 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload) (er
 	members := make([]Member, 0, len(*interactions))
 	for _, p := range *interactions {
 		roles, ok := (*addressToRoles)[p.FromAddress]
+		if roles == nil {
+			roles = make([]string, 0)
+		}
 		if ok {
 			members = append(members, Member{Id: p.FromAddress, Roles: roles, Points: p.Points})
 		} else {
