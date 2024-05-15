@@ -210,7 +210,7 @@ func (self *Writer) walletAddressToDiscordRoles(payloads *[]InteractionPayload) 
 			}
 
 			for _, w := range addresses {
-				if id, ok := result.WalletToDiscordId[w]; ok {
+				if id, ok := result.WalletToDiscordId[strings.ToLower(w)]; ok {
 					(*walletToRoles)[w] = (*rolesPayload).IdToRoles[id]
 				}
 			}
