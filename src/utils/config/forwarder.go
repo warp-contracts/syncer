@@ -19,6 +19,9 @@ type Forwarder struct {
 	// Interactions are saved to this Redis channel
 	PublisherRedisChannelName string
 
+	// Interactions are saved to this AppSync channel
+	PublisherAppSyncChannelName string
+
 	// How long to wait before after receiving a new block height before sending L1 interactions
 	// This delay ensures sequencer finishes handling requests in time
 	HeightDelay time.Duration
@@ -40,7 +43,8 @@ func setForwarderDefaults() {
 	viper.SetDefault("Forwarder.FetcherLastSortKeySettingBlockHeight", "0")
 	viper.SetDefault("Forwarder.FetcherLastSortKeySettingEnabled", "true")
 	viper.SetDefault("Forwarder.FetcherBatchSize", "10")
-	viper.SetDefault("Forwarder.PublisherRedisChannelName", "contracts")
+	viper.SetDefault("Forwarder.PublisherRedisChannelName", "interactions")
+	viper.SetDefault("Forwarder.PublisherAppSyncChannelName", "interactions")
 	viper.SetDefault("Forwarder.HeightDelay", "1s")
 	viper.SetDefault("Forwarder.ArweaveFetcherQueueSize", "3000")
 	viper.SetDefault("Forwarder.ArweaveFetcherBlockSendTimeout", "300s")
