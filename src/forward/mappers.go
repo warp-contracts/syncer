@@ -38,3 +38,35 @@ func redisMapper(config *config.Config) (self *task.Mapper[*Payload, *model.Inte
 			return nil
 		})
 }
+
+func appSyncMapper(config *config.Config) (self *task.Mapper[*Payload, *model.InteractionNotification]) {
+	return task.NewMapper[*Payload, *model.InteractionNotification](config, "map-appsync-notification").
+		WithWorkerPool(1, config.Contract.StoreBatchSize).
+		WithProcessFunc(func(data *Payload, out chan *model.InteractionNotification) (err error) {
+			// Neglect empty messages
+			if data.Interaction == nil {
+				return nil
+			}
+
+			self.Log.WithField("contract_id", data.Interaction.ContractId).Trace("Publishing interaction to AppSync")
+
+			interactionStr, err := data.Interaction.Interaction.MarshalJSON()
+			if err != nil {
+				self.Log.WithField("contract_id", data.Interaction.ContractId).Warn("Failed to marshal interaction")
+				return err
+			}
+
+			select {
+			case <-self.Ctx.Done():
+			case out <- &model.InteractionNotification{
+				ContractTxId: data.Interaction.ContractId,
+				Test:         false,
+				Source:       "warp-gw",
+				Interaction:  string(interactionStr),
+				SrcTxId:      data.SrcTxId,
+			}:
+			}
+
+			return nil
+		})
+}
