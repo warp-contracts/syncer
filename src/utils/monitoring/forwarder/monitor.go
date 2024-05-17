@@ -28,9 +28,10 @@ func NewMonitor(config *config.Config) (self *Monitor) {
 	self = new(Monitor)
 
 	self.Report = report.Report{
-		Run:             &report.RunReport{},
-		RedisPublishers: make([]report.RedisPublisherReport, len(config.Redis)),
-		Forwarder:       &report.ForwarderReport{},
+		Run:              &report.RunReport{},
+		RedisPublishers:  make([]report.RedisPublisherReport, len(config.Redis)),
+		Forwarder:        &report.ForwarderReport{},
+		AppSyncPublisher: &report.AppSyncPublisherReport{},
 	}
 
 	// Initialization

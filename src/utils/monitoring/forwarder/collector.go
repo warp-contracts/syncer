@@ -29,9 +29,18 @@ type Collector struct {
 	RedisPoolStaleConns    []*prometheus.Desc
 	RedisPoolTimeouts      []*prometheus.Desc
 	RedisPoolTotalConns    []*prometheus.Desc
+
+	// App sync publisher
+	AppSyncPublishErrors     *prometheus.Desc
+	AppSyncPersistentErrors  *prometheus.Desc
+	AppSyncMessagesPublished *prometheus.Desc
 }
 
 func NewCollector(config *config.Config) *Collector {
+	labels := prometheus.Labels{
+		"app": "forwarder",
+	}
+
 	collector := &Collector{
 		// Run
 		UpForSeconds: prometheus.NewDesc("up_for_seconds", "", nil, nil),
@@ -52,6 +61,11 @@ func NewCollector(config *config.Config) *Collector {
 		RedisPoolStaleConns:    make([]*prometheus.Desc, len(config.Redis)),
 		RedisPoolTimeouts:      make([]*prometheus.Desc, len(config.Redis)),
 		RedisPoolTotalConns:    make([]*prometheus.Desc, len(config.Redis)),
+
+		// App sync publisher
+		AppSyncPublishErrors:     prometheus.NewDesc("error_app_sync_publish", "", nil, labels),
+		AppSyncPersistentErrors:  prometheus.NewDesc("error_app_sync_persistent", "", nil, labels),
+		AppSyncMessagesPublished: prometheus.NewDesc("app_sync_messages_published", "", nil, labels),
 	}
 
 	for i := range config.Redis {
@@ -97,6 +111,11 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- self.RedisPoolTimeouts[i]
 		ch <- self.RedisPoolTotalConns[i]
 	}
+
+	// App sync publisher
+	ch <- self.AppSyncPublishErrors
+	ch <- self.AppSyncPersistentErrors
+	ch <- self.AppSyncMessagesPublished
 }
 
 // Collect implements required collect function for all promehteus collectors
@@ -122,4 +141,9 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(self.RedisPoolTimeouts[i], prometheus.GaugeValue, float64(redisPublisher.State.PoolTimeouts.Load()))
 		ch <- prometheus.MustNewConstMetric(self.RedisPoolTotalConns[i], prometheus.GaugeValue, float64(redisPublisher.State.PoolTotalConns.Load()))
 	}
+
+	// App sync publisher
+	ch <- prometheus.MustNewConstMetric(self.AppSyncPublishErrors, prometheus.CounterValue, float64(self.monitor.Report.AppSyncPublisher.Errors.Publish.Load()))
+	ch <- prometheus.MustNewConstMetric(self.AppSyncPersistentErrors, prometheus.CounterValue, float64(self.monitor.Report.AppSyncPublisher.Errors.PersistentFailure.Load()))
+	ch <- prometheus.MustNewConstMetric(self.AppSyncMessagesPublished, prometheus.CounterValue, float64(self.monitor.Report.AppSyncPublisher.State.MessagesPublished.Load()))
 }

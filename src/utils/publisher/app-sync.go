@@ -79,15 +79,11 @@ func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
 		Data: string(data),
 	}
 
-	self.Log.WithField("args", args).Info("AppSync args")
-
 	argsBuf, err := json.Marshal(args)
-	self.Log.WithField("argsBuf", argsBuf).Info("AppSync argsBuf")
 	if err != nil {
 		return
 	}
 	variables := json.RawMessage(argsBuf)
-	self.Log.WithField("variables", variables).Info("AppSync variables")
 
 	// Perform the request
 	response, err := self.client.Post(graphql.PostRequest{
@@ -97,7 +93,6 @@ func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	self.Log.WithField("response", response).Info("AppSync response")
 
 	// Check response
 	if response.StatusCode != nil && *response.StatusCode != http.StatusOK {
@@ -112,7 +107,6 @@ func (self *AppSyncPublisher[In]) publish(data []byte) (err error) {
 }
 
 func (self *AppSyncPublisher[In]) run() (err error) {
-	self.Log.WithField("input", self.input).Info("AppSync input")
 	for data := range self.input {
 		data := data
 		self.SubmitToWorker(func() {
@@ -121,7 +115,6 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 
 			// Serialize to JSON
 			jsonData, err := data.MarshalBinary()
-			self.Log.WithField("data", jsonData).Info("JSON data")
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to marshal to json")
 				return
