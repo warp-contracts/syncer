@@ -85,11 +85,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithInputChannel(appSyncMapper.Output)
 
 		return task.NewTask(config, "watched").
-			WithSubtask(duplicator.Task).
 			WithSubtask(redisDuplicator.Task).
 			WithSubtaskSlice(redisPublishers).
-			WithSubtask(appSyncPublisher.Task).
-			WithSubtask(appSyncMapper.Task)
+			WithSubtask(appSyncPublisher.Task)
 	}
 
 	watchdog := task.NewWatchdog(config).
@@ -112,6 +110,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(fetcher.Task).
 		WithSubtask(watchdog.Task).
 		WithSubtask(interactionStreamer.Task).
-		WithSubtask(server.Task)
+		WithSubtask(server.Task).
+		WithSubtask(duplicator.Task).
+		WithSubtask(appSyncMapper.Task)
+
 	return
 }

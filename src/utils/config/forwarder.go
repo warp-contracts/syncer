@@ -43,7 +43,7 @@ func setForwarderDefaults() {
 	viper.SetDefault("Forwarder.FetcherLastSortKeySettingBlockHeight", "0")
 	viper.SetDefault("Forwarder.FetcherLastSortKeySettingEnabled", "true")
 	viper.SetDefault("Forwarder.FetcherBatchSize", "10")
-	viper.SetDefault("Forwarder.PublisherRedisChannelName", "interactions")
+	viper.SetDefault("Forwarder.PublisherRedisChannelName", "contracts")
 	viper.SetDefault("Forwarder.PublisherAppSyncChannelName", "interactions")
 	viper.SetDefault("Forwarder.HeightDelay", "1s")
 	viper.SetDefault("Forwarder.ArweaveFetcherQueueSize", "3000")

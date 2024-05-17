@@ -23,7 +23,7 @@ const mutation = `mutation Publish($data: AWSJSON!, $name: String!) {
 	}
   }`
 
-// Forwards messages to Redis
+// Forwards messages to AppSync
 type AppSyncPublisher[In encoding.BinaryMarshaler] struct {
 	*task.Task
 
