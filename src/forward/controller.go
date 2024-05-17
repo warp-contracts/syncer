@@ -60,9 +60,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	redisMapper := redisMapper(config).
 		WithInputChannel(duplicator.NextChannel())
 
-	appSyncMapper := appSyncMapper(config).
-		WithInputChannel(duplicator.NextChannel())
-
 	watched := func() *task.Task {
 		redisDuplicator := task.NewDuplicator[*model.InteractionNotification](config, "redis-duplicator").
 			WithOutputChannels(len(config.Redis), 0).
@@ -79,6 +76,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		}
 
 		// Publish to AppSync
+		appSyncMapper := appSyncMapper(config).
+			WithInputChannel(duplicator.NextChannel())
+
 		appSyncPublisher := publisher.NewAppSyncPublisher[*model.InteractionNotification](config, "interaction-appsync-publisher").
 			WithChannelName(config.Forwarder.PublisherAppSyncChannelName).
 			WithMonitor(monitor).
@@ -87,6 +87,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		return task.NewTask(config, "watched").
 			WithSubtask(redisDuplicator.Task).
 			WithSubtaskSlice(redisPublishers).
+			WithSubtask(appSyncMapper.Task).
 			WithSubtask(appSyncPublisher.Task)
 	}
 
@@ -111,8 +112,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(watchdog.Task).
 		WithSubtask(interactionStreamer.Task).
 		WithSubtask(server.Task).
-		WithSubtask(duplicator.Task).
-		WithSubtask(appSyncMapper.Task)
+		WithSubtask(duplicator.Task)
 
 	return
 }
