@@ -23,6 +23,11 @@ const mutation = `mutation Publish($data: AWSJSON!, $name: String!) {
 	}
   }`
 
+type AppSyncPayload[In encoding.BinaryMarshaler] struct {
+	In          In
+	ChannelName string
+}
+
 // Forwards messages to AppSync
 type AppSyncPublisher[In encoding.BinaryMarshaler] struct {
 	*task.Task
@@ -31,7 +36,7 @@ type AppSyncPublisher[In encoding.BinaryMarshaler] struct {
 
 	client      *appsync.Client
 	channelName string
-	input       chan In
+	input       chan *AppSyncPayload[In]
 }
 
 type Args struct {
@@ -57,13 +62,8 @@ func NewAppSyncPublisher[In encoding.BinaryMarshaler](config *config.Config, nam
 	return
 }
 
-func (self *AppSyncPublisher[In]) WithInputChannel(v chan In) *AppSyncPublisher[In] {
+func (self *AppSyncPublisher[In]) WithInputChannel(v chan *AppSyncPayload[In]) *AppSyncPublisher[In] {
 	self.input = v
-	return self
-}
-
-func (self *AppSyncPublisher[In]) WithChannelName(v string) *AppSyncPublisher[In] {
-	self.channelName = v
 	return self
 }
 
@@ -114,12 +114,13 @@ func (self *AppSyncPublisher[In]) run() (err error) {
 			defer self.Log.Debug("...App sync publish done")
 
 			// Serialize to JSON
-			jsonData, err := data.MarshalBinary()
+			jsonData, err := data.In.MarshalBinary()
 			if err != nil {
 				self.Log.WithError(err).Error("Failed to marshal to json")
 				return
 			}
 
+			self.channelName = data.ChannelName
 			// Retry on failure with exponential backoff
 			err = task.NewRetry().
 				WithContext(self.Ctx).

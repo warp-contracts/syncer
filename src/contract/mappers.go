@@ -4,6 +4,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/arweave"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/model"
+	"github.com/warp-contracts/syncer/src/utils/publisher"
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
@@ -34,20 +35,23 @@ func redisMapper(config *config.Config) (self *task.Mapper[*ContractData, *model
 		})
 }
 
-func appSyncMapper(config *config.Config) (self *task.Mapper[*ContractData, *model.AppSyncContractNotification]) {
-	return task.NewMapper[*ContractData, *model.AppSyncContractNotification](config, "map-appsync-notification").
+func appSyncMapper(config *config.Config, channelName string) (self *task.Mapper[*ContractData, *publisher.AppSyncPayload[*model.AppSyncContractNotification]]) {
+	return task.NewMapper[*ContractData, *publisher.AppSyncPayload[*model.AppSyncContractNotification]](config, "map-appsync-notification").
 		WithWorkerPool(1, config.Contract.StoreBatchSize).
-		WithProcessFunc(func(data *ContractData, out chan *model.AppSyncContractNotification) (err error) {
+		WithProcessFunc(func(data *ContractData, out chan *publisher.AppSyncPayload[*model.AppSyncContractNotification]) (err error) {
 			select {
 			case <-self.Ctx.Done():
-			case out <- &model.AppSyncContractNotification{
-				ContractTxId:   data.Contract.ContractId,
-				Source:         "arweave",
-				BlockHeight:    data.Contract.BlockHeight,
-				BlockTimestamp: data.Contract.BlockTimestamp,
-				Creator:        data.Contract.Owner.String,
-				Type:           data.Contract.Type.String,
-				SyncTimestamp:  data.Contract.SyncTimestamp.Int,
+			case out <- &publisher.AppSyncPayload[*model.AppSyncContractNotification]{
+				In: &model.AppSyncContractNotification{
+					ContractTxId:   data.Contract.ContractId,
+					Source:         "arweave",
+					BlockHeight:    data.Contract.BlockHeight,
+					BlockTimestamp: data.Contract.BlockTimestamp,
+					Creator:        data.Contract.Owner.String,
+					Type:           data.Contract.Type.String,
+					SyncTimestamp:  data.Contract.SyncTimestamp.Int,
+				},
+				ChannelName: channelName,
 			}:
 			}
 

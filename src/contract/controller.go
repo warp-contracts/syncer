@@ -109,11 +109,10 @@ func NewController(config *config.Config, startBlockHeight, stopBlockHeight uint
 		}
 
 		// Publish to AppSync
-		appSyncMapper := appSyncMapper(config).
+		appSyncMapper := appSyncMapper(config, config.Contract.PublisherAppSyncChannelName).
 			WithInputChannel(duplicator.NextChannel())
 
 		appSyncPublisher := publisher.NewAppSyncPublisher[*model.AppSyncContractNotification](config, "contract-appsync-publisher").
-			WithChannelName(config.Contract.PublisherAppSyncChannelName).
 			WithMonitor(monitor).
 			WithInputChannel(appSyncMapper.Output)
 
