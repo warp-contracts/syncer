@@ -53,12 +53,18 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithInputChannel(interactionStreamer.Output)
 
 	duplicator := task.NewDuplicator[*Payload](config, "interaction-duplicator").
-		WithOutputChannels(2, 0).
+		WithOutputChannels(3, 0).
 		WithInputChannel(joiner.Output)
 
 	// Publish to all redis instances
 	redisMapper := redisMapper(config).
 		WithInputChannel(duplicator.NextChannel())
+
+	appSyncMapperInteraction := appSyncMapper(config, config.Forwarder.PublisherAppSyncChannelName, true).
+		WithInputChannel(duplicator.NextChannel())
+	appSyncMapperInteractionForContract := appSyncMapper(config, config.Forwarder.PublisherAppSyncChannelName, false).
+		WithInputChannel(duplicator.NextChannel())
+	appSyncMappers := [2]*task.Mapper[*Payload, *publisher.AppSyncPayload[*model.InteractionNotification]]{appSyncMapperInteraction, appSyncMapperInteractionForContract}
 
 	watched := func() *task.Task {
 		redisDuplicator := task.NewDuplicator[*model.InteractionNotification](config, "redis-duplicator").
@@ -76,19 +82,19 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		}
 
 		// Publish to AppSync
-		appSyncMapper := appSyncMapper(config).
-			WithInputChannel(duplicator.NextChannel())
+		appSyncPublishers := make([]*task.Task, 0, 2)
 
-		appSyncPublisher := publisher.NewAppSyncPublisher[*model.InteractionNotification](config, "interaction-appsync-publisher").
-			WithChannelName(config.Forwarder.PublisherAppSyncChannelName).
-			WithMonitor(monitor).
-			WithInputChannel(appSyncMapper.Output)
+		for _, appSyncMapper := range appSyncMappers {
+			appSyncPublisher := publisher.NewAppSyncPublisher[*model.InteractionNotification](config, "interaction-appsync-publisher").
+				WithMonitor(monitor).
+				WithInputChannel(appSyncMapper.Output)
+			appSyncPublishers = append(appSyncPublishers, appSyncPublisher.Task)
+		}
 
 		return task.NewTask(config, "watched").
 			WithSubtask(redisDuplicator.Task).
 			WithSubtaskSlice(redisPublishers).
-			WithSubtask(appSyncMapper.Task).
-			WithSubtask(appSyncPublisher.Task)
+			WithSubtaskSlice(appSyncPublishers)
 	}
 
 	watchdog := task.NewWatchdog(config).
@@ -112,6 +118,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(watchdog.Task).
 		WithSubtask(interactionStreamer.Task).
 		WithSubtask(server.Task).
+		WithSubtask(appSyncMapperInteraction.Task).
+		WithSubtask(appSyncMapperInteractionForContract.Task).
 		WithSubtask(duplicator.Task)
 
 	return
