@@ -46,6 +46,8 @@ func appSyncMapper(config *config.Config, channelName string, forContract bool) 
 	return task.NewMapper[*Payload, *publisher.AppSyncPayload[*model.InteractionNotification]](config, "map-appsync-notification").
 		WithWorkerPool(1, config.Contract.StoreBatchSize).
 		WithProcessFunc(func(data *Payload, out chan *publisher.AppSyncPayload[*model.InteractionNotification]) (err error) {
+			channelName := channelName
+
 			// Neglect empty messages
 			if data.Interaction == nil {
 				return nil
