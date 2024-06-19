@@ -3,6 +3,7 @@ package warpy_sync
 import (
 	"errors"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/eth"
 	"github.com/warp-contracts/syncer/src/utils/model"
@@ -90,15 +91,24 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		writerTask = writer.Task
 		syncerTask = syncer.Task
 		syncerOutput = syncer.Output
-	case eth.Sommelier, eth.LayerBank:
-		contractAbi, errAbi := eth.GetContractABI(
-			config.WarpySyncer.SyncerDepositContractId,
-			config.WarpySyncer.SyncerApiKey,
-			config.WarpySyncer.SyncerChain)
+	case eth.Sommelier, eth.LayerBank, eth.Pendle:
+		var contractAbi *abi.ABI
+		switch config.WarpySyncer.SyncerProtocol {
 
-		err = errAbi
+		case eth.Sommelier, eth.LayerBank:
+			contractAbi, err = eth.GetContractABI(
+				config.WarpySyncer.SyncerDepositContractId,
+				config.WarpySyncer.SyncerApiKey,
+				config.WarpySyncer.SyncerChain)
+		case eth.Pendle:
+			contractAbi, err = eth.GetContractABIFromFile("IPActionSwapPTV3.json")
 
-		// Checks wether block's transactions contain specific Sommelier transactions
+		default:
+			self.Log.WithError(err).Error("ETH Protocol not recognized")
+			return
+		}
+
+		// Checks wether block's transactions contain specific transactions
 		syncer := NewSyncerDeposit(config).
 			WithMonitor(monitor).
 			WithInputChannel(blockDownloader.Output).
