@@ -1,9 +1,12 @@
 package eth
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
+	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -28,6 +31,7 @@ const (
 	Delta     Protocol = iota
 	Sommelier Protocol = iota
 	LayerBank Protocol = iota
+	Pendle    Protocol = iota
 )
 
 type Chain int
@@ -84,6 +88,8 @@ func (protocol Protocol) String() string {
 		return "sommelier"
 	case LayerBank:
 		return "layer_bank"
+	case Pendle:
+		return "pendle"
 	}
 	return ""
 }
@@ -188,4 +194,32 @@ func GetTxSenderHash(tx *types.Transaction) (txSenderHash string, err error) {
 func WeiToEther(wei *big.Int) float64 {
 	ether, _ := new(big.Float).Quo(new(big.Float).SetInt(wei), big.NewFloat(params.Ether)).Float64()
 	return ether
+}
+
+func GetContractABIFromFile(fileName string) (*abi.ABI, error) {
+	fileData, err := os.Open(fmt.Sprintf("src/warpy_sync/abi/%s", fileName))
+
+	if err != nil {
+		return nil, err
+	}
+
+	byteValue, err := io.ReadAll(fileData)
+	if err != nil {
+		return nil, err
+	}
+
+	rawABIResponse := &RawABIResponse{}
+
+	err = json.Unmarshal(byteValue, rawABIResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	fileData.Close()
+
+	contractABI, err := abi.JSON(strings.NewReader(*rawABIResponse.Result))
+	if err != nil {
+		return nil, err
+	}
+	return &contractABI, nil
 }
