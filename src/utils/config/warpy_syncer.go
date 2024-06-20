@@ -169,10 +169,13 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.SyncerDepositMarkets", []string{
 		// wETH
 		"0x952083cde7aaa11AB8449057F7de23A970AA8472",
+		"0xf9F9779d8fF604732EBA9AD345E6A27EF5c2a9d6",
 		// rsETH
 		"0x6Ae79089b2CF4be441480801bb741A531d94312b",
+		"0xED99fC8bdB8E9e7B8240f62f69609a125A0Fbf14",
 		// ezETH
 		"0x5E03C94Fc5Fb2E21882000A96Df0b63d2c4312e2",
+		"0x35f3dB08a6e9cB4391348b0B404F493E7ae264c0",
 	})
 	viper.SetDefault("WarpySyncer.SyncerDepositToken", "0x6A0d9584D88D22BcaD7D4F83E7d6AB7949895DDF")
 	viper.SetDefault("WarpySyncer.StoreDepositWithdrawFunctions", []string{"swapExactPtForToken"})
