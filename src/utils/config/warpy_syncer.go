@@ -139,14 +139,14 @@ type WarpySyncer struct {
 }
 
 func setWarpySyncerDefaults() {
-	viper.SetDefault("WarpySyncer.BlockDownloaderInterval", "30s")
+	viper.SetDefault("WarpySyncer.BlockDownloaderInterval", "10s")
 	viper.SetDefault("WarpySyncer.BlockDownloaderMaxQueueSize", 1000)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBatchSize", 100)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.BlockDownloaderChannelSize", 100)
 	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 3600) // should be 1h: 60 * 60 seconds
 	viper.SetDefault("WarpySyncer.BlockDownloaderBlockTime", float64(0.26))
-	viper.SetDefault("WarpySyncer.BlockDownloaderByHeader", true)
+	viper.SetDefault("WarpySyncer.BlockDownloaderByHeader", false)
 	viper.SetDefault("WarpySyncer.SyncerContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
 	viper.SetDefault("WarpySyncer.SyncerNameServiceContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
 	viper.SetDefault("WarpySyncer.SyncerChain", eth.Arbitrum)
