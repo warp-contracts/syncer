@@ -199,8 +199,7 @@ func WeiToEther(wei *big.Int) float64 {
 func GetContractABIFromFile(fileName string) (*abi.ABI, error) {
 	pwd, _ := os.Getwd()
 
-	fmt.Printf("%s/src/warpy_sync/abi/%s", pwd, fileName)
-	fileData, err := os.Open(fmt.Sprintf("%s/src/warpy_sync/abi/%s", pwd, fileName))
+	fileData, err := os.Open(fmt.Sprintf("%s/src/warpy_sync/files/%s", pwd, fileName))
 
 	if err != nil {
 		return nil, err
