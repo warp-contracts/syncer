@@ -80,8 +80,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	var syncerOutput chan *LastSyncedBlockPayload
 	var addressesJoined string
 
-	self.Log.Info(addressesJoined)
-
 	switch config.WarpySyncer.SyncerProtocol {
 	case eth.Delta:
 		// Checks wether block's transactions contain Redstone data and if so - writes interaction to Warpy
@@ -117,7 +115,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 				addresses[i] = records[i][1]
 			}
 			addressesJoined = strings.Join(addresses[:], "|")
-			self.Log.Info(addressesJoined)
 		default:
 			self.Log.WithError(err).Error("ETH Protocol not recognized")
 			return
