@@ -89,20 +89,26 @@ type WarpySyncer struct {
 	// Max number of transactions that wait in the worker queue
 	SyncerDepositWorkerQueueSize int
 
+	// Accepted markets in which token is being deposited
+	SyncerDepositMarkets []string
+
+	// Supported token
+	SyncerDepositToken string
+
 	// Max batch size before last block synced will be inserted into database
 	StoreBatchSize int
 
 	// After this time last block synced will be inserted into database
 	StoreInterval time.Duration
 
-	// Sommelier functions for withdrawal
+	// Functions for withdrawal
 	StoreDepositWithdrawFunctions []string
 
-	// Name of the deposit assets input name
-	StoreDepositDepositAssetsName string
+	// Names of the deposit assets input name
+	StoreDepositDepositAssetsNames []string
 
-	// Name of the withdraw assets input name
-	StoreDepositWithdrawAssetsName string
+	// Names of the withdraw assets input name
+	StoreDepositWithdrawAssetsNames []string
 
 	// Max time between failed retries to save last block synced
 	StoreMaxBackoffInterval time.Duration
@@ -133,18 +139,18 @@ type WarpySyncer struct {
 }
 
 func setWarpySyncerDefaults() {
-	viper.SetDefault("WarpySyncer.BlockDownloaderInterval", "30s")
+	viper.SetDefault("WarpySyncer.BlockDownloaderInterval", "10s")
 	viper.SetDefault("WarpySyncer.BlockDownloaderMaxQueueSize", 1000)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBatchSize", 100)
 	viper.SetDefault("WarpySyncer.BlockDownloaderBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.BlockDownloaderChannelSize", 100)
 	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 3600) // should be 1h: 60 * 60 seconds
 	viper.SetDefault("WarpySyncer.BlockDownloaderBlockTime", float64(0.26))
-	viper.SetDefault("WarpySyncer.BlockDownloaderByHeader", true)
+	viper.SetDefault("WarpySyncer.BlockDownloaderByHeader", false)
 	viper.SetDefault("WarpySyncer.SyncerContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
 	viper.SetDefault("WarpySyncer.SyncerNameServiceContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
-	viper.SetDefault("WarpySyncer.SyncerChain", eth.Manta)
-	viper.SetDefault("WarpySyncer.SyncerProtocol", eth.LayerBank)
+	viper.SetDefault("WarpySyncer.SyncerChain", eth.Arbitrum)
+	viper.SetDefault("WarpySyncer.SyncerProtocol", eth.Pendle)
 	viper.SetDefault("WarpySyncer.SyncerDreUrl", "https://dre-warpy.warp.cc")
 	viper.SetDefault("WarpySyncer.SyncerWarpyApiUrl", "https://api-warpy.warp.cc")
 	viper.SetDefault("WarpySyncer.SyncerApiKey", "")
@@ -157,15 +163,27 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.SyncerDeltaRedstoneData", "000002ed57011e0000")
 	viper.SetDefault("WarpySyncer.SyncerDeltaNumWorkers", "50")
 	viper.SetDefault("WarpySyncer.SyncerDeltaWorkerQueueSize", "10")
-	viper.SetDefault("WarpySyncer.SyncerDepositContractId", "0xB7A23Fc0b066051dE58B922dC1a08f33DF748bbf")
+	viper.SetDefault("WarpySyncer.SyncerDepositContractId", "0x888888888889758f76e7103c6cbf23abbf58f946")
 	viper.SetDefault("WarpySyncer.SyncerDepositBackoffInterval", "3s")
-	viper.SetDefault("WarpySyncer.SyncerDepositFunctions", []string{"supply", "redeemToken"})
-	viper.SetDefault("WarpySyncer.StoreDepositWithdrawFunctions", []string{"redeemToken"})
+	viper.SetDefault("WarpySyncer.SyncerDepositFunctions", []string{"swapExactTokenForPt", "swapExactPtForToken"})
+	viper.SetDefault("WarpySyncer.SyncerDepositMarkets", []string{
+		// wETH
+		"0x952083cde7aaa11AB8449057F7de23A970AA8472",
+		"0xf9F9779d8fF604732EBA9AD345E6A27EF5c2a9d6",
+		// rsETH
+		"0x6Ae79089b2CF4be441480801bb741A531d94312b",
+		"0xED99fC8bdB8E9e7B8240f62f69609a125A0Fbf14",
+		// ezETH
+		"0x5E03C94Fc5Fb2E21882000A96Df0b63d2c4312e2",
+		"0x35f3dB08a6e9cB4391348b0B404F493E7ae264c0",
+	})
+	viper.SetDefault("WarpySyncer.SyncerDepositToken", "0x6A0d9584D88D22BcaD7D4F83E7d6AB7949895DDF")
+	viper.SetDefault("WarpySyncer.StoreDepositWithdrawFunctions", []string{"swapExactPtForToken"})
 	viper.SetDefault("WarpySyncer.StoreBatchSize", "500")
 	viper.SetDefault("WarpySyncer.StoreInterval", "2s")
 	viper.SetDefault("WarpySyncer.StoreMaxBackoffInterval", "30s")
-	viper.SetDefault("WarpySyncer.StoreDepositDepositAssetsName", "lAmount")
-	viper.SetDefault("WarpySyncer.StoreDepositWithdrawAssetsName", "uAmount")
+	viper.SetDefault("WarpySyncer.StoreDepositDepositAssetsNames", []string{"input", "netTokenIn"})
+	viper.SetDefault("WarpySyncer.StoreDepositWithdrawAssetsNames", []string{"exactPtIn"})
 	viper.SetDefault("WarpySyncer.PollerDepositChannelBufferLength", 100)
 	viper.SetDefault("WarpySyncer.PollerDepositInterval", "1m")
 	viper.SetDefault("WarpySyncer.PollerDepositTimeout", "90s")

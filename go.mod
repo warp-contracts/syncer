@@ -4,7 +4,7 @@ go 1.21
 
 replace (
 	cosmossdk.io/simapp => github.com/cosmos/cosmos-sdk/simapp v0.0.0-20230608160436-666c345ad23d
-	github.com/ethereum/go-ethereum v1.11.6 => github.com/OffchainLabs/go-ethereum v0.0.0-20230822203130-9a31b6205dba
+	github.com/ethereum/go-ethereum v1.14.0 => github.com/OffchainLabs/go-ethereum v0.0.0-20230822203130-9a31b6205dba
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
@@ -106,6 +106,7 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.14.1 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -200,6 +201,7 @@ require (
 	google.golang.org/grpc v1.61.1 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	pgregory.net/rapid v0.5.5 // indirect

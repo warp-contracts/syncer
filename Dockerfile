@@ -17,4 +17,7 @@ FROM golang:1.21.3-alpine3.17
 RUN mkdir -p /app/bin
 COPY --from=0 /app/bin/syncer /app/bin/syncer
 
+RUN mkdir -p /go/src/warpy_sync
+COPY --from=0 /app/src/warpy_sync /go/src/warpy_sync
+
 CMD ["/app/bin/syncer", "sync"]

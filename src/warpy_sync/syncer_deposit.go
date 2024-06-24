@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/cenkalti/backoff"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/eth"
@@ -125,7 +127,7 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 			return err
 		}).
 		Run(func() error {
-			if tx.To() != nil && tx.To().String() == self.Config.WarpySyncer.SyncerDepositContractId {
+			if tx.To() != nil && strings.EqualFold(tx.To().String(), self.Config.WarpySyncer.SyncerDepositContractId) {
 				self.Log.WithField("tx_id", tx.Hash()).Info("Found new on-chain transaction")
 				method, inputsMap, err := eth.DecodeTransactionInputData(self.contractAbi, tx.Data())
 				if err != nil {
@@ -135,29 +137,24 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 
 				if slices.Contains(self.Config.WarpySyncer.SyncerDepositFunctions, method.Name) {
 					parsedInputsMap, err := json.Marshal(inputsMap)
-
-					tokenName := inputsMap["lToken"]
-					tokenNameStr := fmt.Sprintf("%v", tokenName)
-					self.Log.WithField("token_name", tokenNameStr).Info("Token set for transfer")
-
-					// TODO: do it properly (i.e. via params, not hardcoded)
-					if self.Config.WarpySyncer.SyncerChain == eth.Mode {
-						if tokenNameStr != "0x6A0d9584D88D22BcaD7D4F83E7d6AB7949895DDF" {
-							self.Log.WithField("token_name", tokenNameStr).Warn("Wrong token set for transfer")
-							return nil
-						}
-					}
-
-					if self.Config.WarpySyncer.SyncerChain == eth.Manta {
-						if tokenNameStr != "0x71384B2c17433Ba1D8F6Fe895E9B2E7953dCED68" {
-							self.Log.WithField("token_id", tokenNameStr).Warn("Wrong token set for transfer")
-							return nil
-						}
-					}
-
 					if err != nil {
 						self.Log.WithError(err).Error("Could not parse transaction input")
 						return err
+					}
+
+					if (self.Config.WarpySyncer.SyncerChain == eth.Mode) || (self.Config.WarpySyncer.SyncerChain == eth.Manta) {
+						contains := self.containsSpecificToken(inputsMap)
+						if !contains {
+							return nil
+						}
+					}
+
+					// need to check if deposit is being sent to one of the specific pools
+					if self.Config.WarpySyncer.SyncerProtocol == eth.Pendle {
+						belongs := self.belongsToMarket(inputsMap, tx.Hash())
+						if !belongs {
+							return nil
+						}
 					}
 
 					self.Log.WithField("method_name", method.Name).WithField("inputs_map", string(parsedInputsMap)).
@@ -188,4 +185,40 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 		})
 
 	return
+}
+
+func (self *SyncerDeposit) containsSpecificToken(inputsMap map[string]interface{}) bool {
+	tokenName := inputsMap["lToken"]
+	tokenNameStr := fmt.Sprintf("%v", tokenName)
+	self.Log.WithField("token_name", tokenNameStr).Info("Token set for transfer")
+
+	// TODO: do it properly (i.e. via params, not hardcoded)
+	if self.Config.WarpySyncer.SyncerChain == eth.Mode {
+		if tokenNameStr != self.Config.WarpySyncer.SyncerDepositToken {
+			self.Log.WithField("token_name", tokenNameStr).Warn("Wrong token set for transfer")
+			return false
+		}
+	}
+
+	if self.Config.WarpySyncer.SyncerChain == eth.Manta {
+		if tokenNameStr != self.Config.WarpySyncer.SyncerDepositToken {
+			self.Log.WithField("token_id", tokenNameStr).Warn("Wrong token set for transfer")
+			return false
+		}
+	}
+
+	return true
+}
+
+func (self *SyncerDeposit) belongsToMarket(inputsMap map[string]interface{}, txHash common.Hash) bool {
+	market := inputsMap["market"]
+	marketStr := fmt.Sprintf("%v", market)
+
+	if !(slices.Contains(self.Config.WarpySyncer.SyncerDepositMarkets, marketStr)) {
+		self.Log.WithField("tx_id", txHash).WithField("market", marketStr).Warn("Token deposit does not belong to desired market")
+		return false
+	}
+
+	self.Log.WithField("tx_id", txHash).WithField("market", marketStr).Debug("Token deposit belongs to desired market")
+	return true
 }
