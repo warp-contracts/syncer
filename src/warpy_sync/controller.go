@@ -2,6 +2,9 @@ package warpy_sync
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -11,6 +14,7 @@ import (
 	monitor_warpy_syncer "github.com/warp-contracts/syncer/src/utils/monitoring/warpy_syncer"
 	"github.com/warp-contracts/syncer/src/utils/sequencer"
 
+	"github.com/warp-contracts/syncer/src/utils/files"
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
@@ -74,6 +78,9 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	var writerTask *task.Task
 	var StoreDepositTask *task.Task
 	var syncerOutput chan *LastSyncedBlockPayload
+	var addressesJoined string
+
+	self.Log.Info(addressesJoined)
 
 	switch config.WarpySyncer.SyncerProtocol {
 	case eth.Delta:
@@ -102,7 +109,15 @@ func NewController(config *config.Config) (self *Controller, err error) {
 				config.WarpySyncer.SyncerChain)
 		case eth.Pendle:
 			contractAbi, err = eth.GetContractABIFromFile("IPActionSwapPTV3.json")
+			pwd, _ := os.Getwd()
+			records := files.ReadCsvFile(fmt.Sprintf("%s/src/warpy_sync/files/testers.csv", pwd))
 
+			addresses := make([]string, len(records))
+			for i := range records {
+				addresses[i] = records[i][1]
+			}
+			addressesJoined = strings.Join(addresses[:], "|")
+			self.Log.Info(addressesJoined)
 		default:
 			self.Log.WithError(err).Error("ETH Protocol not recognized")
 			return
@@ -121,7 +136,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		poller := NewPollerDeposit(config).
 			WithDB(db).
 			WithMonitor(monitor).
-			WithInputChannel(blockDownloader.OutputPollTxs)
+			WithInputChannel(blockDownloader.OutputPollTxs).
+			WithAddressesToPoll(addressesJoined)
 
 		// Writes interaction to Warpy based on the records from the poller
 		writer := NewWriter(config).

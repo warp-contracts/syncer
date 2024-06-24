@@ -20,6 +20,8 @@ type PollerDeposit struct {
 	Output chan *[]InteractionPayload
 
 	input chan uint64
+
+	addresses string
 }
 
 func NewPollerDeposit(config *config.Config) (self *PollerDeposit) {
@@ -51,6 +53,11 @@ func (self *PollerDeposit) WithInputChannel(v chan uint64) *PollerDeposit {
 	return self
 }
 
+func (self *PollerDeposit) WithAddressesToPoll(addresses string) *PollerDeposit {
+	self.addresses = addresses
+	return self
+}
+
 func (self *PollerDeposit) handleNew() (err error) {
 	for block := range self.input {
 		block := block
@@ -62,15 +69,16 @@ func (self *PollerDeposit) handleNew() (err error) {
 			FromAddress string
 			Sum         float64
 		}
+
 		err = self.db.WithContext(ctx).
 			Raw(`SELECT from_address, 
 				SUM(assets) 
 				FROM warpy_syncer_assets 
 				WHERE timestamp < ? AND chain = ? AND protocol = ?
-				AND from_address ILIKE ? 
+				AND from_address ~* (?) 
 				group by from_address;
 		`, time.Now().Unix()-self.Config.WarpySyncer.PollerDepositSecondsForSelect,
-				self.Config.WarpySyncer.SyncerChain, self.Config.WarpySyncer.SyncerProtocol, "0x64937ab314bc1999396De341Aa66897C30008852").
+				self.Config.WarpySyncer.SyncerChain, self.Config.WarpySyncer.SyncerProtocol, self.addresses).
 			Scan(&AssetsSums).Error
 
 		if err != nil {
