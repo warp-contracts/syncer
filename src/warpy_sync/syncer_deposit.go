@@ -6,17 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 	"sync"
 
 	"github.com/cenkalti/backoff"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/go-resty/resty/v2"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/eth"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/warpy"
 	"gorm.io/gorm"
 )
 
@@ -27,8 +28,8 @@ type SyncerDeposit struct {
 	input                    chan *BlockInfoPayload
 	Output                   chan *LastSyncedBlockPayload
 	OutputTransactionPayload chan *SommelierTransactionPayload
-
-	contractAbi *abi.ABI
+	contractAbi              map[string]*abi.ABI
+	httpClient               *resty.Client
 }
 
 // This task receives block info in the input channel, iterate through all of the block's transactions in order to check if any contains
@@ -39,6 +40,9 @@ func NewSyncerDeposit(config *config.Config) (self *SyncerDeposit) {
 	self.Output = make(chan *LastSyncedBlockPayload)
 
 	self.OutputTransactionPayload = make(chan *SommelierTransactionPayload)
+
+	self.httpClient = resty.New().
+		SetTimeout(config.WarpySyncer.WriterHttpRequestTimeout)
 
 	self.Task = task.NewTask(config, "syncer_deposit").
 		WithSubtaskFunc(self.run).
@@ -62,7 +66,7 @@ func (self *SyncerDeposit) WithDb(v *gorm.DB) *SyncerDeposit {
 	return self
 }
 
-func (self *SyncerDeposit) WithContractAbi(contractAbi *abi.ABI) *SyncerDeposit {
+func (self *SyncerDeposit) WithContractAbi(contractAbi map[string]*abi.ABI) *SyncerDeposit {
 	self.contractAbi = contractAbi
 	return self
 }
@@ -127,9 +131,26 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 			return err
 		}).
 		Run(func() error {
-			if tx.To() != nil && strings.EqualFold(tx.To().String(), self.Config.WarpySyncer.SyncerDepositContractId) {
-				self.Log.WithField("tx_id", tx.Hash()).Info("Found new on-chain transaction")
-				method, inputsMap, err := eth.DecodeTransactionInputData(self.contractAbi, tx.Data())
+			if tx.To() != nil && slices.Contains(self.Config.WarpySyncer.SyncerDepositContractIds, tx.To().String()) {
+				self.Log.WithField("tx_id", tx.Hash()).WithField("tx_to", tx.To().String()).Info("Found new on-chain transaction")
+
+				sender, err := eth.GetTxSenderHash(tx)
+				if err != nil {
+					self.Log.WithError(err).WithField("txId", tx.Hash()).Warn("Could not retrieve tx sender")
+					return err
+				}
+
+				warpyUser, err := warpy.GetWarpyUserId(self.httpClient, self.Config.WarpySyncer.SyncerDreUrl, sender)
+				if err != nil {
+					self.Log.WithError(err).WithField("sender", sender).Warn("Could not retrieve user id")
+					return err
+				}
+				if warpyUser == "" {
+					self.Log.WithField("sender", sender).Warn("Sender not registered in Warpy")
+					return nil
+				}
+
+				method, inputsMap, err := eth.DecodeTransactionInputData(self.contractAbi[tx.To().String()], tx.Data())
 				if err != nil {
 					self.Log.WithError(err).Error("Could not decode transaction input data")
 					return nil
@@ -160,18 +181,12 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 					self.Log.WithField("method_name", method.Name).WithField("inputs_map", string(parsedInputsMap)).
 						Info("New transaction decoded")
 
-					from, err := eth.GetTxSenderHash(tx)
-					if err != nil {
-						self.Log.WithError(err).Error("Could not get transaction sender")
-						return err
-					}
-
 					select {
 					case <-self.Ctx.Done():
 						return nil
 					case self.OutputTransactionPayload <- &SommelierTransactionPayload{
 						Transaction: tx,
-						FromAddress: from,
+						FromAddress: sender,
 						Block:       block,
 						Method:      method,
 						ParsedInput: parsedInputsMap,

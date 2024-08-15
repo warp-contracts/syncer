@@ -36,3 +36,7 @@ type WalletDiscordIdPayload struct {
 type DiscordIdRolesPayload struct {
 	IdToRoles map[string][]string `json:"id_to_roles"`
 }
+
+type WarpyUserId struct {
+	Key string
+}

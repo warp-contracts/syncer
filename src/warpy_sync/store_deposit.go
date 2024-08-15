@@ -2,10 +2,8 @@ package warpy_sync
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"math"
-	"math/big"
 	"slices"
 	"time"
 
@@ -14,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgtype"
 	"github.com/warp-contracts/syncer/src/utils/config"
-	"github.com/warp-contracts/syncer/src/utils/eth"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
@@ -78,20 +75,7 @@ func (self *StoreDeposit) run() (err error) {
 					Transaction(func(dbTx *gorm.DB) error {
 						err = self.insertLog(dbTx, payload.Transaction, payload.FromAddress, payload.Block, payload.Method, payload.ParsedInput)
 
-						var assets interface{}
-						if slices.Contains(self.Config.WarpySyncer.StoreDepositWithdrawFunctions, payload.Method.Name) {
-							assets = self.getAssetsFromInput(self.Config.WarpySyncer.StoreDepositWithdrawAssetsNames, payload.Input)
-						} else {
-							assets = self.getAssetsFromInput(self.Config.WarpySyncer.StoreDepositDepositAssetsNames, payload.Input)
-						}
-
-						assetsVal := self.convertAssets(assets)
-
-						if assetsVal == nil {
-							return nil
-						}
-
-						err = self.insertAssets(dbTx, payload.Transaction, payload.FromAddress, eth.WeiToEther(assetsVal), payload.Method.Name, payload.Block)
+						err = self.insertAssets(dbTx, payload.Transaction, payload.FromAddress, payload.Assets, payload.Method.Name, payload.Block)
 						if err != nil {
 							return err
 						}
@@ -241,40 +225,6 @@ func (self *StoreDeposit) insertAssets(dbTx *gorm.DB, tx *types.Transaction, fro
 			WithField("tx_id", tx.Hash().String()).
 			Debug("New assets inserted")
 
-	}
-
-	return
-}
-
-func (self *StoreDeposit) getAssetsFromInput(assetsNames []string, input map[string]interface{}) (assets interface{}) {
-	for i, a := range assetsNames {
-		if i == 0 {
-			assets = input[a]
-		} else {
-			var assetsInterface map[string]interface{}
-			assetsParsed, _ := json.Marshal(assets)
-			err := json.Unmarshal(assetsParsed, &assetsInterface)
-			if err != nil {
-				self.Log.WithError(err).Error("Could not parse assets input")
-				return nil
-			}
-			assets = assetsInterface[a]
-		}
-	}
-
-	return
-}
-
-func (self *StoreDeposit) convertAssets(assets interface{}) (assetsVal *big.Int) {
-	switch assets := assets.(type) {
-	case float64:
-		assetsVal = new(big.Int)
-		new(big.Float).SetFloat64(assets).Int(assetsVal)
-	case *big.Int:
-		assetsVal = assets
-	default:
-		self.Log.WithField("assets", assets).Error("Assets type unsupported")
-		return nil
 	}
 
 	return

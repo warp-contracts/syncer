@@ -54,4 +54,5 @@ type SommelierTransactionPayload struct {
 	Method      *abi.Method
 	ParsedInput []byte
 	Input       map[string]interface{}
+	Assets      float64
 }

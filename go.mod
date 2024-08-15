@@ -4,7 +4,6 @@ go 1.21
 
 replace (
 	cosmossdk.io/simapp => github.com/cosmos/cosmos-sdk/simapp v0.0.0-20230608160436-666c345ad23d
-	github.com/ethereum/go-ethereum v1.14.0 => github.com/OffchainLabs/go-ethereum v0.0.0-20230822203130-9a31b6205dba
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
