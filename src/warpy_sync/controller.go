@@ -9,12 +9,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/eth"
+	"github.com/warp-contracts/syncer/src/utils/files"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	monitor_warpy_syncer "github.com/warp-contracts/syncer/src/utils/monitoring/warpy_syncer"
 	"github.com/warp-contracts/syncer/src/utils/sequencer"
 
-	"github.com/warp-contracts/syncer/src/utils/files"
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
@@ -58,6 +58,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		syncedComponent = model.SyncedComponentWarpySyncerMode
 	case eth.Manta:
 		syncedComponent = model.SyncedComponentWarpySyncerManta
+	case eth.Bsc:
+		syncedComponent = model.SyncedComponentWarpySyncerBsc
 	default:
 		err = errors.New("synced component not recognized")
 	}
@@ -75,6 +77,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	// Syncing tasks based on chosen protocol
 	var syncerTask *task.Task
 	var pollerTask *task.Task
+	var assetsCalculatorTask *task.Task
 	var writerTask *task.Task
 	var StoreDepositTask *task.Task
 	var syncerOutput chan *LastSyncedBlockPayload
@@ -96,17 +99,27 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		writerTask = writer.Task
 		syncerTask = syncer.Task
 		syncerOutput = syncer.Output
-	case eth.Sommelier, eth.LayerBank, eth.Pendle:
-		var contractAbi *abi.ABI
-		switch config.WarpySyncer.SyncerProtocol {
+	case eth.Sommelier, eth.LayerBank, eth.Pendle, eth.Venus:
+		var contractAbi map[string]*abi.ABI
+		contractAbi = make(map[string]*abi.ABI)
 
-		case eth.Sommelier, eth.LayerBank:
-			contractAbi, err = eth.GetContractABI(
-				config.WarpySyncer.SyncerDepositContractId,
-				config.WarpySyncer.SyncerApiKey,
-				config.WarpySyncer.SyncerChain)
-		case eth.Pendle:
-			contractAbi, err = eth.GetContractABIFromFile("IPActionSwapPTV3.json")
+		abiSource := config.WarpySyncer.SyncerProtocol.GetAbi()
+
+		for _, syncerDepositContractId := range config.WarpySyncer.SyncerDepositContractIds {
+			if abiSource == "direct" {
+				contractAbi[syncerDepositContractId], err = eth.GetContractABI(
+					syncerDepositContractId,
+					config.WarpySyncer.SyncerApiKey,
+					config.WarpySyncer.SyncerChain)
+			} else if abiSource != "" {
+				contractAbi[syncerDepositContractId], err = eth.GetContractABIFromFile(abiSource)
+			} else {
+				err = errors.New("protocol not recognized")
+			}
+		}
+
+		// to be removed in prod
+		if config.WarpySyncer.SyncerProtocol == eth.Venus {
 			pwd, _ := os.Getwd()
 			records := files.ReadCsvFile(fmt.Sprintf("%s/src/warpy_sync/files/testers.csv", pwd))
 
@@ -115,9 +128,6 @@ func NewController(config *config.Config) (self *Controller, err error) {
 				addresses[i] = records[i][1]
 			}
 			addressesJoined = strings.Join(addresses[:], "|")
-		default:
-			self.Log.WithError(err).Error("ETH Protocol not recognized")
-			return
 		}
 
 		// Checks wether block's transactions contain specific transactions
@@ -142,14 +152,21 @@ func NewController(config *config.Config) (self *Controller, err error) {
 			WithMonitor(monitor).
 			WithSequencerClient(sequencerClient)
 
+		assetsCalculator := NewAssetsCalculator(config).
+			WithMonitor(monitor).
+			WithEthClient(ethClient).
+			WithContractAbi(contractAbi).
+			WithInputChannel(syncer.OutputTransactionPayload)
+
 		StoreDeposit := NewStoreDeposit(config).
 			WithDB(db).
 			WithMonitor(monitor).
-			WithInputChannel(syncer.OutputTransactionPayload)
+			WithInputChannel(assetsCalculator.Output)
 
 		pollerTask = poller.Task
 		syncerTask = syncer.Task
 		syncerOutput = syncer.Output
+		assetsCalculatorTask = assetsCalculator.Task
 		writerTask = writer.Task
 		StoreDepositTask = StoreDeposit.Task
 	default:
@@ -176,6 +193,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithSubtask(store.Task).
 		WithSubtask(monitor.Task).
 		WithSubtask(server.Task).
+		WithConditionalSubtask(assetsCalculatorTask.Name != "", assetsCalculatorTask).
 		WithConditionalSubtask(pollerTask.Name != "", pollerTask).
 		WithSubtask(writerTask).
 		WithSubtask(StoreDepositTask)

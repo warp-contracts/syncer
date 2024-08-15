@@ -13,6 +13,7 @@ type WarpySyncerErrors struct {
 	StoreSaveLastStateFailure            atomic.Uint64 `json:"store_save_last_state_failure"`
 	PollerDepositFetchError              atomic.Uint64 `json:"poller_deposit_fetch_error"`
 	StoreDepositFailures                 atomic.Uint64 `json:"store_deposit_failures"`
+	AssetsCalculatorFailures             atomic.Uint64 `json:"assets_calculator_failures"`
 }
 
 type WarpySyncerState struct {

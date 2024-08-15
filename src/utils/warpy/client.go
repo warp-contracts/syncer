@@ -98,3 +98,36 @@ func WriteInteractionToWarpy(ctx context.Context, config config.WarpySyncer, inp
 	}
 	return
 }
+
+func GetWarpyUserId(httpClient *resty.Client, url string, address string) (id string, err error) {
+	if err != nil {
+		return
+	}
+
+	resp, err := resty.New().SetBaseURL(url).R().
+		SetResult([]model.WarpyUserId{}).
+		ForceContentType("application/json").
+		SetQueryParams(map[string]string{
+			"address": address,
+		}).
+		SetHeader("Accept", "application/json").
+		Get("/warpy/user-id")
+
+	if err != nil {
+		return
+	}
+
+	if !resp.IsSuccess() {
+		err = errors.New("warpy user id request has not been successful")
+		return
+	}
+
+	warpyUserIdPayload := resp.Result().(*[]model.WarpyUserId)
+
+	if len(*warpyUserIdPayload) > 0 {
+		id = (*warpyUserIdPayload)[0].Key
+		return
+	}
+
+	return "", nil
+}
