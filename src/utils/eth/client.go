@@ -32,6 +32,7 @@ const (
 	Sommelier Protocol = iota
 	LayerBank Protocol = iota
 	Pendle    Protocol = iota
+	Venus     Protocol = iota
 )
 
 type Chain int
@@ -41,6 +42,7 @@ const (
 	Arbitrum Chain = iota
 	Mode     Chain = iota
 	Manta    Chain = iota
+	Bsc      Chain = iota
 )
 
 func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
@@ -56,6 +58,8 @@ func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
 		return
 	case Manta:
 		rpcProviderUrl = "https://pacific-rpc.manta.network/http"
+	case Bsc:
+		rpcProviderUrl = "https://bsc-rpc.publicnode.com"
 		return
 	}
 
@@ -73,6 +77,8 @@ func (chain Chain) Api() (apiUrl string, err error) {
 		return
 	case Manta:
 		apiUrl = "https://pacific-explorer.manta.network/api"
+	case Bsc:
+		apiUrl = "https://api.bscscan.com/api"
 		return
 	}
 
@@ -90,6 +96,18 @@ func (protocol Protocol) String() string {
 		return "layer_bank"
 	case Pendle:
 		return "pendle"
+	case Venus:
+		return "venus"
+	}
+	return ""
+}
+
+func (protocol Protocol) GetAbi() string {
+	switch protocol {
+	case Sommelier, LayerBank, Venus:
+		return "direct"
+	case Pendle:
+		return "IPActionSwapPTV3.json"
 	}
 	return ""
 }
@@ -104,7 +122,30 @@ func (chain Chain) String() string {
 		return "mode"
 	case Manta:
 		return "manta"
+	case Bsc:
+		return "bsc"
 	}
+	return ""
+}
+
+func (chain Chain) Decimals() float64 {
+	switch chain {
+	case Bsc:
+		return 18
+	}
+
+	// this is the base decimals value according to ERC-20 spec
+	return 18
+}
+
+func GetTokenName(contract string) string {
+	switch contract {
+	case "0xA07c5b74C9B40447a954e1466938b865b6BBea36":
+		return "binancecoin"
+	case "0x882C173bC7Ff3b7786CA16dfeD3DFFfb9Ee7847B":
+		return "bitcoin"
+	}
+
 	return ""
 }
 
@@ -224,4 +265,75 @@ func GetContractABIFromFile(fileName string) (*abi.ABI, error) {
 		return nil, err
 	}
 	return &contractABI, nil
+}
+
+func GetTransactionLog(receipt *types.Receipt, contractABI *abi.ABI, name string) (eventMap map[string]interface{}, err error) {
+	for _, vLog := range receipt.Logs {
+		event, err := contractABI.EventByID(vLog.Topics[0])
+		if err != nil {
+			fmt.Println()
+			continue
+		}
+
+		if event.Name == name {
+			eventMap := make(map[string]interface{})
+			eventMap["name"] = event.Name
+
+			indexed := make([]abi.Argument, 0)
+			for _, input := range event.Inputs {
+				if input.Indexed {
+					indexed = append(indexed, input)
+				}
+			}
+			err := abi.ParseTopicsIntoMap(eventMap, indexed, vLog.Topics[1:])
+
+			if err != nil {
+				return nil, err
+			}
+
+			if len(vLog.Data) > 0 {
+				err = contractABI.UnpackIntoMap(eventMap, event.Name, vLog.Data)
+				if err != nil {
+					return nil, err
+				}
+			}
+			return eventMap, nil
+		}
+	}
+
+	err = errors.New("desired transaction log not found")
+	return
+}
+
+func GetPriceInEth(id string) (ethPrice float64, err error) {
+	type EthPrice map[string]map[string]float64
+
+	httpClient := resty.New()
+	resp, err := httpClient.SetBaseURL("https://api.coingecko.com").R().
+		SetResult(EthPrice{}).
+		ForceContentType("application/json").
+		SetQueryParams(map[string]string{
+			"ids":           id,
+			"vs_currencies": "eth",
+		}).
+		SetHeader("Accept", "application/json").
+		Get("/api/v3/simple/price")
+
+	if err != nil {
+		return
+	}
+
+	coinPayload := resp.Result().(*EthPrice)
+
+	if prices, ok := (*coinPayload)[id]; ok {
+		if ethPrice, ok = prices["eth"]; ok {
+			return
+		} else {
+			err = fmt.Errorf("no price data for %s in ETH", id)
+			return
+		}
+	} else {
+		err = fmt.Errorf("no data for %s", id)
+		return
+	}
 }

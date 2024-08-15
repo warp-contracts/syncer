@@ -22,6 +22,7 @@ type Collector struct {
 	StoreSaveLastStateFailure            *prometheus.Desc
 	PollerDepositFetchError              *prometheus.Desc
 	StoreDepositFailures                 *prometheus.Desc
+	AssetsCalculatorFailures             *prometheus.Desc
 
 	// State
 	BlockDownloaderCurrentHeight   *prometheus.Desc
@@ -50,6 +51,7 @@ func NewCollector() *Collector {
 		StoreSaveLastStateFailure:            prometheus.NewDesc("store_save_last_state_failure", "", nil, nil),
 		PollerDepositFetchError:              prometheus.NewDesc("poller_deposit_fetch_error", "", nil, nil),
 		StoreDepositFailures:                 prometheus.NewDesc("store_deposit_failures", "", nil, nil),
+		AssetsCalculatorFailures:             prometheus.NewDesc("assets_calculator_failures", "", nil, nil),
 
 		// State
 		BlockDownloaderCurrentHeight:   prometheus.NewDesc("block_downloader_current_height", "", nil, nil),
@@ -84,6 +86,7 @@ func (self *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- self.StoreSaveLastStateFailure
 	ch <- self.PollerDepositFetchError
 	ch <- self.StoreDepositFailures
+	ch <- self.AssetsCalculatorFailures
 
 	// State
 	ch <- self.BlockDownloaderCurrentHeight
@@ -111,6 +114,7 @@ func (self *Collector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(self.StoreSaveLastStateFailure, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.Errors.StoreSaveLastStateFailure.Load()))
 	ch <- prometheus.MustNewConstMetric(self.PollerDepositFetchError, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.Errors.PollerDepositFetchError.Load()))
 	ch <- prometheus.MustNewConstMetric(self.StoreDepositFailures, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.Errors.StoreDepositFailures.Load()))
+	ch <- prometheus.MustNewConstMetric(self.AssetsCalculatorFailures, prometheus.CounterValue, float64(self.monitor.Report.WarpySyncer.Errors.AssetsCalculatorFailures.Load()))
 
 	// State
 	ch <- prometheus.MustNewConstMetric(self.BlockDownloaderCurrentHeight, prometheus.GaugeValue, float64(self.monitor.Report.WarpySyncer.State.BlockDownloaderCurrentHeight.Load()))
