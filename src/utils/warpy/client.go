@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
@@ -118,7 +119,7 @@ func GetWarpyUserId(httpClient *resty.Client, url string, address string) (id st
 	}
 
 	if !resp.IsSuccess() {
-		err = errors.New("warpy user id request has not been successful")
+		err = fmt.Errorf("warpy user id request has not been successful, status code: %s", fmt.Sprint(resp.StatusCode()))
 		return
 	}
 
