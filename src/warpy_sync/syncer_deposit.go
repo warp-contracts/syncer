@@ -142,7 +142,7 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 
 				warpyUser, err := warpy.GetWarpyUserId(self.httpClient, self.Config.WarpySyncer.SyncerDreUrl, sender)
 				if err != nil {
-					self.Log.WithError(err).WithField("sender", sender).Warn("Could not retrieve user id")
+					self.Log.WithError(err).WithField("sender", sender).WithField("tx_id", tx.Hash().String()).Warn("Could not retrieve user id")
 					return err
 				}
 				if warpyUser == "" {
