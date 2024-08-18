@@ -17,6 +17,7 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/eth"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
+	"github.com/warp-contracts/syncer/src/utils/warpy"
 	"gorm.io/gorm"
 )
 
@@ -137,6 +138,16 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 				if err != nil {
 					self.Log.WithError(err).WithField("txId", tx.Hash()).Warn("Could not retrieve tx sender")
 					return err
+				}
+
+				warpyUser, err := warpy.GetWarpyUserId(self.httpClient, self.Config.WarpySyncer.SyncerDreUrl, sender)
+				if err != nil {
+					self.Log.WithError(err).WithField("sender", sender).WithField("tx_id", tx.Hash().String()).Warn("Could not retrieve user id")
+					return err
+				}
+				if warpyUser == "" {
+					self.Log.WithField("sender", sender).Warn("Sender not registered in Warpy")
+					return nil
 				}
 
 				method, inputsMap, err := eth.DecodeTransactionInputData(self.contractAbi[tx.To().String()], tx.Data())
