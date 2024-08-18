@@ -2,7 +2,6 @@ package warpy_sync
 
 import (
 	"context"
-	"math"
 	"time"
 
 	"github.com/warp-contracts/syncer/src/utils/config"
@@ -118,14 +117,11 @@ func (self *PollerDeposit) handleNew() (err error) {
 			return
 		}
 
-		totalSum := TotalSum[0].Sum
-
 		for i, sum := range AssetsSums {
-			points := self.calculatePoints(sum.Sum, totalSum)
 			self.monitor.GetReport().WarpySyncer.State.PollerDepositAssetsFromSelects.Inc()
 			interactions[i] = InteractionPayload{
 				FromAddress: sum.FromAddress,
-				Points:      int64(math.Round(points * float64(self.Config.WarpySyncer.PollerDepositPointsBase))),
+				Points:      int64(sum.Sum * float64(self.Config.WarpySyncer.PollerDepositPointsBase)),
 			}
 		}
 		select {
@@ -135,13 +131,5 @@ func (self *PollerDeposit) handleNew() (err error) {
 		}
 	}
 
-	return
-}
-
-func (self PollerDeposit) calculatePoints(sum float64, totalSum float64) (points float64) {
-	numberOfRewards := (self.Config.WarpySyncer.PollerDepositIntegrationDurationInSec / self.Config.WarpySyncer.BlockDownloaderPollerInterval)
-	singularRewardValue := self.Config.WarpySyncer.PollerDepositPointsCap / numberOfRewards
-	sumPercentage := sum / totalSum
-	points = float64(singularRewardValue) * sumPercentage
 	return
 }

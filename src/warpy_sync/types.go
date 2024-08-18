@@ -13,6 +13,7 @@ type Input struct {
 	AdminId  string   `json:"adminId"`
 	Members  []Member `json:"members"`
 	NoBoost  bool     `json:"noBoost"`
+	Cap      int64    `json:"cap"`
 }
 
 func (input Input) MarshalJSON() ([]byte, error) {
