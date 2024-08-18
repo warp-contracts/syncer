@@ -135,10 +135,10 @@ type WarpySyncer struct {
 	PollerDepositPointsBase int64
 
 	// Maximum points cap rewarded daily
-	PollerDepositPointsCap int64
+	WriterPointsCap int64
 
 	// How long the integration will last
-	PollerDepositIntegrationDurationInSec int64
+	WriterIntegrationDurationInSec int64
 
 	// How much time should pass until we include transaction in rewards (in seconds)
 	PollerDepositSecondsForSelect int64
@@ -205,8 +205,8 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.PollerDepositInterval", "1m")
 	viper.SetDefault("WarpySyncer.PollerDepositTimeout", "90s")
 	viper.SetDefault("WarpySyncer.PollerDepositPointsBase", 1000)
-	viper.SetDefault("WarpySyncer.PollerDepositPointsCap", 50000000)
-	viper.SetDefault("WarpySyncer.PollerDepositIntegrationDurationInSec", 864000)
+	viper.SetDefault("WarpySyncer.WriterPointsCap", 5000000)
+	viper.SetDefault("WarpySyncer.WriterIntegrationDurationInSec", 432000)
 	viper.SetDefault("WarpySyncer.PollerDepositSecondsForSelect", 3600)
 	viper.SetDefault("WarpySyncer.WriterBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.WriterHttpRequestTimeout", "30s")

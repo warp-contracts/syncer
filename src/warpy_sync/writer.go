@@ -2,8 +2,12 @@ package warpy_sync
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/go-resty/resty/v2"
@@ -69,7 +73,8 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 
 	payloadChunk := make([]InteractionPayload, 0, chunkSize)
 
-	for _, payload := range *payloads {
+	var cap int64
+	for i, payload := range *payloads {
 		if payload.Points == 0 {
 			self.Log.WithField("from_address", payload.FromAddress).Debug("Skipping from address, points 0")
 			continue
@@ -77,7 +82,10 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 
 		payloadChunk = append(payloadChunk, payload)
 		if len(payloadChunk) >= chunkSize {
-			err = self.sendInteractionChunk(&payloadChunk)
+			if i == len(*payloads)-1 {
+				cap = self.calculateCap()
+			}
+			err = self.sendInteractionChunk(&payloadChunk, cap)
 			if err != nil {
 				self.Log.
 					WithField("chunk_size", len(payloadChunk)).
@@ -89,7 +97,8 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 
 	}
 	if len(payloadChunk) > 0 {
-		err = self.sendInteractionChunk(&payloadChunk)
+		cap := self.calculateCap()
+		err = self.sendInteractionChunk(&payloadChunk, cap)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to send interaction chunk")
 			return err
@@ -99,7 +108,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	return
 }
 
-func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload) (err error) {
+func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap int64) (err error) {
 	self.Log.WithField("chunk_size", len(*interactions)).
 		Info("Attempting to send a chunk of interaction payload")
 
@@ -138,18 +147,21 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload) (er
 	}
 
 	input := Input{
-		Function: "addPointsForAddress",
+		Function: "addPointsWithCap",
 		Points:   0,
 		AdminId:  self.Config.WarpySyncer.SyncerInteractionAdminId,
 		Members:  members,
+		Cap:      cap,
 	}
 
 	interactionId, err := warpy.WriteInteractionToWarpy(
 		self.Ctx, self.Config.WarpySyncer, input, self.Log, self.sequencerClient)
 	if err != nil {
+		self.saveTxToFile(input, true)
 		return err
 	}
 
+	self.saveTxToFile(input, false)
 	self.Log.WithField("interactionId", interactionId).Info("Interaction sent to Warpy")
 	self.monitor.GetReport().WarpySyncer.State.WriterInteractionsToWarpy.Inc()
 	return
@@ -221,4 +233,29 @@ func (self *Writer) walletAddressToDiscordRoles(payloads *[]InteractionPayload) 
 			return nil
 		})
 	return
+}
+
+func (self Writer) calculateCap() int64 {
+	numberOfRewards := (self.Config.WarpySyncer.WriterIntegrationDurationInSec / self.Config.WarpySyncer.BlockDownloaderPollerInterval)
+	return self.Config.WarpySyncer.WriterPointsCap / numberOfRewards
+}
+
+func (self Writer) saveTxToFile(input Input, withError bool) {
+	parsedInput, err := json.Marshal(input)
+	if err != nil {
+		self.Log.WithError(err).Error("could not parsed input")
+		return
+	}
+	now := time.Now()
+	pwd, _ := os.Getwd()
+	timeFormatted := now.Format(time.RFC3339)
+	if withError {
+		err = os.WriteFile(fmt.Sprintf("%s/src/warpy_sync/files/errors/%s.json", pwd, timeFormatted), parsedInput, 0644)
+	} else {
+		err = os.WriteFile(fmt.Sprintf("%s/src/warpy_sync/files/txs/%s.json", pwd, timeFormatted), parsedInput, 0644)
+	}
+	if err != nil {
+		self.Log.WithError(err).Error("could not parsed input")
+		return
+	}
 }
