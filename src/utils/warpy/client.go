@@ -78,7 +78,7 @@ func GetWalletToDiscordIdMap(httpClient *resty.Client, url string, addresses *[]
 	return
 }
 
-func WriteInteractionToWarpy(ctx context.Context, config config.WarpySyncer, input json.Marshaler, log *logrus.Entry, sequencerClient *sequencer.Client) (interactionId string, err error) {
+func WriteInteractionToWarpy(ctx context.Context, config config.WarpySyncer, input json.Marshaler, log *logrus.Entry, sequencerClient *sequencer.Client, apiKey string) (interactionId string, err error) {
 	signer, err := bundlr.NewArweaveSigner(config.SyncerSigner)
 	if err != nil {
 		log.WithError(err).Error("Could not create Arweave Signer")
@@ -92,7 +92,7 @@ func WriteInteractionToWarpy(ctx context.Context, config config.WarpySyncer, inp
 			Name:  "Chain",
 			Value: config.SyncerChain.String(),
 		}}},
-		signer)
+		signer, apiKey)
 	if err != nil {
 		log.WithError(err).Error("Could not write interaction to Warpy")
 		return
