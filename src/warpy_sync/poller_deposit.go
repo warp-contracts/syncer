@@ -98,25 +98,6 @@ func (self *PollerDeposit) handleNew() (err error) {
 		}
 		interactions := make([]InteractionPayload, len(AssetsSums))
 
-		var TotalSum []struct {
-			Sum float64
-		}
-
-		err = self.db.WithContext(ctx).
-			Raw(`SELECT SUM(assets) 
-				FROM warpy_syncer_assets 
-				WHERE timestamp < ? AND chain = ? AND protocol = ?;
-		`, time.Now().Unix()-self.Config.WarpySyncer.PollerDepositSecondsForSelect, self.Config.WarpySyncer.SyncerChain, self.Config.WarpySyncer.SyncerProtocol).
-			Scan(&TotalSum).Error
-
-		if err != nil {
-			if err != gorm.ErrRecordNotFound {
-				self.Log.WithError(err).Error("Failed to get assets total sum")
-				self.monitor.GetReport().WarpySyncer.Errors.PollerDepositFetchError.Inc()
-			}
-			return
-		}
-
 		for i, sum := range AssetsSums {
 			self.monitor.GetReport().WarpySyncer.State.PollerDepositAssetsFromSelects.Inc()
 			interactions[i] = InteractionPayload{
