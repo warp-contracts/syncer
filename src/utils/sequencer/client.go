@@ -62,7 +62,7 @@ func (self *Client) GetNonce(ctx context.Context, signatureType bundlr.Signature
 	return
 }
 
-func (self *Client) UploadReader(ctx context.Context, reader io.Reader, mode types.BroadcastMode) (out *responses.Upload, resp *resty.Response, err error) {
+func (self *Client) UploadReader(ctx context.Context, reader io.Reader, mode types.BroadcastMode, apiKey string) (out *responses.Upload, resp *resty.Response, err error) {
 	body, err := io.ReadAll(reader)
 	if err != nil {
 		return
@@ -76,6 +76,7 @@ func (self *Client) UploadReader(ctx context.Context, reader io.Reader, mode typ
 		ForceContentType("application/json").
 		SetHeader("Content-Type", "application/octet-stream").
 		SetHeader("X-Broadcast-Mode", string(mode)).
+		SetHeader("X-Api-Key", apiKey).
 		EnableTrace().
 		Post(self.config.UploadEndpoint)
 	if err != nil {
@@ -92,16 +93,16 @@ func (self *Client) UploadReader(ctx context.Context, reader io.Reader, mode typ
 	return
 }
 
-func (self *Client) Upload(ctx context.Context, item *bundlr.BundleItem, mode types.BroadcastMode) (out *responses.Upload, resp *resty.Response, err error) {
+func (self *Client) Upload(ctx context.Context, item *bundlr.BundleItem, mode types.BroadcastMode, apiKey string) (out *responses.Upload, resp *resty.Response, err error) {
 	reader, err := item.Reader()
 	if err != nil {
 		return
 	}
 
-	return self.UploadReader(ctx, reader, mode)
+	return self.UploadReader(ctx, reader, mode, apiKey)
 }
 
-func (self *Client) UploadInteraction(ctx context.Context, input json.Marshaler, options types.WriteInteractionOptions, signer bundlr.Signer) (out string, err error) {
+func (self *Client) UploadInteraction(ctx context.Context, input json.Marshaler, options types.WriteInteractionOptions, signer bundlr.Signer, apiKey string) (out string, err error) {
 	if options.ContractTxId == "" {
 		err = errors.New("Contract tx id not passed")
 		return
@@ -183,7 +184,7 @@ func (self *Client) UploadInteraction(ctx context.Context, input json.Marshaler,
 		return
 	}
 
-	_, _, err = self.Upload(ctx, bundleItem, types.BroadcastModeSync)
+	_, _, err = self.Upload(ctx, bundleItem, types.BroadcastModeSync, apiKey)
 	if err != nil {
 		return
 	}

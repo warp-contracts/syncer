@@ -155,7 +155,7 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap
 	}
 
 	interactionId, err := warpy.WriteInteractionToWarpy(
-		self.Ctx, self.Config.WarpySyncer, input, self.Log, self.sequencerClient)
+		self.Ctx, self.Config.WarpySyncer, input, self.Log, self.sequencerClient, self.Config.WarpySyncer.WriterApiKey)
 	if err != nil {
 		self.saveTxToFile(input, true)
 		return err

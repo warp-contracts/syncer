@@ -151,6 +151,9 @@ type WarpySyncer struct {
 
 	// Writer splits interaction into chunks with max size of
 	WriterInteractionChunkSize int
+
+	// API key for sequencer request
+	WriterApiKey string
 }
 
 func setWarpySyncerDefaults() {
@@ -211,4 +214,5 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.WriterBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.WriterHttpRequestTimeout", "30s")
 	viper.SetDefault("WarpySyncer.WriterInteractionChunkSize", 50)
+	viper.SetDefault("WarpySyncer.WriterApiKey", "")
 }

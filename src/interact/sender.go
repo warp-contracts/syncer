@@ -61,7 +61,7 @@ func (self *Sender) run() error {
 		payload := payload
 
 		self.SubmitToWorker(func() {
-			_, _, err := self.sequencerClient.Upload(self.Ctx, payload.DataItem, types.BroadcastModeSync)
+			_, _, err := self.sequencerClient.Upload(self.Ctx, payload.DataItem, types.BroadcastModeSync, "")
 			if err != nil {
 				// Update monitoring
 				self.monitor.GetReport().Interactor.Errors.SenderError.Inc()
