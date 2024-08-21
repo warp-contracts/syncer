@@ -71,6 +71,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 		return
 	}
 
+	folderForTxs := self.createFolderForTxs()
 	payloadChunk := make([]InteractionPayload, 0, chunkSize)
 
 	var cap int64
@@ -85,7 +86,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 			if i == len(*payloads)-1 {
 				cap = self.calculateCap()
 			}
-			err = self.sendInteractionChunk(&payloadChunk, cap)
+			err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs)
 			if err != nil {
 				self.Log.
 					WithField("chunk_size", len(payloadChunk)).
@@ -98,7 +99,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	}
 	if len(payloadChunk) > 0 {
 		cap := self.calculateCap()
-		err = self.sendInteractionChunk(&payloadChunk, cap)
+		err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to send interaction chunk")
 			return err
@@ -108,7 +109,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	return
 }
 
-func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap int64) (err error) {
+func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap int64, folderForTxs string) (err error) {
 	self.Log.WithField("chunk_size", len(*interactions)).
 		Info("Attempting to send a chunk of interaction payload")
 
@@ -157,11 +158,11 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap
 	interactionId, err := warpy.WriteInteractionToWarpy(
 		self.Ctx, self.Config.WarpySyncer, input, self.Log, self.sequencerClient, self.Config.WarpySyncer.WriterApiKey)
 	if err != nil {
-		self.saveTxToFile(input, true)
+		self.saveTxToFile(input, folderForTxs, true)
 		return err
 	}
 
-	self.saveTxToFile(input, false)
+	self.saveTxToFile(input, folderForTxs, false)
 	self.Log.WithField("interactionId", interactionId).Info("Interaction sent to Warpy")
 	self.monitor.GetReport().WarpySyncer.State.WriterInteractionsToWarpy.Inc()
 	return
@@ -240,7 +241,7 @@ func (self Writer) calculateCap() int64 {
 	return self.Config.WarpySyncer.WriterPointsCap / numberOfRewards
 }
 
-func (self Writer) saveTxToFile(input Input, withError bool) {
+func (self Writer) saveTxToFile(input Input, folderForTxs string, withError bool) {
 	parsedInput, err := json.Marshal(input)
 	if err != nil {
 		self.Log.WithError(err).Error("could not parsed input")
@@ -252,10 +253,31 @@ func (self Writer) saveTxToFile(input Input, withError bool) {
 	if withError {
 		err = os.WriteFile(fmt.Sprintf("%s/src/warpy_sync/files/errors/%s.json", pwd, timeFormatted), parsedInput, 0644)
 	} else {
-		err = os.WriteFile(fmt.Sprintf("%s/src/warpy_sync/files/txs/%s.json", pwd, timeFormatted), parsedInput, 0644)
+		var txsFolderPath string
+		if folderForTxs != "" {
+			txsFolderPath = fmt.Sprintf("%s/%s.json", folderForTxs, timeFormatted)
+		} else {
+			txsFolderPath = fmt.Sprintf("%s/src/warpy_sync/files/txs/%s.json", folderForTxs, timeFormatted)
+		}
+
+		err = os.WriteFile(txsFolderPath, parsedInput, 0644)
 	}
 	if err != nil {
 		self.Log.WithError(err).Error("could not parsed input")
 		return
 	}
+}
+
+func (self Writer) createFolderForTxs() (folderPath string) {
+	now := time.Now()
+	timeFormatted := now.Format(time.RFC3339)
+	pwd, _ := os.Getwd()
+	folderPath = fmt.Sprintf("%s/src/warpy_sync/files/txs/%s", pwd, timeFormatted)
+	err := os.Mkdir(folderPath, 0755)
+	if err != nil {
+		self.Log.WithError(err).Error("could not create folder")
+		return
+	}
+
+	return
 }
