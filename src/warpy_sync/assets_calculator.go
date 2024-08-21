@@ -233,18 +233,15 @@ func (self AssetsCalculator) getPriceFromCache(tokenName string) (price float64,
 	var cachedPrices Prices
 	if x, found := self.priceCache.Get("prices"); found {
 		cachedPrices = x.(Prices)
-		self.Log.WithField("prices", cachedPrices).Info("cached prices")
 	} else {
 		cachedPrices = Prices{Bnb: 0, Btc: 0}
 		self.priceCache.Set("prices", cachedPrices, cache.DefaultExpiration)
-		self.Log.WithField("prices", cachedPrices).Info("setting cached prices")
 	}
 
 	switch tokenName {
 	case "binancecoin":
 		if cachedPrices.Bnb != 0 {
 			price = cachedPrices.Bnb
-			self.Log.WithField("price", price).WithField("token_name", tokenName).Info("getting cached price")
 
 			return
 		} else {
@@ -254,12 +251,10 @@ func (self AssetsCalculator) getPriceFromCache(tokenName string) (price float64,
 				return
 			}
 			cachedPrices.Bnb = price
-			self.Log.WithField("price", price).WithField("token_name", tokenName).Info("getting price")
 		}
 	case "bitcoin":
 		if cachedPrices.Btc != 0 {
 			price = cachedPrices.Btc
-			self.Log.WithField("price", price).WithField("token_name", tokenName).Info("getting cached price")
 
 			return
 		} else {
@@ -268,7 +263,6 @@ func (self AssetsCalculator) getPriceFromCache(tokenName string) (price float64,
 				return
 			}
 			cachedPrices.Btc = price
-			self.Log.WithField("price", price).WithField("token_name", tokenName).Info("getting price")
 		}
 	default:
 		err = errors.New("token name not recognized")
@@ -277,7 +271,6 @@ func (self AssetsCalculator) getPriceFromCache(tokenName string) (price float64,
 	}
 
 	self.priceCache.Set("prices", cachedPrices, cache.DefaultExpiration)
-	self.Log.WithField("prices", cachedPrices).Info("setting prices")
 
 	return
 }
