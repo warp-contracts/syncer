@@ -242,11 +242,9 @@ func (self AssetsCalculator) getPriceFromCache(tokenName string) (price float64,
 	case "binancecoin":
 		if cachedPrices.Bnb != 0 {
 			price = cachedPrices.Bnb
-
 			return
 		} else {
 			price, err = eth.GetPriceInEth(tokenName)
-
 			if err != nil {
 				return
 			}
@@ -255,7 +253,6 @@ func (self AssetsCalculator) getPriceFromCache(tokenName string) (price float64,
 	case "bitcoin":
 		if cachedPrices.Btc != 0 {
 			price = cachedPrices.Btc
-
 			return
 		} else {
 			price, err = eth.GetPriceInEth(tokenName)

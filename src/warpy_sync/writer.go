@@ -95,9 +95,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 					WithError(err).Error("Failed to send interaction chunk")
 				errorOccured = true
 			}
-			if i >= chunkSize {
-				initialCapInteraction = false
-			}
+			initialCapInteraction = false
 			payloadChunk = make([]InteractionPayload, 0, chunkSize)
 		}
 
