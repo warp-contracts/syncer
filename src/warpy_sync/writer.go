@@ -77,6 +77,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	var cap int64
 	initialCapInteraction := true
 	var errorOccured bool
+	txInternalId := 1
 	for i, payload := range *payloads {
 		if payload.Points == 0 {
 			self.Log.WithField("from_address", payload.FromAddress).Debug("Skipping from address, points 0")
@@ -88,7 +89,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 			if i == len(*payloads)-1 {
 				cap = self.calculateCap()
 			}
-			err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured, initialCapInteraction)
+			err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured, initialCapInteraction, txInternalId)
 			if err != nil {
 				self.Log.
 					WithField("chunk_size", len(payloadChunk)).
@@ -97,12 +98,13 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 			}
 			initialCapInteraction = false
 			payloadChunk = make([]InteractionPayload, 0, chunkSize)
+			txInternalId++
 		}
 
 	}
 	if len(payloadChunk) > 0 {
 		cap := self.calculateCap()
-		err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured, initialCapInteraction)
+		err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured, initialCapInteraction, txInternalId)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to send interaction chunk")
 			return err
@@ -112,7 +114,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	return
 }
 
-func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap int64, folderForTxs string, errorOccured bool, initialCapInteraction bool) (err error) {
+func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap int64, folderForTxs string, errorOccured bool, initialCapInteraction bool, txInternalId int) (err error) {
 	self.Log.WithField("chunk_size", len(*interactions)).WithField("initial_cap_interaction", initialCapInteraction).
 		Info("Attempting to send a chunk of interaction payload")
 
@@ -163,14 +165,14 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap
 		interactionId, err := warpy.WriteInteractionToWarpy(
 			self.Ctx, self.Config.WarpySyncer, input, self.Log, self.sequencerClient, self.Config.WarpySyncer.WriterApiKey)
 		if err != nil {
-			self.saveTxToFile(input, folderForTxs, true)
+			self.saveTxToFile(input, folderForTxs, true, txInternalId)
 			return err
 		}
 		self.Log.WithField("interactionId", interactionId).Info("Interaction sent to Warpy")
 		self.monitor.GetReport().WarpySyncer.State.WriterInteractionsToWarpy.Inc()
 	}
 
-	self.saveTxToFile(input, folderForTxs, false)
+	self.saveTxToFile(input, folderForTxs, false, txInternalId)
 	return
 }
 
@@ -247,7 +249,7 @@ func (self Writer) calculateCap() int64 {
 	return self.Config.WarpySyncer.WriterPointsCap / numberOfRewards
 }
 
-func (self Writer) saveTxToFile(input Input, folderForTxs string, withError bool) {
+func (self Writer) saveTxToFile(input Input, folderForTxs string, withError bool, txInternalId int) {
 	parsedInput, err := json.Marshal(input)
 	if err != nil {
 		self.Log.WithError(err).Error("could not parsed input")
@@ -257,13 +259,13 @@ func (self Writer) saveTxToFile(input Input, folderForTxs string, withError bool
 	pwd, _ := os.Getwd()
 	timeFormatted := now.Format(time.RFC3339)
 	if withError {
-		err = os.WriteFile(fmt.Sprintf("%s/src/warpy_sync/files/errors/%s.json", pwd, timeFormatted), parsedInput, 0644)
+		err = os.WriteFile(fmt.Sprintf("%s/src/warpy_sync/files/errors/%s_%s.json", pwd, fmt.Sprintf("%v", txInternalId), timeFormatted), parsedInput, 0644)
 	} else {
 		var txsFolderPath string
 		if folderForTxs != "" {
-			txsFolderPath = fmt.Sprintf("%s/%s.json", folderForTxs, timeFormatted)
+			txsFolderPath = fmt.Sprintf("%s/%s_%s.json", folderForTxs, fmt.Sprintf("%v", txInternalId), timeFormatted)
 		} else {
-			txsFolderPath = fmt.Sprintf("%s/src/warpy_sync/files/txs/%s.json", folderForTxs, timeFormatted)
+			txsFolderPath = fmt.Sprintf("%s/src/warpy_sync/files/txs/%s_%s.json", pwd, fmt.Sprintf("%v", txInternalId), timeFormatted)
 		}
 
 		err = os.WriteFile(txsFolderPath, parsedInput, 0644)
