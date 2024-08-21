@@ -7,16 +7,23 @@ import (
 	"math"
 	"math/big"
 	"slices"
+	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/patrickmn/go-cache"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/eth"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
+
+type Prices struct {
+	Bnb float64
+	Btc float64
+}
 
 type AssetsCalculator struct {
 	*task.Task
@@ -27,6 +34,7 @@ type AssetsCalculator struct {
 	ethClient   *ethclient.Client
 	contractAbi map[string]*abi.ABI
 	Output      chan *SommelierTransactionPayload
+	priceCache  *cache.Cache
 }
 
 func NewAssetsCalculator(config *config.Config) (self *AssetsCalculator) {
@@ -37,6 +45,8 @@ func NewAssetsCalculator(config *config.Config) (self *AssetsCalculator) {
 	self.Task = task.NewTask(config, "assets_calculator").
 		WithSubtaskFunc(self.run).
 		WithWorkerPool(config.WarpySyncer.SyncerDepositNumWorkers, config.WarpySyncer.SyncerDepositWorkerQueueSize)
+
+	self.priceCache = cache.New(10*time.Minute, 15*time.Minute)
 
 	return
 }
@@ -207,7 +217,7 @@ func (self *AssetsCalculator) getAssetsFromLog(methodName string, tx *types.Tran
 }
 
 func (self *AssetsCalculator) convertTokenToEth(tokenName string, assetsVal *big.Int) (assetsInEth float64, err error) {
-	tokenPriceInEth, err := eth.GetPriceInEth(tokenName)
+	tokenPriceInEth, err := self.getPriceFromCache(tokenName)
 	if err != nil {
 		self.Log.WithError(err).Error("Could not get token price in ETH")
 		return
@@ -216,5 +226,58 @@ func (self *AssetsCalculator) convertTokenToEth(tokenName string, assetsVal *big
 	decimals := self.Config.WarpySyncer.SyncerChain.Decimals()
 	assetsValFloated, _ := big.NewFloat(0).SetInt(assetsVal).Float64()
 	assetsInEth = (assetsValFloated / math.Pow(10, decimals)) * tokenPriceInEth
+	return
+}
+
+func (self AssetsCalculator) getPriceFromCache(tokenName string) (price float64, err error) {
+	var cachedPrices Prices
+	if x, found := self.priceCache.Get("prices"); found {
+		cachedPrices = x.(Prices)
+		self.Log.WithField("prices", cachedPrices).Info("cached prices")
+	} else {
+		cachedPrices = Prices{Bnb: 0, Btc: 0}
+		self.priceCache.Set("prices", cachedPrices, cache.DefaultExpiration)
+		self.Log.WithField("prices", cachedPrices).Info("setting cached prices")
+	}
+
+	switch tokenName {
+	case "binancecoin":
+		if cachedPrices.Bnb != 0 {
+			price = cachedPrices.Bnb
+			self.Log.WithField("price", price).WithField("token_name", tokenName).Info("getting cached price")
+
+			return
+		} else {
+			price, err = eth.GetPriceInEth(tokenName)
+
+			if err != nil {
+				return
+			}
+			cachedPrices.Bnb = price
+			self.Log.WithField("price", price).WithField("token_name", tokenName).Info("getting price")
+		}
+	case "bitcoin":
+		if cachedPrices.Btc != 0 {
+			price = cachedPrices.Btc
+			self.Log.WithField("price", price).WithField("token_name", tokenName).Info("getting cached price")
+
+			return
+		} else {
+			price, err = eth.GetPriceInEth(tokenName)
+			if err != nil {
+				return
+			}
+			cachedPrices.Btc = price
+			self.Log.WithField("price", price).WithField("token_name", tokenName).Info("getting price")
+		}
+	default:
+		err = errors.New("token name not recognized")
+		self.Log.WithError(err).WithField("token_name", tokenName).Error("could not get token price from cache")
+		return
+	}
+
+	self.priceCache.Set("prices", cachedPrices, cache.DefaultExpiration)
+	self.Log.WithField("prices", cachedPrices).Info("setting prices")
+
 	return
 }
