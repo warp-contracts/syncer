@@ -75,6 +75,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	payloadChunk := make([]InteractionPayload, 0, chunkSize)
 
 	var cap int64
+	var errorOccured bool
 	for i, payload := range *payloads {
 		if payload.Points == 0 {
 			self.Log.WithField("from_address", payload.FromAddress).Debug("Skipping from address, points 0")
@@ -86,12 +87,12 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 			if i == len(*payloads)-1 {
 				cap = self.calculateCap()
 			}
-			err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs)
+			err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured)
 			if err != nil {
 				self.Log.
 					WithField("chunk_size", len(payloadChunk)).
 					WithError(err).Error("Failed to send interaction chunk")
-				return err
+				errorOccured = true
 			}
 			payloadChunk = make([]InteractionPayload, 0, chunkSize)
 		}
@@ -99,7 +100,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	}
 	if len(payloadChunk) > 0 {
 		cap := self.calculateCap()
-		err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs)
+		err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to send interaction chunk")
 			return err
@@ -109,7 +110,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	return
 }
 
-func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap int64, folderForTxs string) (err error) {
+func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap int64, folderForTxs string, errorOccured bool) (err error) {
 	self.Log.WithField("chunk_size", len(*interactions)).
 		Info("Attempting to send a chunk of interaction payload")
 
@@ -155,16 +156,18 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap
 		Cap:      cap,
 	}
 
-	interactionId, err := warpy.WriteInteractionToWarpy(
-		self.Ctx, self.Config.WarpySyncer, input, self.Log, self.sequencerClient, self.Config.WarpySyncer.WriterApiKey)
-	if err != nil {
-		self.saveTxToFile(input, folderForTxs, true)
-		return err
+	if !errorOccured {
+		interactionId, err := warpy.WriteInteractionToWarpy(
+			self.Ctx, self.Config.WarpySyncer, input, self.Log, self.sequencerClient, self.Config.WarpySyncer.WriterApiKey)
+		if err != nil {
+			self.saveTxToFile(input, folderForTxs, true)
+			return err
+		}
+		self.Log.WithField("interactionId", interactionId).Info("Interaction sent to Warpy")
+		self.monitor.GetReport().WarpySyncer.State.WriterInteractionsToWarpy.Inc()
 	}
 
 	self.saveTxToFile(input, folderForTxs, false)
-	self.Log.WithField("interactionId", interactionId).Info("Interaction sent to Warpy")
-	self.monitor.GetReport().WarpySyncer.State.WriterInteractionsToWarpy.Inc()
 	return
 }
 
