@@ -8,12 +8,13 @@ import (
 )
 
 type Input struct {
-	Function string   `json:"function"`
-	Points   int64    `json:"points"`
-	AdminId  string   `json:"adminId"`
-	Members  []Member `json:"members"`
-	NoBoost  bool     `json:"noBoost"`
-	Cap      int64    `json:"cap"`
+	Function              string   `json:"function"`
+	Points                int64    `json:"points"`
+	AdminId               string   `json:"adminId"`
+	Members               []Member `json:"members"`
+	NoBoost               bool     `json:"noBoost"`
+	Cap                   int64    `json:"cap"`
+	InitialCapInteraction bool     `json:"initialCapInteraction"`
 }
 
 func (input Input) MarshalJSON() ([]byte, error) {

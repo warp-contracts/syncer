@@ -75,6 +75,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	payloadChunk := make([]InteractionPayload, 0, chunkSize)
 
 	var cap int64
+	initialCapInteraction := true
 	var errorOccured bool
 	for i, payload := range *payloads {
 		if payload.Points == 0 {
@@ -87,12 +88,15 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 			if i == len(*payloads)-1 {
 				cap = self.calculateCap()
 			}
-			err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured)
+			err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured, initialCapInteraction)
 			if err != nil {
 				self.Log.
 					WithField("chunk_size", len(payloadChunk)).
 					WithError(err).Error("Failed to send interaction chunk")
 				errorOccured = true
+			}
+			if i >= chunkSize {
+				initialCapInteraction = false
 			}
 			payloadChunk = make([]InteractionPayload, 0, chunkSize)
 		}
@@ -100,7 +104,7 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	}
 	if len(payloadChunk) > 0 {
 		cap := self.calculateCap()
-		err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured)
+		err = self.sendInteractionChunk(&payloadChunk, cap, folderForTxs, errorOccured, initialCapInteraction)
 		if err != nil {
 			self.Log.WithError(err).Error("Failed to send interaction chunk")
 			return err
@@ -110,8 +114,8 @@ func (self *Writer) writeInteraction(payloads *[]InteractionPayload) (err error)
 	return
 }
 
-func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap int64, folderForTxs string, errorOccured bool) (err error) {
-	self.Log.WithField("chunk_size", len(*interactions)).
+func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap int64, folderForTxs string, errorOccured bool, initialCapInteraction bool) (err error) {
+	self.Log.WithField("chunk_size", len(*interactions)).WithField("initial_cap_interaction", initialCapInteraction).
 		Info("Attempting to send a chunk of interaction payload")
 
 	addressToRoles, err := self.walletAddressToDiscordRoles(interactions)
@@ -149,11 +153,12 @@ func (self *Writer) sendInteractionChunk(interactions *[]InteractionPayload, cap
 	}
 
 	input := Input{
-		Function: "addPointsWithCap",
-		Points:   0,
-		AdminId:  self.Config.WarpySyncer.SyncerInteractionAdminId,
-		Members:  members,
-		Cap:      cap,
+		Function:              "addPointsWithCap",
+		Points:                0,
+		AdminId:               self.Config.WarpySyncer.SyncerInteractionAdminId,
+		Members:               members,
+		Cap:                   cap,
+		InitialCapInteraction: initialCapInteraction,
 	}
 
 	if !errorOccured {
