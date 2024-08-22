@@ -259,7 +259,7 @@ func (self Writer) saveTxToFile(input Input, folderForTxs string, withError bool
 	pwd, _ := os.Getwd()
 	timeFormatted := now.Format(time.RFC3339)
 	if withError {
-		err = os.WriteFile(fmt.Sprintf("%s/src/warpy_sync/files/errors/%s_%s.json", pwd, fmt.Sprintf("%v", txInternalId), timeFormatted), parsedInput, 0644)
+		err = os.WriteFile(fmt.Sprintf("%s/src/warpy_sync/files/txs/errors/%s_%s.json", pwd, fmt.Sprintf("%v", txInternalId), timeFormatted), parsedInput, 0644)
 	} else {
 		var txsFolderPath string
 		if folderForTxs != "" {
