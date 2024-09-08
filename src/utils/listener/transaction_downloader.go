@@ -171,11 +171,6 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 			// Encode txId for later
 			txId := base64.RawURLEncoding.EncodeToString(txIdBytes)
 
-			// to be removed, verification not passing
-			if txId == "8nRRPU_DTsyZk0uIklo5fg03w9ZHOSZN85oAbn2Kou8" {
-				return
-			}
-
 			// Retries downloading transaction until success or permanent error
 			err = task.NewRetry().
 				WithContext(self.Ctx).
@@ -215,6 +210,11 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 					if err != nil {
 						self.Log.WithField("tx", txId).Error("Failed to download transaction")
 						return err
+					}
+
+					// to be removed, verification not passing
+					if txId == "8nRRPU_DTsyZk0uIklo5fg03w9ZHOSZN85oAbn2Kou8" {
+						return nil
 					}
 
 					// Skip transactions in unsupported format
