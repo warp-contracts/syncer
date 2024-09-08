@@ -214,6 +214,7 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 
 					// to be removed, verification not passing
 					if txId == "8nRRPU_DTsyZk0uIklo5fg03w9ZHOSZN85oAbn2Kou8" {
+						tx = nil
 						return nil
 					}
 
