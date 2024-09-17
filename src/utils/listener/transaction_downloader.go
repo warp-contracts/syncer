@@ -212,25 +212,22 @@ func (self *TransactionDownloader) downloadTransactions(block *arweave.Block) (o
 						return err
 					}
 
-					// to be removed, verification not passing
-					if txId == "79AhxGx6GXmYWO5WMGSDmp8591ujeUxusbZsgGunNKc" {
-						tx = nil
-						return nil
-					}
-
 					// Skip transactions in unsupported format
 					if tx.Format < 2 {
 						tx = nil
 						return nil
 					}
 
+					// suspending for now as multiple transactions could not be verified and we did not receive
+					// any info from the core team
+
 					// Verify transaction signature.
 					// Peer might be malicious and send us invalid transaction for this id
-					err = tx.Verify()
-					if err != nil {
-						self.Log.WithField("tx", txId).Error("Transaction failed to verify, retry downloading...")
-						self.monitor.GetReport().TransactionDownloader.Errors.Validation.Inc()
-					}
+					// err = tx.Verify()
+					// if err != nil {
+					// 	self.Log.WithField("tx", txId).Error("Transaction failed to verify, retry downloading...")
+					// 	self.monitor.GetReport().TransactionDownloader.Errors.Validation.Inc()
+					// }
 
 					if self.isGetTransactionData(tx) {
 						tx.Data, err = self.downloadTransactionData(tx)
