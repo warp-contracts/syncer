@@ -4,23 +4,33 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/warp-contracts/syncer/src/utils/eth"
+	"gorm.io/gorm/utils"
+	"log"
+	"math/big"
+	"strings"
 )
 
 func main() {
+	//runBlock(big.NewInt(43136354))
+	//runBlock(big.NewInt(43225801))
+	//runBlock(big.NewInt(43362115))
+	//runBlock(big.NewInt(43362133))
+	runBlock(big.NewInt(43362168))
+	//runBlock(big.NewInt(43362177))
+}
+
+func runBlock(number *big.Int) {
 	client, err := ethclient.Dial("https://bsc-rpc.publicnode.com")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	block, errBlock := client.BlockByNumber(context.Background(), big.NewInt(41298607))
+	block, errBlock := client.BlockByNumber(context.Background(), number)
 	err = errBlock
 	if err != nil {
 		log.Fatal(err)
@@ -43,7 +53,20 @@ func main() {
 		// 	continue
 		// }
 
-		if tx.Hash().Hex() == "0x315a9aefb94007967e936f27595b8a17856e46be7a3e42d81b1a977a5ccde417" {
+		if utils.Contains(
+			[]string{
+				"0xbceef6285496d2b1a938b7bdcc93277aee6f6f60dbceea43e4e5c2e16a7458ed",
+				"0xee77dcdb12fbeaac8bb45b1f21a4b58367935de7c6510f8b7e96c116541ea928",
+				"0x87b9bb7dc7b56e6d4675fa9075d92276af8e9305d1e3c148b2c4e1415f2ae295",
+				"0x64447cffd0dfead19176e054a061e390e7e6b5176c820767a13d76129f1dcc9e",
+				"0x3d4edbf17fbac088d27051c87e095eb25b3e97289b035be825dcce80b7011baa",
+				"0x11e1ed9dd6a4690b2e3db3cbad7a9c3112eda0e01bfeea7a0ff6cfde5b6a1db5",
+			},
+			tx.Hash().Hex()) {
+
+			fmt.Println("===================================================================")
+			fmt.Println("Tx to", tx.Hash().Hex(), tx.To())
+
 			// data, err := os.Open("src/warpy_sync/abi/IPActionSwapPTV3.json")
 
 			// if err != nil {
@@ -61,32 +84,37 @@ func main() {
 
 			// data.Close()
 
-			contractAbi, err := eth.GetContractABI(
-				"0xA07c5b74C9B40447a954e1466938b865b6BBea36",
-				"N8RD68KAJWVJUWXQBGHM13WKT9ZE2NV1CG",
+			fmt.Println("GetContractProxyABI")
+
+			contractAbi, err := eth.GetContractProxyABI(
+				tx.To().String(),
+				"8QG29V3DJNCAST9APZDWXINNFBWMVHN3AX",
 				eth.Bsc)
 
 			if err != nil {
 				log.Fatal(err)
 			}
-			_, inputsMap, err := eth.DecodeTransactionInputData(contractAbi, tx.Data())
+			fmt.Println("DecodeTransactionInputData")
+			method, inputsMap, err := eth.DecodeTransactionInputData(contractAbi, tx.Data())
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			fmt.Println(inputsMap)
 
-			assets := inputsMap["mintAmount"]
+			assets := inputsMap["dink"]
+			methodName := strings.ToUpper(method.RawName[0:1]) + method.RawName[1:]
 
+			fmt.Println("method", methodName, method.String())
 			fmt.Println("assets", assets)
 
 			receipt, err := client.TransactionReceipt(context.Background(), tx.Hash())
 			if err != nil {
 				log.Fatal(err)
 			}
-			transferLog, err := GetTransactionLog(receipt, contractAbi, "Mint", "")
+			transferLog, err := GetTransactionLog(receipt, contractAbi, "Deposit", "")
 			if err != nil {
-				log.Fatal(err)
+				log.Println("FAILURE", methodName, err, " <<<< =====================    FAILURE!")
 			}
 			// transferValue := transferLog
 			fmt.Println(transferLog)
@@ -97,13 +125,17 @@ func main() {
 }
 
 func GetTransactionLog(receipt *types.Receipt, contractABI *abi.ABI, log string, from string) (output map[string]interface{}, err error) {
-	for _, vLog := range receipt.Logs {
+	fmt.Println("Logs", len(receipt.Logs))
+	for i, vLog := range receipt.Logs {
 		// 0xf9ffabca9c8276e99321725bcb43fb076a6c66a54b7f21c4e8146d8519b417dc
+		fmt.Println("Log", i, vLog.Topics[0])
 		event, err := contractABI.EventByID(vLog.Topics[0])
 		if err != nil {
 			// fmt.Println(err)
 			continue
 		}
+
+		fmt.Println("event0", event.Name, event.Inputs)
 
 		if event.Name == log {
 			inputsDataMap := make(map[string]interface{})
@@ -120,6 +152,7 @@ func GetTransactionLog(receipt *types.Receipt, contractABI *abi.ABI, log string,
 			// parse topics without event name
 			err := abi.ParseTopicsIntoMap(inputsDataMap, indexed, vLog.Topics[1:])
 
+			fmt.Println(inputsDataMap)
 			if from != "" && from != inputsDataMap["from"].(common.Address).String() {
 				continue
 			}

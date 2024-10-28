@@ -99,7 +99,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		writerTask = writer.Task
 		syncerTask = syncer.Task
 		syncerOutput = syncer.Output
-	case eth.Sommelier, eth.LayerBank, eth.Pendle, eth.Venus:
+	case eth.Sommelier, eth.LayerBank, eth.Pendle, eth.Venus, eth.ListaDAO:
 		var contractAbi map[string]*abi.ABI
 		contractAbi = make(map[string]*abi.ABI)
 
@@ -111,6 +111,11 @@ func NewController(config *config.Config) (self *Controller, err error) {
 					syncerDepositContractId,
 					config.WarpySyncer.SyncerApiKey,
 					config.WarpySyncer.SyncerChain)
+			} else if abiSource == "proxy" {
+				contractAbi[syncerDepositContractId], err = eth.GetContractProxyABI(
+					syncerDepositContractId,
+					config.WarpySyncer.SyncerApiKey,
+					config.WarpySyncer.SyncerChain)
 			} else if abiSource != "" {
 				contractAbi[syncerDepositContractId], err = eth.GetContractABIFromFile(abiSource)
 			} else {
@@ -119,7 +124,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		}
 
 		// to be removed in prod
-		if config.WarpySyncer.SyncerProtocol == eth.Venus {
+		if config.WarpySyncer.SyncerProtocol == eth.ListaDAO {
 			pwd, _ := os.Getwd()
 			records := files.ReadCsvFile(fmt.Sprintf("%s/src/warpy_sync/files/testers.csv", pwd))
 

@@ -2,7 +2,6 @@ package warpy_sync
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"math"
 	"math/big"
@@ -105,7 +104,7 @@ func (self *AssetsCalculator) run() (err error) {
 				}
 
 				if assets == nil {
-					assets, err = self.getAssetsFromLog(payload.Method.Name, payload.Transaction, assetsNames)
+					assets, err = self.getAssetsFromLog(payload.Method.RawName, payload.Transaction, assetsNames)
 				}
 
 				if err != nil {
@@ -159,18 +158,10 @@ func (self *AssetsCalculator) run() (err error) {
 }
 
 func (self *AssetsCalculator) getAssetsFromInput(assetsNames []string, input map[string]interface{}) (assets interface{}) {
-	for i, a := range assetsNames {
-		if i == 0 {
-			assets = input[a]
-		} else {
-			var assetsInterface map[string]interface{}
-			assetsParsed, _ := json.Marshal(assets)
-			err := json.Unmarshal(assetsParsed, &assetsInterface)
-			if err != nil {
-				self.Log.WithError(err).Error("Could not parse assets input")
-				return nil
-			}
-			assets = assetsInterface[a]
+	for _, a := range assetsNames {
+		assets = input[a]
+		if assets != nil {
+			return
 		}
 	}
 	return

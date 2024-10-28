@@ -145,7 +145,7 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 					return nil
 				}
 
-				if slices.Contains(self.Config.WarpySyncer.SyncerDepositFunctions, method.Name) {
+				if slices.Contains(self.Config.WarpySyncer.SyncerDepositFunctions, method.RawName) {
 					parsedInputsMap, err := json.Marshal(inputsMap)
 					if err != nil {
 						self.Log.WithError(err).Error("Could not parse transaction input")
@@ -167,7 +167,7 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 						}
 					}
 
-					self.Log.WithField("method_name", method.Name).WithField("inputs_map", string(parsedInputsMap)).
+					self.Log.WithField("method_name", method.RawName).WithField("inputs_map", string(parsedInputsMap)).
 						Info("New transaction decoded")
 
 					select {

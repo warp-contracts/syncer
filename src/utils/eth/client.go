@@ -33,6 +33,7 @@ const (
 	LayerBank Protocol = iota
 	Pendle    Protocol = iota
 	Venus     Protocol = iota
+	ListaDAO  Protocol = iota
 )
 
 type Chain int
@@ -58,6 +59,7 @@ func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
 		return
 	case Manta:
 		rpcProviderUrl = "https://pacific-rpc.manta.network/http"
+		return
 	case Bsc:
 		rpcProviderUrl = "https://bsc-rpc.publicnode.com"
 		return
@@ -77,6 +79,7 @@ func (chain Chain) Api() (apiUrl string, err error) {
 		return
 	case Manta:
 		apiUrl = "https://pacific-explorer.manta.network/api"
+		return
 	case Bsc:
 		apiUrl = "https://api.bscscan.com/api"
 		return
@@ -98,6 +101,8 @@ func (protocol Protocol) String() string {
 		return "pendle"
 	case Venus:
 		return "venus"
+	case ListaDAO:
+		return "lista_dao"
 	}
 	return ""
 }
@@ -106,6 +111,8 @@ func (protocol Protocol) GetAbi() string {
 	switch protocol {
 	case Sommelier, LayerBank, Venus:
 		return "direct"
+	case ListaDAO:
+		return "proxy"
 	case Pendle:
 		return "IPActionSwapPTV3.json"
 	}
@@ -140,10 +147,10 @@ func (chain Chain) Decimals() float64 {
 
 func GetTokenName(contract string) string {
 	switch contract {
-	case "0xA07c5b74C9B40447a954e1466938b865b6BBea36":
+	case "0xa835F890Fcde7679e7F7711aBfd515d2A267Ed0B":
 		return "binancecoin"
-	case "0x882C173bC7Ff3b7786CA16dfeD3DFFfb9Ee7847B":
-		return "bitcoin"
+	case "0xB68443Ee3e828baD1526b3e0Bdf2Dfc6b1975ec4":
+		return "binancecoin"
 	}
 
 	return ""
@@ -208,6 +215,14 @@ func GetContractABI(contractAddress, apiKey string, chain Chain) (*abi.ABI, erro
 		return nil, err
 	}
 	return &contractABI, nil
+}
+
+func GetContractProxyABI(contractAddress, apiKey string, chain Chain) (*abi.ABI, error) {
+	abiProxies := map[string]string{
+		"0xB68443Ee3e828baD1526b3e0Bdf2Dfc6b1975ec4": "0x3a0f552C0555468A9f8Ab641FE44F5ba86208A9C",
+		"0xa835F890Fcde7679e7F7711aBfd515d2A267Ed0B": "0xF85D7C7BaF867A97A91fEB9583464B9D44D40a99",
+	}
+	return GetContractABI(abiProxies[contractAddress], apiKey, chain)
 }
 
 func DecodeTransactionInputData(contractABI *abi.ABI, data []byte) (method *abi.Method, inputsMap map[string]interface{}, err error) {

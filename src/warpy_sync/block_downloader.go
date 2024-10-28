@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/cenkalti/backoff"
@@ -182,7 +183,10 @@ func (self *BlockDownloader) downloadBlockOrHeader(height int64) (blockHeight ui
 				return backoff.Permanent(err)
 			}
 			self.monitor.GetReport().WarpySyncer.Errors.BlockDownloaderFailures.Inc()
-			self.Log.WithError(err).WithField("height", height).Warn("Failed to download block, retrying...")
+			if strings.HasPrefix(err.Error(), "429 Too Many Requests") {
+				err = errors.New("429 Too Many Requests")
+			}
+			self.Log.WithField("height", height).WithError(err).Warn("Failed to download block, retrying...")
 			return err
 		}).
 		Run(func() (err error) {
