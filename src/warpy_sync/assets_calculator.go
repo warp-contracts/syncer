@@ -3,6 +3,7 @@ package warpy_sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"slices"
@@ -127,7 +128,11 @@ func (self *AssetsCalculator) run() (err error) {
 				}
 
 				var assetsInEth float64
-				tokenName := eth.GetTokenName(payload.Transaction.To().String())
+
+				tokenName := eth.GetTokenName(fmt.Sprintf("%v", payload.Input["token"]))
+				if tokenName == "" {
+					tokenName = eth.GetTokenName(payload.Transaction.To().String())
+				}
 				if tokenName != "" {
 					assetsInEth, err = self.convertTokenToEth(tokenName, assetsVal)
 					if err != nil {

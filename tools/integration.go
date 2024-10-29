@@ -16,11 +16,12 @@ import (
 )
 
 func main() {
-	//runBlock(big.NewInt(43136354))
+	runBlock(big.NewInt(43136354))
 	//runBlock(big.NewInt(43225801))
 	//runBlock(big.NewInt(43362115))
 	//runBlock(big.NewInt(43362133))
-	runBlock(big.NewInt(43362168))
+	//runBlock(big.NewInt(43362168))
+	runBlock(big.NewInt(43542002))
 	//runBlock(big.NewInt(43362177))
 }
 
@@ -61,6 +62,7 @@ func runBlock(number *big.Int) {
 				"0x64447cffd0dfead19176e054a061e390e7e6b5176c820767a13d76129f1dcc9e",
 				"0x3d4edbf17fbac088d27051c87e095eb25b3e97289b035be825dcce80b7011baa",
 				"0x11e1ed9dd6a4690b2e3db3cbad7a9c3112eda0e01bfeea7a0ff6cfde5b6a1db5",
+				"0x7b3c278f97af43f93fd783aa57499e6c51d6b99b9518ae7176b03589a1e2cab5",
 			},
 			tx.Hash().Hex()) {
 
@@ -104,9 +106,14 @@ func runBlock(number *big.Int) {
 
 			assets := inputsMap["dink"]
 			methodName := strings.ToUpper(method.RawName[0:1]) + method.RawName[1:]
+			tokenName := eth.GetTokenName(fmt.Sprintf("%v", inputsMap["token"]))
+			if tokenName == "" {
+				tokenName = eth.GetTokenName(tx.To().String())
+			}
 
 			fmt.Println("method", methodName, method.String())
 			fmt.Println("assets", assets)
+			fmt.Println("tokenName", tokenName)
 
 			receipt, err := client.TransactionReceipt(context.Background(), tx.Hash())
 			if err != nil {

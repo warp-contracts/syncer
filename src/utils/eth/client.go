@@ -149,6 +149,10 @@ func GetTokenName(contract string) string {
 	switch contract {
 	case "0xa835F890Fcde7679e7F7711aBfd515d2A267Ed0B":
 		return "binancecoin"
+	case "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b":
+		return "binancecoin"
+	case "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c":
+		return "bitcoin"
 	case "0xB68443Ee3e828baD1526b3e0Bdf2Dfc6b1975ec4":
 		return "binancecoin"
 	}
