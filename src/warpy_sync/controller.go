@@ -124,7 +124,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		}
 
 		// to be removed in prod
-		if config.WarpySyncer.SyncerProtocol == eth.ListaDAO {
+		if config.WarpySyncer.SyncerProtocol == eth.Venus {
 			pwd, _ := os.Getwd()
 			records := files.ReadCsvFile(fmt.Sprintf("%s/src/warpy_sync/files/testers.csv", pwd))
 
