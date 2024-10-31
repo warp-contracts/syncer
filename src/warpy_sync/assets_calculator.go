@@ -139,7 +139,8 @@ func (self *AssetsCalculator) run() (err error) {
 						return err
 					}
 				} else {
-					assetsInEth = eth.WeiToEther(assetsVal)
+					self.Log.WithField("txId", payload.Transaction.Hash().String()).Debug("Unsupported token. Skipping")
+					return nil
 				}
 
 				select {
