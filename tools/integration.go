@@ -16,12 +16,13 @@ import (
 )
 
 func main() {
-	runBlock(big.NewInt(43136354))
+	//runBlock(big.NewInt(43136354))
 	//runBlock(big.NewInt(43225801))
 	//runBlock(big.NewInt(43362115))
 	//runBlock(big.NewInt(43362133))
 	//runBlock(big.NewInt(43362168))
-	runBlock(big.NewInt(43542002))
+	//runBlock(big.NewInt(43542002))
+	runBlock(big.NewInt(43577161))
 	//runBlock(big.NewInt(43362177))
 }
 
@@ -63,6 +64,7 @@ func runBlock(number *big.Int) {
 				"0x3d4edbf17fbac088d27051c87e095eb25b3e97289b035be825dcce80b7011baa",
 				"0x11e1ed9dd6a4690b2e3db3cbad7a9c3112eda0e01bfeea7a0ff6cfde5b6a1db5",
 				"0x7b3c278f97af43f93fd783aa57499e6c51d6b99b9518ae7176b03589a1e2cab5",
+				"0x6c32d9ad1f4ef4b9afada8999f2b7ddac044ed4fc1d34bba5a1e86e76321d898",
 			},
 			tx.Hash().Hex()) {
 
