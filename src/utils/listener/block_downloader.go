@@ -288,17 +288,17 @@ func (self *BlockDownloader) downloadOneBlock(height uint64, lastProcessedBlockH
 		return
 	}
 
-	if !block.IsValid() {
-		self.Log.
-			WithField("height", height).
-			WithField("peer", peer).
-			WithField("age", resp.Header().Get("Age")).
-			WithField("x-trace", resp.Header().Get("X-Trace")).
-			Error("Block hash isn't valid")
-		self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
-		err = errors.New("block isn't valid")
-		return
-	}
+	// if !block.IsValid() {
+	// 	self.Log.
+	// 		WithField("height", height).
+	// 		WithField("peer", peer).
+	// 		WithField("age", resp.Header().Get("Age")).
+	// 		WithField("x-trace", resp.Header().Get("X-Trace")).
+	// 		Error("Block hash isn't valid")
+	// 	self.monitor.GetReport().BlockDownloader.Errors.BlockValidationErrors.Inc()
+	// 	err = errors.New("block isn't valid")
+	// 	return
+	// }
 
 	if len(lastProcessedBlockHash) > 0 &&
 		!bytes.Equal(lastProcessedBlockHash, block.PreviousBlock) {
