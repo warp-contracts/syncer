@@ -24,6 +24,7 @@ type WarpySyncerAssets struct {
 	TxId        string  `gorm:"primaryKey" json:"tx_id"`
 	FromAddress string  `json:"from_address"`
 	Assets      float64 `json:"assets"`
+	AssetFactor float64 `json:"asset_factor"`
 	Timestamp   uint64  `json:"timestamp"`
 	Protocol    string  `json:"protocol"`
 	Chain       string  `json:"chain"`

@@ -20,11 +20,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
-type Prices struct {
-	Bnb float64
-	Btc float64
-}
-
 type AssetsCalculator struct {
 	*task.Task
 
@@ -90,22 +85,11 @@ func (self *AssetsCalculator) run() (err error) {
 				return err
 			}).
 			Run(func() error {
-				var assets interface{}
-				var assetsNames []string
-				if slices.Contains(self.Config.WarpySyncer.StoreDepositWithdrawFunctions, payload.Method.Name) {
-					assetsNames = self.Config.WarpySyncer.AssetsCalculatorWithdrawAssetsNames
-					if payload.Transaction.To().String() == "0xA07c5b74C9B40447a954e1466938b865b6BBea36" {
-						assets = nil
-					} else {
-						assets = self.getAssetsFromInput(assetsNames, payload.Input)
-					}
-				} else {
-					assetsNames = self.Config.WarpySyncer.AssetsCalculatorDepositAssetsNames
-					assets = self.getAssetsFromInput(assetsNames, payload.Input)
-				}
+				assetsNames := self.GetAssetsNames(payload.Method.Name) // Venus: here is used be condition "0xA07c5b74C9B40447a954e1466938b865b6BBea36"
+				assets := self.getAssetsFromInput(assetsNames, payload.Input)
 
 				if assets == nil {
-					assets, err = self.getAssetsFromLog(payload.Method.RawName, payload.Transaction, assetsNames)
+					assets, err = self.GetAssetsFromLog(payload.Method.RawName, payload.Transaction, assetsNames)
 				}
 
 				if err != nil {
@@ -163,6 +147,15 @@ func (self *AssetsCalculator) run() (err error) {
 	return nil
 }
 
+func (self *AssetsCalculator) GetAssetsNames(methodName string) (assetsNames []string) {
+	if slices.Contains(self.Config.WarpySyncer.StoreDepositWithdrawFunctions, methodName) {
+		assetsNames = self.Config.WarpySyncer.AssetsCalculatorWithdrawAssetsNames
+	} else {
+		assetsNames = self.Config.WarpySyncer.AssetsCalculatorDepositAssetsNames
+	}
+	return
+}
+
 func (self *AssetsCalculator) getAssetsFromInput(assetsNames []string, input map[string]interface{}) (assets interface{}) {
 	for _, a := range assetsNames {
 		assets = input[a]
@@ -188,7 +181,7 @@ func (self *AssetsCalculator) convertAssets(assets interface{}) (assetsVal *big.
 	return
 }
 
-func (self *AssetsCalculator) getAssetsFromLog(methodName string, tx *types.Transaction, assetsNames []string) (assets interface{}, err error) {
+func (self *AssetsCalculator) GetAssetsFromLog(methodName string, tx *types.Transaction, assetsNames []string) (assets interface{}, err error) {
 	var logName string
 	if slices.Contains(self.Config.WarpySyncer.StoreDepositWithdrawFunctions, methodName) {
 		logName = self.Config.WarpySyncer.SyncerDepositWithdrawLog
@@ -202,7 +195,11 @@ func (self *AssetsCalculator) getAssetsFromLog(methodName string, tx *types.Tran
 			self.Log.WithError(err).WithField("tx_hash", tx.Hash().String()).Error("Could not get transaction receipt")
 			return nil, err
 		}
-		log, err := eth.GetTransactionLog(receipt, self.contractAbi[tx.To().String()], logName)
+		logAbi := self.Config.WarpySyncer.SyncerDepositLogContractAbi
+		if logAbi == "" {
+			logAbi = tx.To().String()
+		}
+		log, err := eth.GetTransactionLog(receipt, self.contractAbi[logAbi], logName)
 		if err != nil {
 			self.Log.WithError(err).WithField("tx_hash", tx.Hash().String()).Error("Could not parse log")
 			return nil, err
@@ -231,39 +228,28 @@ func (self AssetsCalculator) getPriceFromCache(tokenName string) (price float64,
 	if x, found := self.priceCache.Get("prices"); found {
 		cachedPrices = x.(Prices)
 	} else {
-		cachedPrices = Prices{Bnb: 0, Btc: 0}
+		cachedPrices = Prices{Bnb: 0, Btc: 0, Sei: 0}
 		self.priceCache.Set("prices", cachedPrices, cache.DefaultExpiration)
 	}
 
-	switch tokenName {
-	case "binancecoin":
-		if cachedPrices.Bnb != 0 {
-			price = cachedPrices.Bnb
-			return
-		} else {
-			price, err = eth.GetPriceInEth(tokenName)
-			if err != nil {
-				return
-			}
-			cachedPrices.Bnb = price
-		}
-	case "bitcoin":
-		if cachedPrices.Btc != 0 {
-			price = cachedPrices.Btc
-			return
-		} else {
-			price, err = eth.GetPriceInEth(tokenName)
-			if err != nil {
-				return
-			}
-			cachedPrices.Btc = price
-		}
-	default:
-		err = errors.New("token name not recognized")
+	price, err = cachedPrices.GetByTokenName(tokenName)
+	if err != nil {
 		self.Log.WithError(err).WithField("token_name", tokenName).Error("could not get token price from cache")
 		return
 	}
 
+	if price == 0 {
+		price, err = eth.GetPriceInEth(tokenName)
+		if err != nil {
+			self.Log.WithError(err).WithField("token_name", tokenName).Error("could not calc eth price")
+			return
+		}
+		err = cachedPrices.SetByTokenName(tokenName, price)
+		if err != nil {
+			self.Log.WithError(err).WithField("token_name", tokenName).Error("could not set token price from cache")
+			return
+		}
+	}
 	self.priceCache.Set("prices", cachedPrices, cache.DefaultExpiration)
 
 	return

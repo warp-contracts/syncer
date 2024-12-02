@@ -28,12 +28,13 @@ type (
 type Protocol int
 
 const (
-	Delta     Protocol = iota
-	Sommelier Protocol = iota
-	LayerBank Protocol = iota
-	Pendle    Protocol = iota
-	Venus     Protocol = iota
-	ListaDAO  Protocol = iota
+	Delta      Protocol = iota
+	Sommelier  Protocol = iota
+	LayerBank  Protocol = iota
+	Pendle     Protocol = iota
+	Venus      Protocol = iota
+	ListaDAO   Protocol = iota
+	YeiFinance Protocol = iota
 )
 
 type Chain int
@@ -44,6 +45,7 @@ const (
 	Mode     Chain = iota
 	Manta    Chain = iota
 	Bsc      Chain = iota
+	Sei      Chain = iota
 )
 
 func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
@@ -62,6 +64,9 @@ func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
 		return
 	case Bsc:
 		rpcProviderUrl = "https://bsc-rpc.publicnode.com"
+		return
+	case Sei:
+		rpcProviderUrl = "https://evm-rpc.sei-apis.com"
 		return
 	}
 
@@ -83,6 +88,9 @@ func (chain Chain) Api() (apiUrl string, err error) {
 	case Bsc:
 		apiUrl = "https://api.bscscan.com/api"
 		return
+	case Sei:
+		apiUrl = "https://seitrace.com/pacific-1/api"
+		return
 	}
 
 	err = errors.New("ETH chain unknown")
@@ -103,6 +111,8 @@ func (protocol Protocol) String() string {
 		return "venus"
 	case ListaDAO:
 		return "lista_dao"
+	case YeiFinance:
+		return "yei_finance"
 	}
 	return ""
 }
@@ -111,7 +121,7 @@ func (protocol Protocol) GetAbi() string {
 	switch protocol {
 	case Sommelier, LayerBank, Venus:
 		return "direct"
-	case ListaDAO:
+	case ListaDAO, YeiFinance:
 		return "proxy"
 	case Pendle:
 		return "IPActionSwapPTV3.json"
@@ -131,6 +141,8 @@ func (chain Chain) String() string {
 		return "manta"
 	case Bsc:
 		return "bsc"
+	case Sei:
+		return "sei"
 	}
 	return ""
 }
@@ -153,6 +165,12 @@ func GetTokenName(contract string) string {
 		return "binancecoin"
 	case "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c":
 		return "bitcoin"
+	case "0x5Cf6826140C1C56Ff49C808A1A75407Cd1DF9423":
+		return "sei"
+	case "0xBc096B6a7D5404De916B3333AD223a1b32eEC8aA":
+		return "sei"
+	case "0x4a4d9abD36F923cBA0Af62A39C01dEC2944fb638":
+		return "sei"
 	}
 
 	return ""
@@ -223,6 +241,8 @@ func GetContractProxyABI(contractAddress, apiKey string, chain Chain) (*abi.ABI,
 	abiProxies := map[string]string{
 		"0xB68443Ee3e828baD1526b3e0Bdf2Dfc6b1975ec4": "0x3a0f552C0555468A9f8Ab641FE44F5ba86208A9C",
 		"0xa835F890Fcde7679e7F7711aBfd515d2A267Ed0B": "0xF85D7C7BaF867A97A91fEB9583464B9D44D40a99",
+		"0xBc096B6a7D5404De916B3333AD223a1b32eEC8aA": "0xBc096B6a7D5404De916B3333AD223a1b32eEC8aA",
+		"0x4a4d9abD36F923cBA0Af62A39C01dEC2944fb638": "0xd078C43f88Fbed47b3Ce16Dc361606B594c8F305",
 	}
 	return GetContractABI(abiProxies[contractAddress], apiKey, chain)
 }

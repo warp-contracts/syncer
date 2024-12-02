@@ -60,6 +60,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		syncedComponent = model.SyncedComponentWarpySyncerManta
 	case eth.Bsc:
 		syncedComponent = model.SyncedComponentWarpySyncerBsc
+	case eth.Sei:
+		syncedComponent = model.SyncedComponentWarpySyncerSei
 	default:
 		err = errors.New("synced component not recognized")
 	}
@@ -99,32 +101,12 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		writerTask = writer.Task
 		syncerTask = syncer.Task
 		syncerOutput = syncer.Output
-	case eth.Sommelier, eth.LayerBank, eth.Pendle, eth.Venus, eth.ListaDAO:
+	case eth.Sommelier, eth.LayerBank, eth.Pendle, eth.Venus, eth.ListaDAO, eth.YeiFinance:
 		var contractAbi map[string]*abi.ABI
-		contractAbi = make(map[string]*abi.ABI)
-
-		abiSource := config.WarpySyncer.SyncerProtocol.GetAbi()
-
-		for _, syncerDepositContractId := range config.WarpySyncer.SyncerDepositContractIds {
-			if abiSource == "direct" {
-				contractAbi[syncerDepositContractId], err = eth.GetContractABI(
-					syncerDepositContractId,
-					config.WarpySyncer.SyncerApiKey,
-					config.WarpySyncer.SyncerChain)
-			} else if abiSource == "proxy" {
-				contractAbi[syncerDepositContractId], err = eth.GetContractProxyABI(
-					syncerDepositContractId,
-					config.WarpySyncer.SyncerApiKey,
-					config.WarpySyncer.SyncerChain)
-			} else if abiSource != "" {
-				contractAbi[syncerDepositContractId], err = eth.GetContractABIFromFile(abiSource)
-			} else {
-				err = errors.New("protocol not recognized")
-			}
-		}
+		contractAbi, err = ContractAbiFromMap(config)
 
 		// to be removed in prod
-		if config.WarpySyncer.SyncerProtocol == eth.Venus {
+		if config.WarpySyncer.SyncerProtocol == eth.YeiFinance {
 			pwd, _ := os.Getwd()
 			records := files.ReadCsvFile(fmt.Sprintf("%s/src/warpy_sync/files/testers.csv", pwd))
 
@@ -202,5 +184,29 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		WithConditionalSubtask(pollerTask.Name != "", pollerTask).
 		WithSubtask(writerTask).
 		WithSubtask(StoreDepositTask)
+	return
+}
+
+func ContractAbiFromMap(config *config.Config) (contractAbi map[string]*abi.ABI, err error) {
+	abiSource := config.WarpySyncer.SyncerProtocol.GetAbi()
+	contractAbi = make(map[string]*abi.ABI)
+
+	for _, syncerDepositContractId := range config.WarpySyncer.SyncerDepositContractIds {
+		if abiSource == "direct" {
+			contractAbi[syncerDepositContractId], err = eth.GetContractABI(
+				syncerDepositContractId,
+				config.WarpySyncer.SyncerApiKey,
+				config.WarpySyncer.SyncerChain)
+		} else if abiSource == "proxy" {
+			contractAbi[syncerDepositContractId], err = eth.GetContractProxyABI(
+				syncerDepositContractId,
+				config.WarpySyncer.SyncerApiKey,
+				config.WarpySyncer.SyncerChain)
+		} else if abiSource != "" {
+			contractAbi[syncerDepositContractId], err = eth.GetContractABIFromFile(abiSource)
+		} else {
+			err = errors.New("protocol not recognized")
+		}
+	}
 	return
 }

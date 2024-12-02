@@ -12,121 +12,106 @@ import (
 	"gorm.io/gorm/utils"
 	"log"
 	"math/big"
-	"strings"
 )
 
 func main() {
-	//runBlock(big.NewInt(43136354))
-	//runBlock(big.NewInt(43225801))
-	//runBlock(big.NewInt(43362115))
-	//runBlock(big.NewInt(43362133))
-	//runBlock(big.NewInt(43362168))
-	//runBlock(big.NewInt(43542002))
-	runBlock(big.NewInt(43577161))
-	//runBlock(big.NewInt(43362177))
+	//runBlock(big.NewInt(117750972))
+	runBlock(big.NewInt(115655361))
+	//runBlock(big.NewInt(115655059))
 }
 
 func runBlock(number *big.Int) {
-	client, err := ethclient.Dial("https://bsc-rpc.publicnode.com")
+	fmt.Println("====== BLOCK ", number)
+	//client, err := ethclient.Dial("https://1rpc.io/sei-rpc")
+	//client, err := ethclient.Dial("https://evm-rpc.sei-apis.com")
+	//client, err := ethclient.Dial("https://1rpc.io/sei-rpc")
+	client, err := ethclient.Dial("https://sei-evm-rpc.publicnode.com")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("cannot dial", err)
+	}
+
+	logNames := make(map[string]string)
+	logNames["depositETH"] = "Supply"
+	logNames["withdrawETH"] = "Withdraw"
+
+	asd, p, eee := client.TransactionByHash(context.Background(), common.HexToHash("0x8ac05931de6023d67a2f7abbed20703bd41fbaa689a78bc0736e7adcb8d6d9b4"))
+	fmt.Println("TransactionByHash ", asd.Hash().Hex(), p, eee)
+
+	head, irr := client.HeaderByNumber(context.Background(), number)
+	if irr != nil {
+		log.Fatal("cannot into head: ", err)
+	} else {
+		log.Println("fetched block hash ", head.Hash().Hex())
 	}
 
 	block, errBlock := client.BlockByNumber(context.Background(), number)
 	err = errBlock
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("cannot into block: ", err)
 	}
-	// blockTxs = block.Transactions()
-	// blockHeight = block.Number().Uint64()
-	// blockHash = block.Hash().String()
-	// blockTime = block.Time()
-	// fmt.Println(header.)
 
-	// txCount, err := client.TransactionCount(context.Background(), header.Hash())
-	// if err != nil {
-	// 	log.Fatal(err)
-	// 	log.Fatal("tx count not executed")
-	// }f
-	// fmt.Println(block.ReceivedAt)
+	fmt.Println("Tx count ", len(block.Transactions()))
 	for _, tx := range block.Transactions() {
-		// tx, err := client.TransactionInBlock(context.Background(), header.Hash(), uint(i))
-		// if err != nil {
-		// 	continue
-		// }
 
 		if utils.Contains(
 			[]string{
-				"0xbceef6285496d2b1a938b7bdcc93277aee6f6f60dbceea43e4e5c2e16a7458ed",
-				"0xee77dcdb12fbeaac8bb45b1f21a4b58367935de7c6510f8b7e96c116541ea928",
-				"0x87b9bb7dc7b56e6d4675fa9075d92276af8e9305d1e3c148b2c4e1415f2ae295",
-				"0x64447cffd0dfead19176e054a061e390e7e6b5176c820767a13d76129f1dcc9e",
-				"0x3d4edbf17fbac088d27051c87e095eb25b3e97289b035be825dcce80b7011baa",
-				"0x11e1ed9dd6a4690b2e3db3cbad7a9c3112eda0e01bfeea7a0ff6cfde5b6a1db5",
-				"0x7b3c278f97af43f93fd783aa57499e6c51d6b99b9518ae7176b03589a1e2cab5",
-				"0x6c32d9ad1f4ef4b9afada8999f2b7ddac044ed4fc1d34bba5a1e86e76321d898",
+				"0x94236a429477248212c884feb1b0e6df23dee1d4d8c54a9dc09f6b45753b6773",
+				"0x8ac05931de6023d67a2f7abbed20703bd41fbaa689a78bc0736e7adcb8d6d9b4",
+				"0xf6ce91473d12c11313142369bcba9bdad9375670635a8eef535908a3a00aba05",
 			},
 			tx.Hash().Hex()) {
 
 			fmt.Println("===================================================================")
-			fmt.Println("Tx to", tx.Hash().Hex(), tx.To())
+			fmt.Println("Tx to", tx.Hash().Hex(), tx.To(), tx.Value(), tx.ChainId(), tx.Data())
 
-			// data, err := os.Open("src/warpy_sync/abi/IPActionSwapPTV3.json")
-
-			// if err != nil {
-			// 	fmt.Println(err)
-			// }
-
-			// byteValue, _ := io.ReadAll(data)
-
-			// rawABIResponse := &eth.RawABIResponse{}
-
-			// err = json.Unmarshal(byteValue, rawABIResponse)
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-
-			// data.Close()
-
-			fmt.Println("GetContractProxyABI")
-
-			contractAbi, err := eth.GetContractProxyABI(
-				tx.To().String(),
-				"8QG29V3DJNCAST9APZDWXINNFBWMVHN3AX",
-				eth.Bsc)
-
+			cabi, err := eth.GetContractABIFromFile("InitializableImmutableAdminUpgradeabilityProxy.json")
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println("DecodeTransactionInputData")
+
+			fmt.Println("GetContractProxyABI")
+
+			contractAbi, err := eth.GetContractABI(
+				tx.To().String(),
+				"8QG29V3DJNCAST9APZDWXINNFBWMVHN3AX",
+				eth.Sei)
+
+			if err != nil {
+				log.Fatal("cannot into contract abi: ", err)
+			}
+
 			method, inputsMap, err := eth.DecodeTransactionInputData(contractAbi, tx.Data())
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			fmt.Println(inputsMap)
+			fmt.Println("inputsMap: ", inputsMap)
 
-			assets := inputsMap["dink"]
-			methodName := strings.ToUpper(method.RawName[0:1]) + method.RawName[1:]
+			assets := inputsMap["amount"]
+			referralCode := inputsMap["referralCode"]
 			tokenName := eth.GetTokenName(fmt.Sprintf("%v", inputsMap["token"]))
 			if tokenName == "" {
 				tokenName = eth.GetTokenName(tx.To().String())
 			}
 
-			fmt.Println("method", methodName, method.String())
-			fmt.Println("assets", assets)
-			fmt.Println("tokenName", tokenName)
+			fmt.Println("method ", method.RawName, method.String())
+			fmt.Println("assets ", assets)
+			fmt.Println("referralCode ", referralCode)
+			fmt.Println("tokenName ", tokenName)
 
 			receipt, err := client.TransactionReceipt(context.Background(), tx.Hash())
 			if err != nil {
 				log.Fatal(err)
 			}
-			transferLog, err := GetTransactionLog(receipt, contractAbi, "Deposit", "")
+
+			logName := logNames[method.RawName]
+			transferLog, err := GetTransactionLog(receipt, cabi, logName, "")
 			if err != nil {
-				log.Println("FAILURE", methodName, err, " <<<< =====================    FAILURE!")
+				log.Println("FAILURE", logName, err, " <<<< =====================    FAILURE!")
 			}
 			// transferValue := transferLog
 			fmt.Println(transferLog)
+			fmt.Println("===================================================================")
 		}
 
 	}
@@ -140,7 +125,7 @@ func GetTransactionLog(receipt *types.Receipt, contractABI *abi.ABI, log string,
 		fmt.Println("Log", i, vLog.Topics[0])
 		event, err := contractABI.EventByID(vLog.Topics[0])
 		if err != nil {
-			// fmt.Println(err)
+			fmt.Println("-- Failed", i, err)
 			continue
 		}
 

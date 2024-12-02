@@ -72,7 +72,7 @@ func (self *PollerDeposit) handleNew() (err error) {
 
 		err = self.db.WithContext(ctx).
 			Raw(`SELECT from_address, 
-				SUM(assets) 
+				SUM(asset_factor * assets) 
 				FROM warpy_syncer_assets 
 				WHERE timestamp < ? AND chain = ? AND protocol = ?
 				group by from_address;
