@@ -95,6 +95,9 @@ type WarpySyncer struct {
 	// Supported token
 	SyncerDepositToken string
 
+	// If assets for withdrawal should be taken from transaction receipt, contract abi for events should be provided
+	SyncerDepositLogContractAbi string
+
 	// If assets for withdrawal should be taken from transaction receipt, name of the log should be provided
 	SyncerDepositWithdrawLog string
 
@@ -165,10 +168,10 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.BlockDownloaderPollerInterval", 3600) // should be 1h: 60 * 60 seconds
 	viper.SetDefault("WarpySyncer.BlockDownloaderBlockTime", float64(3))
 	viper.SetDefault("WarpySyncer.BlockDownloaderByHeader", false)
-	viper.SetDefault("WarpySyncer.SyncerContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
-	viper.SetDefault("WarpySyncer.SyncerNameServiceContractId", "p5OI99-BaY4QbZts266T7EDwofZqs-wVuYJmMCS0SUU")
-	viper.SetDefault("WarpySyncer.SyncerChain", eth.Bsc)
-	viper.SetDefault("WarpySyncer.SyncerProtocol", eth.ListaDAO)
+	viper.SetDefault("WarpySyncer.SyncerContractId", "mdxBOJ3cy98lqJoPZf7EW0iU4jaqePC3XZRkzoWU1QY")
+	viper.SetDefault("WarpySyncer.SyncerNameServiceContractId", "mdxBOJ3cy98lqJoPZf7EW0iU4jaqePC3XZRkzoWU1QY")
+	viper.SetDefault("WarpySyncer.SyncerChain", eth.Sei)
+	viper.SetDefault("WarpySyncer.SyncerProtocol", eth.YeiFinance)
 	viper.SetDefault("WarpySyncer.SyncerDreUrl", "https://dre-warpy.warp.cc")
 	viper.SetDefault("WarpySyncer.SyncerWarpyApiUrl", "https://api-warpy.warp.cc")
 	viper.SetDefault("WarpySyncer.SyncerApiKey", "")
@@ -181,7 +184,7 @@ func setWarpySyncerDefaults() {
 	viper.SetDefault("WarpySyncer.SyncerDeltaRedstoneData", "000002ed57011e0000")
 	viper.SetDefault("WarpySyncer.SyncerDeltaNumWorkers", "50")
 	viper.SetDefault("WarpySyncer.SyncerDeltaWorkerQueueSize", "10")
-	viper.SetDefault("WarpySyncer.SyncerDepositContractIds", []string{"0xa835F890Fcde7679e7F7711aBfd515d2A267Ed0B", "0xB68443Ee3e828baD1526b3e0Bdf2Dfc6b1975ec4"})
+	viper.SetDefault("WarpySyncer.SyncerDepositContractIds", []string{"0xBc096B6a7D5404De916B3333AD223a1b32eEC8aA", "0x4a4d9abD36F923cBA0Af62A39C01dEC2944fb638"})
 	viper.SetDefault("WarpySyncer.SyncerDepositBackoffInterval", "3s")
 	viper.SetDefault("WarpySyncer.SyncerDepositFunctions", []string{"deposit", "provide", "provide0", "withdraw", "release"})
 	viper.SetDefault("WarpySyncer.SyncerDepositMarkets", []string{
@@ -196,14 +199,15 @@ func setWarpySyncerDefaults() {
 		"0x35f3dB08a6e9cB4391348b0B404F493E7ae264c0",
 	})
 	viper.SetDefault("WarpySyncer.SyncerDepositToken", "0x6A0d9584D88D22BcaD7D4F83E7d6AB7949895DDF")
-	viper.SetDefault("WarpySyncer.SyncerDepositWithdrawLog", "Redeem")
-	viper.SetDefault("WarpySyncer.SyncerDepositDepositLog", "Deposit")
-	viper.SetDefault("WarpySyncer.StoreDepositWithdrawFunctions", []string{"withdraw", "release"})
+	viper.SetDefault("WarpySyncer.SyncerDepositLogContractAbi", "0x4a4d9abD36F923cBA0Af62A39C01dEC2944fb638")
+	viper.SetDefault("WarpySyncer.SyncerDepositWithdrawLog", "Withdraw")
+	viper.SetDefault("WarpySyncer.SyncerDepositDepositLog", "Supply")
+	viper.SetDefault("WarpySyncer.StoreDepositWithdrawFunctions", []string{"withdraw", "withdrawETH"})
 	viper.SetDefault("WarpySyncer.StoreBatchSize", "500")
 	viper.SetDefault("WarpySyncer.StoreInterval", "2s")
 	viper.SetDefault("WarpySyncer.StoreMaxBackoffInterval", "30s")
-	viper.SetDefault("WarpySyncer.AssetsCalculatorDepositAssetsNames", []string{"amount", "dink"})
-	viper.SetDefault("WarpySyncer.AssetsCalculatorWithdrawAssetsNames", []string{"amount", "dink"})
+	viper.SetDefault("WarpySyncer.AssetsCalculatorDepositAssetsNames", []string{"amount"})
+	viper.SetDefault("WarpySyncer.AssetsCalculatorWithdrawAssetsNames", []string{"amount"})
 	viper.SetDefault("WarpySyncer.PollerDepositChannelBufferLength", 100)
 	viper.SetDefault("WarpySyncer.PollerDepositInterval", "1m")
 	viper.SetDefault("WarpySyncer.PollerDepositTimeout", "90s")
