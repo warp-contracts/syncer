@@ -3,6 +3,7 @@ package warpy_sync
 import (
 	"context"
 	"errors"
+	"github.com/warp-contracts/syncer/src/utils/eth"
 	"math"
 	"slices"
 	"time"
@@ -75,7 +76,7 @@ func (self *StoreDeposit) run() (err error) {
 					Transaction(func(dbTx *gorm.DB) error {
 						err = self.insertLog(dbTx, payload.Transaction, payload.FromAddress, payload.Block, payload.Method, payload.ParsedInput)
 
-						err = self.insertAssets(dbTx, payload.Transaction, payload.FromAddress, payload.Assets, payload.Method.Name, payload.Block)
+						err = self.insertAssets(dbTx, payload)
 						if err != nil {
 							return err
 						}
@@ -125,10 +126,11 @@ func (self *StoreDeposit) insertLog(dbTx *gorm.DB, tx *types.Transaction, from s
 	return
 }
 
-func (self *StoreDeposit) insertAssets(dbTx *gorm.DB, tx *types.Transaction, from string, assets float64, methodName string, block *BlockInfoPayload) (err error) {
+func (self *StoreDeposit) insertAssets(dbTx *gorm.DB, payload *SommelierTransactionPayload) (err error) {
+	tx := payload.Transaction
 	var transactionPayload *model.WarpySyncerAssets
-	if slices.Contains(self.Config.WarpySyncer.StoreDepositWithdrawFunctions, methodName) {
-		assets = math.Ceil(assets*1000) / 1000
+	if slices.Contains(self.Config.WarpySyncer.StoreDepositWithdrawFunctions, payload.Method.Name) {
+		assets := math.Ceil(payload.Assets*1000) / 1000
 		self.Log.WithField("tx_id", tx.Hash().String()).WithField("assets_to_subtract", assets).Info("Redeem transaction require subtraction")
 		var lastTxs []*struct {
 			TxId   string
@@ -137,7 +139,7 @@ func (self *StoreDeposit) insertAssets(dbTx *gorm.DB, tx *types.Transaction, fro
 		err = dbTx.WithContext(self.Ctx).
 			Table(model.TableWarpySyncerAssets).
 			Select("tx_id, assets").
-			Where("from_address = ?", from).
+			Where("from_address = ?", payload.FromAddress).
 			Where("protocol = ?", self.Config.WarpySyncer.SyncerProtocol.String()).
 			Where("chain = ?", self.Config.WarpySyncer.SyncerChain.String()).
 			Order("timestamp DESC").
@@ -201,12 +203,14 @@ func (self *StoreDeposit) insertAssets(dbTx *gorm.DB, tx *types.Transaction, fro
 			}
 		}
 	} else {
-		assets = math.Round(assets*1000) / 1000
+		assets := math.Round(payload.Assets*1000) / 1000
+		assetFactor := self.getAssetFactor(payload.Input)
 		transactionPayload = &model.WarpySyncerAssets{
 			TxId:        tx.Hash().String(),
-			FromAddress: from,
+			FromAddress: payload.FromAddress,
 			Assets:      assets,
-			Timestamp:   block.Timestamp,
+			AssetFactor: assetFactor,
+			Timestamp:   payload.Block.Timestamp,
 			Protocol:    self.Config.WarpySyncer.SyncerProtocol.String(),
 			Chain:       self.Config.WarpySyncer.SyncerChain.String(),
 		}
@@ -228,4 +232,18 @@ func (self *StoreDeposit) insertAssets(dbTx *gorm.DB, tx *types.Transaction, fro
 	}
 
 	return
+}
+
+func (self *StoreDeposit) getAssetFactor(input map[string]interface{}) float64 {
+	switch self.Config.WarpySyncer.SyncerProtocol {
+	case eth.YeiFinance:
+		if val, ok := input["referralCode"]; ok {
+			if val.(int) == 14553 { // OKX Wallet
+				return 2
+			}
+		}
+	default:
+		return 1
+	}
+	return 1
 }
