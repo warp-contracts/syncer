@@ -35,6 +35,7 @@ const (
 	Venus      Protocol = iota
 	ListaDAO   Protocol = iota
 	YeiFinance Protocol = iota
+	ZeroLend   Protocol = iota
 )
 
 type Chain int
@@ -46,9 +47,10 @@ const (
 	Manta    Chain = iota
 	Bsc      Chain = iota
 	Sei      Chain = iota
+	Base     Chain = iota
 )
 
-func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
+func RpcProviderUrl(chain Chain, rpcApiKey string) (rpcProviderUrl string, err error) {
 	switch chain {
 	case Avax:
 		rpcProviderUrl = "https://api.avax.network/ext/bc/C/rpc"
@@ -67,6 +69,9 @@ func (chain Chain) RpcProviderUrl() (rpcProviderUrl string, err error) {
 		return
 	case Sei:
 		rpcProviderUrl = "https://evm-rpc.sei-apis.com"
+		return
+	case Base:
+		rpcProviderUrl = fmt.Sprintf("https://base-mainnet.g.alchemy.com/v2/%s", rpcApiKey)
 		return
 	}
 
@@ -91,6 +96,9 @@ func (chain Chain) Api() (apiUrl string, err error) {
 	case Sei:
 		apiUrl = "https://seitrace.com/pacific-1/api"
 		return
+	case Base:
+		apiUrl = "https://api.basescan.org/api"
+		return
 	}
 
 	err = errors.New("ETH chain unknown")
@@ -113,6 +121,8 @@ func (protocol Protocol) String() string {
 		return "lista_dao"
 	case YeiFinance:
 		return "yei_finance"
+	case ZeroLend:
+		return "zero_lend"
 	}
 	return ""
 }
@@ -125,6 +135,8 @@ func (protocol Protocol) GetAbi() string {
 		return "proxy"
 	case Pendle:
 		return "IPActionSwapPTV3.json"
+	case ZeroLend:
+		return "proxy"
 	}
 	return ""
 }
@@ -143,14 +155,16 @@ func (chain Chain) String() string {
 		return "bsc"
 	case Sei:
 		return "sei"
+	case Base:
+		return "base"
 	}
 	return ""
 }
 
-func (chain Chain) Decimals() float64 {
-	switch chain {
-	case Bsc:
-		return 18
+func Decimals(asset interface{}) float64 {
+	switch strings.ToLower(asset.(string)) {
+	case "0xecac9c5f704e954931349da37f60e39f515c11c1":
+		return 8
 	}
 
 	// this is the base decimals value according to ERC-20 spec
@@ -171,13 +185,17 @@ func GetTokenName(contract string) string {
 		return "sei"
 	case "0x4a4d9abD36F923cBA0Af62A39C01dEC2944fb638":
 		return "sei"
+	case "0x766f21277087e18967c1b10bf602d8fe56d0c671":
+		return "bitcoin"
+	case "0x940181a94a35a4569e4529a3cdfb74e38fd98631":
+		return "aerodrome-finance"
 	}
 
 	return ""
 }
 
-func GetEthClient(log *logrus.Entry, chain Chain) (client *ethclient.Client, err error) {
-	rpcProviderUrl, err := chain.RpcProviderUrl()
+func GetEthClient(log *logrus.Entry, chain Chain, rpcApiKey string) (client *ethclient.Client, err error) {
+	rpcProviderUrl, err := RpcProviderUrl(chain, rpcApiKey)
 	if err != nil {
 		log.WithError(err).Error("ETH chain unknown")
 		return
@@ -214,11 +232,11 @@ func GetContractRawABI(address string, apiKey string, chain Chain) (rawABIRespon
 	}
 
 	if !resp.IsSuccess() {
-		return nil, fmt.Errorf(fmt.Sprintf("Get contract raw abi was not successful: %s\n", resp))
+		return nil, fmt.Errorf("Get contract raw abi was not successful: %s\n", resp)
 	}
 
 	if *rawABIResponse.Status != "1" {
-		return nil, fmt.Errorf(fmt.Sprintf("Get contract raw abi failed: %s\n", *rawABIResponse.Result))
+		return nil, fmt.Errorf("Get contract raw abi failed: %s\n", *rawABIResponse.Result)
 	}
 
 	return rawABIResponse, nil
@@ -243,6 +261,7 @@ func GetContractProxyABI(contractAddress, apiKey string, chain Chain) (*abi.ABI,
 		"0xa835F890Fcde7679e7F7711aBfd515d2A267Ed0B": "0xF85D7C7BaF867A97A91fEB9583464B9D44D40a99",
 		"0xBc096B6a7D5404De916B3333AD223a1b32eEC8aA": "0xBc096B6a7D5404De916B3333AD223a1b32eEC8aA",
 		"0x4a4d9abD36F923cBA0Af62A39C01dEC2944fb638": "0xd078C43f88Fbed47b3Ce16Dc361606B594c8F305",
+		"0x766f21277087E18967c1b10bF602d8Fe56d0c671": "0x80102a3cbAcADa39560555340e1bC567B83C3A80",
 	}
 	return GetContractABI(abiProxies[contractAddress], apiKey, chain)
 }

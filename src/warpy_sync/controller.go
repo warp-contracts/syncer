@@ -41,7 +41,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 	sequencerClient := sequencer.NewClient(&config.Sequencer)
 
 	// Eth client
-	ethClient, err := eth.GetEthClient(self.Log, config.WarpySyncer.SyncerChain)
+	ethClient, err := eth.GetEthClient(self.Log, config.WarpySyncer.SyncerChain, config.WarpySyncer.SyncerRpcApiKey)
 	if err != nil {
 		self.Log.WithError(err).Error("Could not get ETH client")
 		return
@@ -62,6 +62,8 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		syncedComponent = model.SyncedComponentWarpySyncerBsc
 	case eth.Sei:
 		syncedComponent = model.SyncedComponentWarpySyncerSei
+	case eth.Base:
+		syncedComponent = model.SyncedComponentWarpySyncerBase
 	default:
 		err = errors.New("synced component not recognized")
 	}
@@ -101,7 +103,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		writerTask = writer.Task
 		syncerTask = syncer.Task
 		syncerOutput = syncer.Output
-	case eth.Sommelier, eth.LayerBank, eth.Pendle, eth.Venus, eth.ListaDAO, eth.YeiFinance:
+	case eth.Sommelier, eth.LayerBank, eth.Pendle, eth.Venus, eth.ListaDAO, eth.YeiFinance, eth.ZeroLend:
 		var contractAbi map[string]*abi.ABI
 		contractAbi, err = ContractAbiFromMap(config)
 

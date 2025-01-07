@@ -5,9 +5,10 @@ import (
 )
 
 type Prices struct {
-	Bnb float64
-	Btc float64
-	Sei float64
+	Bnb  float64
+	Btc  float64
+	Sei  float64
+	Aero float64
 }
 
 func (p *Prices) GetByTokenName(name string) (price float64, err error) {
@@ -20,6 +21,9 @@ func (p *Prices) GetByTokenName(name string) (price float64, err error) {
 		return
 	case "sei":
 		price = p.Sei
+		return
+	case "aerodrome-finance":
+		price = p.Aero
 		return
 	}
 	return 0, fmt.Errorf("cannot get price. token name %s not recognized", name)
@@ -35,6 +39,9 @@ func (p *Prices) SetByTokenName(name string, price float64) error {
 		return nil
 	case "sei":
 		p.Sei = price
+		return nil
+	case "aerodrome-finance":
+		p.Aero = price
 		return nil
 	}
 	return fmt.Errorf("cannot set price. token name %s not recognized", name)
