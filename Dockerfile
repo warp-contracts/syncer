@@ -1,4 +1,4 @@
-FROM golang:1.21.3-alpine3.17
+FROM golang:1.23.4-alpine3.20
 RUN apk add --update make build-base curl git
 
 WORKDIR /app
@@ -13,7 +13,7 @@ COPY vendor vendor
 RUN make version
 RUN make build
 
-FROM golang:1.21.3-alpine3.17
+FROM golang:1.23.4-alpine3.20
 RUN mkdir -p /app/bin
 COPY --from=0 /app/bin/syncer /app/bin/syncer
 
