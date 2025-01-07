@@ -14,4 +14,5 @@ const (
 	SyncedComponentWarpySyncerManta    SyncedComponent = "WarpySyncerManta"
 	SyncedComponentWarpySyncerBsc      SyncedComponent = "WarpySyncerBsc"
 	SyncedComponentWarpySyncerSei      SyncedComponent = "WarpySyncerSei"
+	SyncedComponentWarpySyncerBase     SyncedComponent = "WarpySyncerBase"
 )

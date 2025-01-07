@@ -207,7 +207,7 @@ func (self *Writer) walletAddressToDiscordRoles(payloads *[]InteractionPayload) 
 				return err
 			}
 
-			if result.WalletToDiscordId == nil || len(result.WalletToDiscordId) == 0 {
+			if len(result.WalletToDiscordId) == 0 {
 				self.Log.
 					WithField("addresses", strings.Join(addresses, ",")).
 					Debug("No discord ids found for specified address, exiting")

@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -12,8 +15,6 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/logger"
 	"github.com/warp-contracts/syncer/src/warpy_sync"
 	"gorm.io/gorm/utils"
-	"log"
-	"math/big"
 )
 
 var (
@@ -23,7 +24,7 @@ var (
 func main() {
 	fmt.Println("====== Start main ")
 	llogggo := logger.NewSublogger("with-config")
-	client, _ := eth.GetEthClient(llogggo, conf.WarpySyncer.SyncerChain)
+	client, _ := eth.GetEthClient(llogggo, conf.WarpySyncer.SyncerChain, "")
 
 	contractAbi, err := warpy_sync.ContractAbiFromMap(conf)
 
@@ -108,7 +109,7 @@ func readBlock(number int64, client *ethclient.Client, calc *warpy_sync.AssetsCa
 			fmt.Println("method ", method.RawName, method.String())
 			fmt.Println("referralCode ", referralCode)
 
-			assetsNames := calc.GetAssetsNames(method.RawName)
+			assetsNames := calc.GetAssetsNames(method.RawName, warpy_sync.FromInput)
 
 			assets, err := calc.GetAssetsFromLog(method.RawName, tx, assetsNames)
 			if err != nil {

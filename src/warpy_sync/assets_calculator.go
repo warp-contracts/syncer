@@ -20,6 +20,13 @@ import (
 	"github.com/warp-contracts/syncer/src/utils/task"
 )
 
+type MethodType int
+
+const (
+	FromLog   MethodType = iota
+	FromInput MethodType = iota
+)
+
 type AssetsCalculator struct {
 	*task.Task
 
@@ -85,10 +92,11 @@ func (self *AssetsCalculator) run() (err error) {
 				return err
 			}).
 			Run(func() error {
-				assetsNames := self.GetAssetsNames(payload.Method.Name) // Venus: here is used be condition "0xA07c5b74C9B40447a954e1466938b865b6BBea36"
+				assetsNames := self.GetAssetsNames(payload.Method.Name, FromInput) // Venus: here is used be condition "0xA07c5b74C9B40447a954e1466938b865b6BBea36"
 				assets := self.getAssetsFromInput(assetsNames, payload.Input)
 
 				if assets == nil {
+					assetsNames := self.GetAssetsNames(payload.Method.Name, FromLog)
 					assets, err = self.GetAssetsFromLog(payload.Method.RawName, payload.Transaction, assetsNames)
 				}
 
@@ -102,7 +110,6 @@ func (self *AssetsCalculator) run() (err error) {
 					self.Log.WithError(err)
 					return nil
 				}
-
 				assetsVal := self.convertAssets(assets)
 
 				if assetsVal == nil {
@@ -113,12 +120,12 @@ func (self *AssetsCalculator) run() (err error) {
 
 				var assetsInEth float64
 
-				tokenName := eth.GetTokenName(fmt.Sprintf("%v", payload.Input["token"]))
+				tokenName := eth.GetTokenName(fmt.Sprintf("%v", payload.Input[self.Config.WarpySyncer.AssetsCalculatorInputTokenName]))
 				if tokenName == "" {
 					tokenName = eth.GetTokenName(payload.Transaction.To().String())
 				}
 				if tokenName != "" {
-					assetsInEth, err = self.convertTokenToEth(tokenName, assetsVal)
+					assetsInEth, err = self.convertTokenToEth(payload.Input, tokenName, assetsVal)
 					if err != nil {
 						return err
 					}
@@ -147,11 +154,22 @@ func (self *AssetsCalculator) run() (err error) {
 	return nil
 }
 
-func (self *AssetsCalculator) GetAssetsNames(methodName string) (assetsNames []string) {
+func (self *AssetsCalculator) GetAssetsNames(methodName string, methodType MethodType) (assetsNames []string) {
+	assets := make(map[MethodType]map[string][]string)
+	logAssets := map[string][]string{
+		"withdraw": self.Config.WarpySyncer.AssetsCalculatorWithdrawLogAssetsNames,
+		"deposit":  self.Config.WarpySyncer.AssetsCalculatorDepositLogAssetsNames,
+	}
+	inputsAssets := map[string][]string{
+		"withdraw": self.Config.WarpySyncer.AssetsCalculatorWithdrawAssetsNames,
+		"deposit":  self.Config.WarpySyncer.AssetsCalculatorDepositAssetsNames,
+	}
+	assets[FromLog] = logAssets
+	assets[FromInput] = inputsAssets
 	if slices.Contains(self.Config.WarpySyncer.StoreDepositWithdrawFunctions, methodName) {
-		assetsNames = self.Config.WarpySyncer.AssetsCalculatorWithdrawAssetsNames
+		assetsNames = assets[methodType]["withdraw"]
 	} else {
-		assetsNames = self.Config.WarpySyncer.AssetsCalculatorDepositAssetsNames
+		assetsNames = assets[methodType]["deposit"]
 	}
 	return
 }
@@ -210,14 +228,14 @@ func (self *AssetsCalculator) GetAssetsFromLog(methodName string, tx *types.Tran
 	return assets, nil
 }
 
-func (self *AssetsCalculator) convertTokenToEth(tokenName string, assetsVal *big.Int) (assetsInEth float64, err error) {
+func (self *AssetsCalculator) convertTokenToEth(input map[string]interface{}, tokenName string, assetsVal *big.Int) (assetsInEth float64, err error) {
 	tokenPriceInEth, err := self.getPriceFromCache(tokenName)
 	if err != nil {
 		self.Log.WithError(err).Error("Could not get token price in ETH")
 		return
 	}
-
-	decimals := self.Config.WarpySyncer.SyncerChain.Decimals()
+	assetName := fmt.Sprintf("%v", input[self.Config.WarpySyncer.AssetsCalculatorInputTokenName])
+	decimals := eth.Decimals(assetName)
 	assetsValFloated, _ := big.NewFloat(0).SetInt(assetsVal).Float64()
 	assetsInEth = (assetsValFloated / math.Pow(10, decimals)) * tokenPriceInEth
 	return
@@ -228,7 +246,7 @@ func (self AssetsCalculator) getPriceFromCache(tokenName string) (price float64,
 	if x, found := self.priceCache.Get("prices"); found {
 		cachedPrices = x.(Prices)
 	} else {
-		cachedPrices = Prices{Bnb: 0, Btc: 0, Sei: 0}
+		cachedPrices = Prices{Bnb: 0, Btc: 0, Sei: 0, Aero: 0}
 		self.priceCache.Set("prices", cachedPrices, cache.DefaultExpiration)
 	}
 

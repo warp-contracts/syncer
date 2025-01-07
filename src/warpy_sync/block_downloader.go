@@ -82,7 +82,6 @@ func (self *BlockDownloader) WithInitStartBlockHeight(db *gorm.DB, syncedCompone
 			self.Log.WithError(err).Error("Failed to get last synced block height")
 			return
 		}
-
 		self.lastSyncedBlockHeight = LastSyncedBlock.FinishedBlockHeight
 		if self.pollerCron {
 			self.nextPollBlockHeight = self.calculateNextFullBlockHeight(self.lastSyncedBlockHeight, LastSyncedBlock.FinishedBlockTimestamp)
