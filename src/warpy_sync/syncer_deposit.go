@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/cenkalti/backoff"
@@ -152,7 +153,7 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 						return err
 					}
 
-					if (self.Config.WarpySyncer.SyncerChain == eth.Mode) || (self.Config.WarpySyncer.SyncerChain == eth.Manta) {
+					if len(self.Config.WarpySyncer.SyncerDepositTokens) > 0 {
 						contains := self.containsSpecificToken(inputsMap)
 						if !contains {
 							return nil
@@ -192,23 +193,13 @@ func (self *SyncerDeposit) checkTx(tx *types.Transaction, block *BlockInfoPayloa
 }
 
 func (self *SyncerDeposit) containsSpecificToken(inputsMap map[string]interface{}) bool {
-	tokenName := inputsMap["lToken"]
+	tokenName := inputsMap[self.Config.WarpySyncer.AssetsCalculatorInputTokenName]
 	tokenNameStr := fmt.Sprintf("%v", tokenName)
 	self.Log.WithField("token_name", tokenNameStr).Info("Token set for transfer")
 
-	// TODO: do it properly (i.e. via params, not hardcoded)
-	if self.Config.WarpySyncer.SyncerChain == eth.Mode {
-		if tokenNameStr != self.Config.WarpySyncer.SyncerDepositToken {
-			self.Log.WithField("token_name", tokenNameStr).Warn("Wrong token set for transfer")
-			return false
-		}
-	}
-
-	if self.Config.WarpySyncer.SyncerChain == eth.Manta {
-		if tokenNameStr != self.Config.WarpySyncer.SyncerDepositToken {
-			self.Log.WithField("token_id", tokenNameStr).Warn("Wrong token set for transfer")
-			return false
-		}
+	if !(slices.Contains(self.Config.WarpySyncer.SyncerDepositTokens, strings.ToLower(tokenNameStr))) {
+		self.Log.WithField("token_name", tokenNameStr).Warn("Wrong token set for transfer")
+		return false
 	}
 
 	return true
