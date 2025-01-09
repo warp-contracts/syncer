@@ -108,7 +108,7 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		contractAbi, err = ContractAbiFromMap(config)
 
 		// to be removed in prod
-		if config.WarpySyncer.SyncerProtocol == eth.YeiFinance {
+		if config.WarpySyncer.SyncerProtocol == eth.ZeroLend {
 			pwd, _ := os.Getwd()
 			records := files.ReadCsvFile(fmt.Sprintf("%s/src/warpy_sync/files/testers.csv", pwd))
 
