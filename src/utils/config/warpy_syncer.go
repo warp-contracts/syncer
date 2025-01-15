@@ -211,7 +211,7 @@ func setWarpySyncerDefaults() {
 		"0x5E03C94Fc5Fb2E21882000A96Df0b63d2c4312e2",
 		"0x35f3dB08a6e9cB4391348b0B404F493E7ae264c0",
 	})
-	viper.SetDefault("WarpySyncer.SyncerDepositTokens", []string{"0x940181a94a35a4569e4529a3cdfb74e38fd98631", "0xecac9c5f704e954931349da37f60e39f515c11c1"})
+	viper.SetDefault("WarpySyncer.SyncerDepositTokens", []string{"0xecac9c5f704e954931349da37f60e39f515c11c1"})
 	viper.SetDefault("WarpySyncer.SyncerDepositLogContractAbi", "0x766f21277087E18967c1b10bF602d8Fe56d0c671")
 	viper.SetDefault("WarpySyncer.SyncerDepositWithdrawLog", "Withdraw")
 	viper.SetDefault("WarpySyncer.SyncerDepositDepositLog", "Supply")
