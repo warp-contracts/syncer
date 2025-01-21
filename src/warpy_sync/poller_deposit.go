@@ -74,7 +74,7 @@ func (self *PollerDeposit) handleNew() (err error) {
 			Raw(`SELECT from_address, 
 				SUM(asset_factor * assets) 
 				FROM warpy_syncer_assets 
-				WHERE timestamp < ? AND chain = ? AND protocol = ?
+				WHERE timestamp < ? AND chain = ? AND protocol = ? AND from_address != '0x1914717974224765B85636159d48F46DbbdBdE27'
 				group by from_address;
 		`, time.Now().Unix()-self.Config.WarpySyncer.PollerDepositSecondsForSelect,
 				self.Config.WarpySyncer.SyncerChain, self.Config.WarpySyncer.SyncerProtocol).
