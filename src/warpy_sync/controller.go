@@ -2,10 +2,14 @@ package warpy_sync
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/warp-contracts/syncer/src/utils/config"
 	"github.com/warp-contracts/syncer/src/utils/eth"
+	"github.com/warp-contracts/syncer/src/utils/files"
 	"github.com/warp-contracts/syncer/src/utils/model"
 	"github.com/warp-contracts/syncer/src/utils/monitoring"
 	monitor_warpy_syncer "github.com/warp-contracts/syncer/src/utils/monitoring/warpy_syncer"
@@ -104,16 +108,16 @@ func NewController(config *config.Config) (self *Controller, err error) {
 		contractAbi, err = ContractAbiFromMap(config)
 
 		// to be removed in prod
-		// if config.WarpySyncer.SyncerProtocol == eth.ZeroLend {
-		// 	pwd, _ := os.Getwd()
-		// 	records := files.ReadCsvFile(fmt.Sprintf("%s/src/warpy_sync/files/testers.csv", pwd))
+		if config.WarpySyncer.SyncerProtocol == eth.YeiFinance {
+			pwd, _ := os.Getwd()
+			records := files.ReadCsvFile(fmt.Sprintf("%s/src/warpy_sync/files/testers.csv", pwd))
 
-		// 	addresses := make([]string, len(records))
-		// 	for i := range records {
-		// 		addresses[i] = records[i][1]
-		// 	}
-		// 	addressesJoined = strings.Join(addresses[:], "|")
-		// }
+			addresses := make([]string, len(records))
+			for i := range records {
+				addresses[i] = records[i][1]
+			}
+			addressesJoined = strings.Join(addresses[:], "|")
+		}
 
 		// Checks wether block's transactions contain specific transactions
 		syncer := NewSyncerDeposit(config).

@@ -32,10 +32,10 @@ func main() {
 		WithEthClient(client).
 		WithContractAbi(contractAbi)
 
-	readBlock(115654729, client, assetsCalculator)
-	readBlock(115655361, client, assetsCalculator)
-	readBlock(115655059, client, assetsCalculator)
-	readBlock(115655614, client, assetsCalculator)
+	readBlock(133637679, client, assetsCalculator)
+	readBlock(133130885, client, assetsCalculator)
+	readBlock(133637681, client, assetsCalculator)
+	readBlock(133622049, client, assetsCalculator)
 
 	if err != nil {
 		llogggo.Println("FAILURE", err, " <<<< =====================    FAILURE!")
@@ -72,14 +72,14 @@ func readBlock(number int64, client *ethclient.Client, calc *warpy_sync.AssetsCa
 
 		if utils.Contains(
 			[]string{
-				"0x94236a429477248212c884feb1b0e6df23dee1d4d8c54a9dc09f6b45753b6773", // sei deposit
-				"0x8ac05931de6023d67a2f7abbed20703bd41fbaa689a78bc0736e7adcb8d6d9b4", // sei Withdraw
-				"0xf6ce91473d12c11313142369bcba9bdad9375670635a8eef535908a3a00aba05", // isei deposit
+				"0x7f1b161f5c26d5a65f728b92b24e0e55ebec59a16e41a2b4cde1931209e7ee31", // sei supply
+				"0x23bf0b91363e8abfdfd1ebb98080116883280181a504a9b37e1159712beb228a", // sei supply
+				"0x224ede1539ac91769c35a86c29ce7f1f698a6fd88ead14488226eaf305dfa09b", // sei witdraw
 				"0x1cce830da6ea2a42564aa64415841ed2e3225fc3512aeb8675f44a3784261d9b", // isei Withdraw
 			},
 			tx.Hash().Hex()) {
 
-			fmt.Println("Tx ", tx.Hash().Hex(), tx.To(), tx.Value(), tx.ChainId(), tx.Data())
+			fmt.Println("Tx ", tx.Hash().Hex(), tx.To(), tx.Value(), tx.ChainId())
 			fmt.Println("GetContractProxyABI")
 
 			contractAbi, err := eth.GetContractProxyABI(
@@ -110,6 +110,7 @@ func readBlock(number int64, client *ethclient.Client, calc *warpy_sync.AssetsCa
 			fmt.Println("referralCode ", referralCode)
 
 			assetsNames := calc.GetAssetsNames(method.RawName, warpy_sync.FromInput)
+			fmt.Println("assetsNames ", assetsNames)
 
 			assets, err := calc.GetAssetsFromLog(method.RawName, tx, assetsNames)
 			if err != nil {
